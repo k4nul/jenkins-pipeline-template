@@ -5,5 +5,8 @@ out/
 *.groovy.local
 *.bak
 *.log
+AGENTS.md
+.codex/
+docs/management/
 .DS_Store
 Thumbs.db
