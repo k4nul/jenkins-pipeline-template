@@ -45,11 +45,13 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
 - 기본 샘플 애플리케이션은 공개 이미지를 사용하므로 서비스별 이미지 빌드 잡이 필수가 아닙니다.
 - 서비스 단위 잡은 해당 서비스에 실제 Jenkinsfile 이 있고, 카탈로그에서도 활성화되어 있을 때만 나타납니다.
 - `job-seed.Jenkinsfile` 의 프리셋 목록은 기본 공란이며, 이는 `config/environments` 에 있는 프리셋을 모두 사용하겠다는 의미입니다.
-- `job-seed.Jenkinsfile` 의 기본 저장소 URL 은 `https://github.com/k4nul/jenkins-pipeline-template.git` 입니다.
+- `job-seed.Jenkinsfile` 의 SCM URL 과 브랜치 스펙 기본값은 비어 있습니다. `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하기 전까지 생성된 DSL 은 공개용 placeholder 를 사용합니다.
+- dry-run 이 아닌 delivery 와 promotion 배포는 Jenkins 승인 프롬프트와 bootstrap secret/status 검증이 필요합니다.
 
-이 템플릿을 포크하거나 미러링해서 쓴다면 다음 값을 바꾸는 것이 좋습니다.
+Jenkins 에서 생성된 DSL 을 적용하기 전에는 다음 값을 설정하세요.
 
 - `SEED_REPO_URL`
+- `SEED_BRANCH_SPEC`
 - `SEED_SCM_CREDENTIALS_ID`
 - `SEED_JOB_ROOT` 같은 선택형 폴더 루트
 
@@ -63,7 +65,8 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
   -Profile web-platform `
   -Applications nginx-web,httpbin,whoami `
   -DataServices redis `
-  -RepoUrl https://github.com/k4nul/jenkins-pipeline-template.git `
+  -RepoUrl https://github.com/example-org/example-repo.git `
+  -BranchSpec '*/<branch-or-pattern>' `
   -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 

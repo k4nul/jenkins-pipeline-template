@@ -45,11 +45,13 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 - The default sample applications use public images, so per-service image build jobs are not required.
 - Service-level jobs appear only if a service actually has its own Jenkinsfile and the catalog marks it as such.
 - `job-seed.Jenkinsfile` leaves the preset list blank by default, which means "use every preset currently found in `config/environments`".
-- `job-seed.Jenkinsfile` uses `https://github.com/k4nul/jenkins-pipeline-template.git` as the default SCM URL.
+- `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
+- Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
 
-If you fork or mirror this template, change:
+Before applying generated DSL in Jenkins, set:
 
 - `SEED_REPO_URL`
+- `SEED_BRANCH_SPEC`
 - `SEED_SCM_CREDENTIALS_ID`
 - optional folder roots such as `SEED_JOB_ROOT`
 
@@ -63,7 +65,8 @@ If you want a custom selection instead of environment presets:
   -Profile web-platform `
   -Applications nginx-web,httpbin,whoami `
   -DataServices redis `
-  -RepoUrl https://github.com/k4nul/jenkins-pipeline-template.git `
+  -RepoUrl https://github.com/example-org/example-repo.git `
+  -BranchSpec '*/<branch-or-pattern>' `
   -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 

@@ -30,8 +30,9 @@ platform/
 ## 시드 기본값
 
 - `job-seed.Jenkinsfile` 에서 `SEED_ENVIRONMENT_PRESETS` 를 비워두면 현재 `config/environments` 에 있는 모든 프리셋에 대해 잡이 생성됩니다.
-- `SEED_REPO_URL` 의 기본값은 `https://github.com/k4nul/jenkins-pipeline-template.git` 입니다.
-- 이 템플릿을 포크하거나 미러링해서 쓴다면, 생성된 DSL 을 적용하기 전에 `SEED_REPO_URL` 을 자신의 저장소 주소로 바꿔야 SCM 기반 잡이 올바른 저장소를 바라봅니다.
+- `job-seed.Jenkinsfile` 에서 `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 기본값은 비어 있습니다.
+- `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하지 않으면 생성된 DSL 은 공개용 SCM placeholder 를 사용합니다.
+- Jenkins 에서 생성된 DSL 을 적용한다면, 먼저 `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, 필요 시 `SEED_SCM_CREDENTIALS_ID` 를 설정해 SCM 기반 잡이 의도한 저장소를 바라보게 하세요.
 
 ## 선택형 서비스 잡
 

@@ -18,9 +18,9 @@ pipeline {
         string(name: 'SEED_BUNDLE_OUTPUT_PATH', defaultValue: '', description: 'Optional bundle output path override for a custom selection.')
         string(name: 'SEED_ARCHIVE_PATH', defaultValue: '', description: 'Optional bundle archive path override for a custom selection.')
         string(name: 'SEED_PROMOTION_EXTRACT_PATH', defaultValue: '', description: 'Optional promotion extract path override for a custom selection.')
-        string(name: 'SEED_REPO_URL', defaultValue: 'https://github.com/k4nul/jenkins-pipeline-template.git', description: 'Repository URL used by the generated SCM-backed pipeline jobs. Change this if you fork or mirror the template.')
-        string(name: 'SEED_BRANCH_SPEC', defaultValue: '*/main', description: 'Git branch spec used by the generated SCM-backed pipeline jobs.')
-        string(name: 'SEED_SCM_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins credentials ID used for SCM checkout in the generated jobs.')
+        string(name: 'SEED_REPO_URL', defaultValue: '', description: 'Repository URL used by generated SCM-backed pipeline jobs. Required before applying the generated DSL.')
+        string(name: 'SEED_BRANCH_SPEC', defaultValue: '', description: 'Git branch spec used by generated SCM-backed pipeline jobs. Required before applying the generated DSL.')
+        string(name: 'SEED_SCM_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins credentials ID parameter used for SCM checkout in the generated jobs.')
         string(name: 'SEED_JOB_ROOT', defaultValue: 'platform', description: 'Root Jenkins folder for validation, delivery, and promotion jobs.')
         string(name: 'SEED_SERVICE_JOB_ROOT', defaultValue: 'services', description: 'Root Jenkins folder for service image jobs.')
         string(name: 'SEED_OUTPUT_PATH', defaultValue: 'out/jenkins/seed-job-dsl.groovy', description: 'Workspace-relative path where the generated Job DSL Groovy file will be written.')
@@ -122,14 +122,43 @@ function Add-OptionalSwitch {
     }
 }
 
+function Test-TrueValue {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+function Assert-ConcreteScmParameter {
+    param(
+        [string]$Name,
+        [AllowEmptyString()]
+        [string]$Value,
+        [string[]]$DisallowedValues = @()
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        throw "$Name must be set before SEED_APPLY_JOB_DSL=true."
+    }
+
+    if ($DisallowedValues -contains $Value.Trim()) {
+        throw "$Name must be changed from its public-safe placeholder before SEED_APPLY_JOB_DSL=true."
+    }
+}
+
+if (Test-TrueValue -Value $env:SEED_APPLY_JOB_DSL) {
+    Assert-ConcreteScmParameter -Name 'SEED_REPO_URL' -Value $env:SEED_REPO_URL -DisallowedValues @('REPLACE_WITH_REPOSITORY_URL')
+    Assert-ConcreteScmParameter -Name 'SEED_BRANCH_SPEC' -Value $env:SEED_BRANCH_SPEC -DisallowedValues @('REPLACE_WITH_BRANCH_SPEC')
+}
+
 $scriptPath = Join-Path $env:WORKSPACE 'scripts\\export-jenkins-job-dsl.ps1'
 $arguments = [System.Collections.Generic.List[string]]::new()
 $arguments.Add('-RepoRoot') | Out-Null
 $arguments.Add($env:WORKSPACE) | Out-Null
 $arguments.Add('-OutputPath') | Out-Null
 $arguments.Add($env:SEED_OUTPUT_PATH) | Out-Null
-$arguments.Add('-BranchSpec') | Out-Null
-$arguments.Add($env:SEED_BRANCH_SPEC) | Out-Null
 $arguments.Add('-JobRoot') | Out-Null
 $arguments.Add($env:SEED_JOB_ROOT) | Out-Null
 $arguments.Add('-ServiceJobRoot') | Out-Null
@@ -149,6 +178,7 @@ Add-OptionalStringArgument -Arguments $arguments -Name '-BundleOutputPath' -Valu
 Add-OptionalStringArgument -Arguments $arguments -Name '-ArchivePath' -Value $env:SEED_ARCHIVE_PATH
 Add-OptionalStringArgument -Arguments $arguments -Name '-PromotionExtractPath' -Value $env:SEED_PROMOTION_EXTRACT_PATH
 Add-OptionalStringArgument -Arguments $arguments -Name '-RepoUrl' -Value $env:SEED_REPO_URL
+Add-OptionalStringArgument -Arguments $arguments -Name '-BranchSpec' -Value $env:SEED_BRANCH_SPEC
 Add-OptionalStringArgument -Arguments $arguments -Name '-ScmCredentialsId' -Value $env:SEED_SCM_CREDENTIALS_ID
 Add-OptionalSwitch -Arguments $arguments -Name '-IncludeJenkins' -Value $env:SEED_INCLUDE_JENKINS
 Add-OptionalSwitch -Arguments $arguments -Name '-SkipServiceJobs' -Value $env:SEED_SKIP_SERVICE_JOBS

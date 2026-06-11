@@ -28,8 +28,9 @@ platform/
 ## Seeding Defaults
 
 - Leaving `SEED_ENVIRONMENT_PRESETS` blank in `job-seed.Jenkinsfile` will generate jobs for every preset currently present in `config/environments`.
-- `SEED_REPO_URL` defaults to `https://github.com/k4nul/jenkins-pipeline-template.git`.
-- If you fork or mirror this template, replace `SEED_REPO_URL` before applying the generated DSL so the SCM-backed jobs point at your own repository.
+- `SEED_REPO_URL` and `SEED_BRANCH_SPEC` default to blank in `job-seed.Jenkinsfile`.
+- Generated DSL uses public-safe SCM placeholders unless `SEED_REPO_URL` and `SEED_BRANCH_SPEC` are provided.
+- If you apply the generated DSL in Jenkins, set `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and any required `SEED_SCM_CREDENTIALS_ID` first so SCM-backed jobs point at your intended repository.
 
 ## Optional Service Jobs
 
