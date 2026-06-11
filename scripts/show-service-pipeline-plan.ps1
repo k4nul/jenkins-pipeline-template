@@ -8,6 +8,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
+
 if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
     $RepoRoot = Join-Path $PSScriptRoot ".."
 }
@@ -16,32 +18,6 @@ $root = (Resolve-Path -Path $RepoRoot).Path
 $catalogPath = Join-Path $root "config\service-pipelines.psd1"
 $catalog = Import-PowerShellDataFile -Path $catalogPath
 $services = @($catalog.Services | Sort-Object { $_.Name })
-
-function Resolve-RepoOutputPath {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$RepoRoot,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-
-    $resolvedRoot = [System.IO.Path]::GetFullPath($RepoRoot)
-    $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot "out"))
-    $resolvedPath = if ([System.IO.Path]::IsPathRooted($Path)) {
-        [System.IO.Path]::GetFullPath($Path)
-    }
-    else {
-        [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot $Path))
-    }
-
-    $outputRootPrefix = $outputRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-    if ($resolvedPath -ne $outputRoot -and -not $resolvedPath.StartsWith($outputRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw ("OutputPath must resolve under the repository out directory: {0}" -f $Path)
-    }
-
-    return $resolvedPath
-}
 
 $commonEnvVars = @(
     $services |
