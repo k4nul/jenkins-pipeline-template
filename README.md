@@ -2,6 +2,14 @@
 
 Reusable Jenkins pipeline, CI/CD, and Job DSL templates for the DevOps template set.
 
+## Open Source
+
+This repository is prepared for public collaboration under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening issues or pull requests.
+Do not commit Jenkins credentials, private SCM URLs, controller-specific output,
+or generated Job DSL for a real environment.
+
 ## Layout
 
 - `jenkins/`: repository validation, bundle delivery, promotion, and seed Jenkinsfiles
