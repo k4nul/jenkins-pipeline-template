@@ -115,12 +115,46 @@ function Join-JobPath {
         foreach ($part in @(([string]$segment -split "[\\/]+"))) {
             $trimmed = $part.Trim()
             if ($trimmed) {
+                if (
+                    $trimmed -in @(".", "..") -or
+                    $trimmed -match "[\x00-\x1F\x7F]" -or
+                    $trimmed -notmatch "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                ) {
+                    throw ("Jenkins job path segment is not allowed: {0}" -f $trimmed)
+                }
+
                 $parts.Add($trimmed) | Out-Null
             }
         }
     }
 
     return ($parts.ToArray() -join "/")
+}
+
+function Resolve-RepoOutputPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $resolvedRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot "out"))
+    $resolvedPath = if ([System.IO.Path]::IsPathRooted($Path)) {
+        [System.IO.Path]::GetFullPath($Path)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot $Path))
+    }
+
+    $outputRootPrefix = $outputRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    if ($resolvedPath -ne $outputRoot -and -not $resolvedPath.StartsWith($outputRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw ("OutputPath must resolve under the repository out directory: {0}" -f $Path)
+    }
+
+    return $resolvedPath
 }
 
 function Format-PowerShellLiteral {
@@ -748,7 +782,7 @@ switch ($Format) {
 }
 
 if ($PSBoundParameters.ContainsKey("OutputPath") -and $OutputPath) {
-    $resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+    $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
     $outputDirectory = Split-Path -Path $resolvedOutputPath -Parent
     if ($outputDirectory) {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null

@@ -100,6 +100,17 @@ if ($needsClusterTools) {
             }
         }
 
+        stage('Deployment Approval') {
+            when {
+                expression { return params.BUNDLE_DEPLOY && !params.BUNDLE_DEPLOY_DRY_RUN }
+            }
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    input message: 'Approve non-dry-run bundle deployment?', ok: 'Approve deployment'
+                }
+            }
+        }
+
         stage('Bundle Delivery') {
             steps {
                 pwsh '''
@@ -134,6 +145,25 @@ function Add-OptionalSwitch {
 
     if ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase)) {
         $Arguments.Add($Name) | Out-Null
+    }
+}
+
+function Test-TrueValue {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+if ((Test-TrueValue -Value $env:BUNDLE_DEPLOY) -and -not (Test-TrueValue -Value $env:BUNDLE_DEPLOY_DRY_RUN)) {
+    if (-not (Test-TrueValue -Value $env:BUNDLE_REQUIRE_BOOTSTRAP_SECRETS_READY)) {
+        throw 'BUNDLE_REQUIRE_BOOTSTRAP_SECRETS_READY must be true for non-dry-run deployments.'
+    }
+
+    if (-not (Test-TrueValue -Value $env:BUNDLE_REQUIRE_BOOTSTRAP_STATUS)) {
+        throw 'BUNDLE_REQUIRE_BOOTSTRAP_STATUS must be true for non-dry-run deployments.'
     }
 }
 

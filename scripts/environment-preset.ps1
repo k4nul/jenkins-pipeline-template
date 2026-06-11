@@ -24,7 +24,24 @@ function Get-EnvironmentPresetData {
         }
     }
     else {
-        Join-Path $RepoRoot ("config\environments\{0}.psd1" -f $EnvironmentPreset)
+        $presetName = $EnvironmentPreset.Trim()
+        if (
+            -not $presetName -or
+            $presetName -in @(".", "..") -or
+            $presetName -ne [System.IO.Path]::GetFileName($presetName) -or
+            $presetName -notmatch "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        ) {
+            throw ("Environment preset names must be file basenames from config/environments: {0}" -f $EnvironmentPreset)
+        }
+
+        $presetDirectory = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "config\environments"))
+        $resolvedPresetPath = [System.IO.Path]::GetFullPath((Join-Path $presetDirectory ("{0}.psd1" -f $presetName)))
+        $presetDirectoryPrefix = $presetDirectory.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedPresetPath.StartsWith($presetDirectoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw ("Environment preset must resolve under config/environments: {0}" -f $EnvironmentPreset)
+        }
+
+        $resolvedPresetPath
     }
 
     if (-not (Test-Path -Path $candidatePath -PathType Leaf)) {

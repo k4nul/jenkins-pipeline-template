@@ -70,6 +70,17 @@ if ($needsClusterTools) {
             }
         }
 
+        stage('Deployment Approval') {
+            when {
+                expression { return params.PROMOTION_DEPLOY && !params.PROMOTION_DEPLOY_DRY_RUN }
+            }
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    input message: 'Approve non-dry-run bundle promotion deployment?', ok: 'Approve deployment'
+                }
+            }
+        }
+
         stage('Bundle Promotion') {
             steps {
                 pwsh '''
@@ -82,6 +93,25 @@ function Add-OptionalSwitch {
 
     if ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase)) {
         $Arguments.Add($Name) | Out-Null
+    }
+}
+
+function Test-TrueValue {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+if ((Test-TrueValue -Value $env:PROMOTION_DEPLOY) -and -not (Test-TrueValue -Value $env:PROMOTION_DEPLOY_DRY_RUN)) {
+    if (-not (Test-TrueValue -Value $env:PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY)) {
+        throw 'PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY must be true for non-dry-run deployments.'
+    }
+
+    if (-not (Test-TrueValue -Value $env:PROMOTION_REQUIRE_BOOTSTRAP_STATUS)) {
+        throw 'PROMOTION_REQUIRE_BOOTSTRAP_STATUS must be true for non-dry-run deployments.'
     }
 }
 

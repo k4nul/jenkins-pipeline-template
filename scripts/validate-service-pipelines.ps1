@@ -19,10 +19,35 @@ foreach ($service in @($catalog.Services | Sort-Object { $_.Name })) {
     $catalogMap[$service.Name] = $service
 }
 
-$serviceDirectories = @(Get-ChildItem -Path $servicesRoot -Directory | Sort-Object Name | Select-Object -ExpandProperty Name)
-$missingEntries = @($serviceDirectories | Where-Object { -not $catalogMap.Contains($_) })
-$missingDirectories = @($catalogMap.Keys | Where-Object { $serviceDirectories -notcontains $_ })
 $errors = New-Object System.Collections.Generic.List[string]
+$servicesRootExists = Test-Path -Path $servicesRoot -PathType Container
+$serviceDirectories = @()
+
+if ($servicesRootExists) {
+    $serviceDirectories = @(Get-ChildItem -Path $servicesRoot -Directory | Sort-Object Name | Select-Object -ExpandProperty Name)
+}
+else {
+    $jenkinsBackedDefinitions = @(
+        $catalogMap.Values |
+            Where-Object { [bool]$_.HasJenkinsfile -or @($_.RequiredJenkinsStrings).Count -gt 0 }
+    )
+
+    foreach ($definition in $jenkinsBackedDefinitions) {
+        $errors.Add("Catalog entry expects a Jenkinsfile-backed service but the services directory is missing: $($definition.Name)") | Out-Null
+    }
+
+    if ($jenkinsBackedDefinitions.Count -eq 0) {
+        Write-Host "No services directory found; catalog contains no Jenkinsfile-backed service jobs."
+    }
+}
+
+$missingEntries = @($serviceDirectories | Where-Object { -not $catalogMap.Contains($_) })
+$missingDirectories = if ($servicesRootExists) {
+    @($catalogMap.Keys | Where-Object { $serviceDirectories -notcontains $_ })
+}
+else {
+    @()
+}
 
 foreach ($item in $missingEntries) {
     $errors.Add("Service directory is missing from config/service-pipelines.psd1: $item") | Out-Null
