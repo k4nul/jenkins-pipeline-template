@@ -20,8 +20,11 @@ or generated Job DSL for a real environment.
 ## Typical Commands
 
 ```powershell
+.\scripts\validate-jenkins-job-dsl.ps1
 .\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
+
+Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export, environment presets, profiles, or service pipeline catalog data. It validates the built-in public-safe preset matrix and writes generated fixtures only under ignored `out/` paths.
 
 Keep repository URLs, credentials IDs, branch specs, and approval behavior parameterized before applying the template to a real project.

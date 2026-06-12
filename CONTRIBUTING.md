@@ -7,12 +7,15 @@ parameterized.
 ## Local Setup
 
 ```powershell
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 ```
 
-Use `scripts/validate-service-pipelines.ps1` when service pipeline catalog
-entries or generated Jenkinsfile expectations change.
+Use `scripts/validate-jenkins-job-dsl.ps1` as the first controller-free
+regression check when job planning, Job DSL export, environment presets, profiles,
+or service pipeline catalog data change. Use `scripts/validate-service-pipelines.ps1`
+directly when you only need the service catalog check.
 
 ## Pull Request Checklist
 

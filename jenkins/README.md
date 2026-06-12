@@ -30,15 +30,21 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 .\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
 ```
 
-2. Generate Job DSL:
+2. Run the controller-free Job DSL regression harness:
+
+```powershell
+.\scripts\validate-jenkins-job-dsl.ps1
+```
+
+3. Generate Job DSL:
 
 ```powershell
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
-3. Review the generated DSL and SCM settings.
-4. Apply the DSL in Jenkins.
-5. Run `repository-validation` before enabling delivery or promotion for a team.
+4. Review the generated DSL and SCM settings.
+5. Apply the DSL in Jenkins.
+6. Run `repository-validation` before enabling delivery or promotion for a team.
 
 ## Important Defaults
 
@@ -47,13 +53,40 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 - `job-seed.Jenkinsfile` leaves the preset list blank by default, which means "use every preset currently found in `config/environments`".
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
+- `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, and service catalog metadata without contacting a Jenkins controller.
 
 Before applying generated DSL in Jenkins, set:
 
 - `SEED_REPO_URL`
-- `SEED_BRANCH_SPEC`
-- `SEED_SCM_CREDENTIALS_ID`
+- `SEED_BRANCH_SPEC`, such as `*/main` or `*/release/*`
+- `SEED_SCM_CREDENTIALS_ID` when the repository requires Jenkins SCM credentials; leave it blank for public repositories
 - optional folder roots such as `SEED_JOB_ROOT`
+
+The template intentionally does not assume `main`, `master`, or a fixed protected-branch policy. Keep the branch spec explicit for the repository that will own the generated jobs.
+
+## Seed Parameters
+
+| Parameter | Purpose |
+| --- | --- |
+| `SEED_ENVIRONMENT_PRESETS` | Optional comma-separated preset list. Leave blank to generate every preset from `config/environments`. |
+| `SEED_SELECTION_NAME`, `SEED_PROFILE`, `SEED_APPLICATIONS`, `SEED_DATA_SERVICES` | Custom selection inputs used when you are not generating from named presets. |
+| `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, `SEED_SCM_CREDENTIALS_ID` | SCM inputs consumed by generated pipeline jobs. URL and branch spec are required before `SEED_APPLY_JOB_DSL=true`; credentials ID stays optional and parameterized. |
+| `SEED_JOB_ROOT`, `SEED_SERVICE_JOB_ROOT` | Jenkins folder roots for bundle jobs and service image jobs. |
+| `SEED_SKIP_SERVICE_JOBS` | Generate only the validation, delivery, and promotion bundle chain. |
+| `SEED_USE_LIGHTWEIGHT_CHECKOUT` | Controls lightweight checkout in generated SCM-backed pipeline jobs. |
+| `SEED_APPLY_JOB_DSL`, `SEED_REMOVED_JOB_ACTION` | Applies the generated DSL through the Job DSL plugin and controls behavior for previously generated jobs. |
+
+## Job DSL Coverage
+
+`scripts/validate-jenkins-job-dsl.ps1` covers the built-in public-safe preset matrix by default. For each preset it:
+
+- renders the Jenkins job plan
+- exports ignored Job DSL fixtures under `out/jenkins/validation`
+- verifies the validation, delivery, and promotion `pipelineJob` entries
+- verifies generated SCM URL, branch spec, and credentials handling stay parameterized
+- validates service catalog metadata and runs the service pipeline validator
+
+This is a controller-free regression fixture. It does not prove a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete.
 
 ## Custom Selection Example
 
