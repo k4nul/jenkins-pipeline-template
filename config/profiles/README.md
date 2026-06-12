@@ -9,6 +9,8 @@ Profiles describe reusable bundle shapes. A profile decides the broad layout of 
 - `minimal-application`: base namespaces and storage only
 - `developer-sandbox`: compact sandbox with common platform pieces
 - `web-platform`: gateway-oriented public web stack
+- `reverse-proxy-platform`: simpler edge stack centered on NGINX plus optional DNS automation
+- `data-services`: shared data-services baseline with relational databases and caches
 - `shared-services`: shared cluster baseline
 - `full`: everything in the repository
 
@@ -17,7 +19,7 @@ Profiles describe reusable bundle shapes. A profile decides the broad layout of 
 Use:
 
 ```powershell
-.\scripts\show-profile-catalog.ps1 -Format markdown
+.\scripts\show-jenkins-job-plan.ps1 -SelectionName sandbox -Profile developer-sandbox -Format markdown
 ```
 
 Choose based on the question you are trying to answer:
@@ -25,6 +27,8 @@ Choose based on the question you are trying to answer:
 - "What is the smallest usable template?" -> `minimal-application`
 - "What can I test quickly?" -> `developer-sandbox`
 - "What should I use for a web-facing example stack?" -> `web-platform`
+- "What should I use for a simple reverse-proxy edge?" -> `reverse-proxy-platform`
+- "What should I use for shared databases and caches?" -> `data-services`
 - "What should I use for cluster-wide shared components?" -> `shared-services`
 
 ## Important Note
@@ -36,3 +40,5 @@ Profiles shape bundle content in generated Jenkins validation and delivery jobs.
 ```powershell
 .\scripts\validate-jenkins-job-dsl.ps1
 ```
+
+For the full local validation lane, see [../../docs/testing.md](../../docs/testing.md).

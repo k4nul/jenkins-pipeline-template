@@ -46,6 +46,10 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 5. Apply the DSL in Jenkins.
 6. Run `repository-validation` before enabling delivery or promotion for a team.
 
+For local validation details and known controller-free limits, see
+[`docs/testing.md`](../docs/testing.md) and
+[`docs/troubleshooting.md`](../docs/troubleshooting.md).
+
 ## Important Defaults
 
 - The default sample applications use public images, so per-service image build jobs are not required.
@@ -54,6 +58,8 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
 - `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, and service catalog metadata without contacting a Jenkins controller.
+- Generated local command fields describe the Pipeline DSL entrypoint contract; the controller-free harness does not execute live validation, delivery, or promotion entrypoints.
+- Live validation, delivery, and promotion jobs require the runtime helper scripts and environment value files referenced by the Jenkinsfiles to exist in the target repository or seed workspace.
 
 Before applying generated DSL in Jenkins, set:
 

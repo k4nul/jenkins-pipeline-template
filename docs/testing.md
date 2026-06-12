@@ -1,0 +1,57 @@
+# Testing And Validation
+
+This repository uses controller-free PowerShell checks as the first validation
+lane for Jenkins job planning, generated Job DSL, and the service pipeline
+catalog. The commands below do not contact a live Jenkins controller.
+
+## Prerequisite
+
+Install PowerShell 7 or newer so `pwsh` is available on your shell path.
+
+## Full Local Harness
+
+Run the aggregate harness before changing job planning, Job DSL export,
+environment presets, profiles, or service pipeline catalog data:
+
+```powershell
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
+```
+
+The harness validates every preset in `config/environments`, exports ignored
+fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
+spec, and credentials handling stay parameterized, validates service catalog
+metadata, and runs service pipeline validation.
+
+## Dashboard Validation Commands
+
+These commands match the repository's public-safe validation gate for the `dev`
+preset:
+
+```powershell
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+```
+
+Generated output must stay under `out/`, which is ignored by Git. Do not commit
+generated Job DSL from a real controller or environment.
+
+## What These Checks Prove
+
+- The `dev`, `staging`, and `prod` presets can render Jenkins job plans.
+- Job DSL export can produce folder and `pipelineJob` definitions.
+- Generated SCM URL, branch spec, and credentials ID values remain placeholders
+  or parameters until a Jenkins seed job receives explicit values.
+- Service catalog entries remain public-safe and internally consistent.
+
+## What These Checks Do Not Prove
+
+- A live Jenkins controller has the required Job DSL plugin or JCasC setup.
+- Jenkins agents have `kubectl`, `helm`, registry access, or cluster access.
+- Runtime entrypoint scripts and config files referenced by Jenkinsfiles exist
+  for a controller deployment.
+- Non-dry-run delivery and promotion can run without manual approval.
+
+Review [jenkins/JOB_BLUEPRINT.md](../jenkins/JOB_BLUEPRINT.md) before changing
+the Job DSL, Pipeline DSL, JCasC, or preset responsibility boundaries.
