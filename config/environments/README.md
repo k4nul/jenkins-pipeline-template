@@ -2,7 +2,7 @@
 
 English | [한국어](README.ko.md)
 
-This directory contains reusable environment presets that reduce repeated arguments for validation, delivery, promotion, and values scaffold scripts.
+This directory contains reusable environment presets that reduce repeated arguments for validation, delivery, promotion, and values scaffold scripts. Presets also drive generated Jenkins folder names, job parameters, archive paths, and promotion paths in the Job DSL plan/export flow.
 
 ## Included Presets
 
@@ -34,6 +34,12 @@ Example:
 ```
 
 Presets act as shared defaults, not hard locks. Explicit script arguments still override preset values.
+
+Run the Jenkins Job DSL harness after changing a preset:
+
+```powershell
+.\scripts\validate-jenkins-job-dsl.ps1
+```
 
 That means you can start from `dev` and still override:
 

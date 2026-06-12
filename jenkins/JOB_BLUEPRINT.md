@@ -46,13 +46,16 @@ Do not move private controller settings, fixed branch policies, or real credenti
 Use the local PowerShell scripts as the first regression fixture before changing Jenkins plugin assumptions, public image versions, or generated pipeline topology:
 
 ```powershell
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
-This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
+`validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By default it validates every built-in environment preset, exports ignored DSL fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials values remain parameterized, validates service catalog metadata, and runs service pipeline validation.
+
+This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. It does not prove that a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
 
 ## Preset Matrix
 
@@ -60,11 +63,11 @@ The default preset matrix covers `dev`, `staging`, and `prod`.
 
 | Preset | Profile | Applications | Data services | Jenkins components | Verification command |
 | --- | --- | --- | --- | --- | --- |
-| `dev` | `web-platform` | `nginx-web`, `httpbin`, `whoami` | `redis` | excluded | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` |
-| `staging` | `shared-services` | `nginx-web`, `httpbin`, `adminer` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset staging -Format json` |
-| `prod` | `shared-services` | `nginx-web`, `whoami` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset prod -Format json` |
+| `dev` | `web-platform` | `nginx-web`, `httpbin`, `whoami` | `redis` | excluded | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset dev` |
+| `staging` | `shared-services` | `nginx-web`, `httpbin`, `adminer` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset staging` |
+| `prod` | `shared-services` | `nginx-web`, `whoami` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset prod` |
 
-Run the full preset matrix when a change touches `config/environments/`, `config/profiles/`, `config/service-pipelines.psd1`, `scripts/show-jenkins-job-plan.ps1`, or `scripts/export-jenkins-job-dsl.ps1`. Keep `out/` generated files ignored and review generated Job DSL before applying it to a controller.
+Run `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` for the full preset matrix when a change touches `config/environments/`, `config/profiles/`, `config/service-pipelines.psd1`, `scripts/show-jenkins-job-plan.ps1`, or `scripts/export-jenkins-job-dsl.ps1`. Keep `out/` generated files ignored and review generated Job DSL before applying it to a controller.
 
 ## Dependency Upgrade Lanes
 
