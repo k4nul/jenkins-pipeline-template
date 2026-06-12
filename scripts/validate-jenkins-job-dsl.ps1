@@ -29,7 +29,9 @@ function Assert-TextContains {
         [string]$Context
     )
 
-    Assert-Condition -Condition $Text.Contains($Expected) -Message ("{0} is missing expected text: {1}" -f $Context, $Expected)
+    Assert-Condition `
+        -Condition $Text.Contains($Expected) `
+        -Message ("{0} is missing expected text: {1}" -f $Context, $Expected)
 }
 
 function Get-PresetNames {
@@ -58,7 +60,9 @@ function Invoke-JsonScript {
     )
 
     $json = (& $ScriptPath @Arguments | Out-String).Trim()
-    Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace($json)) -Message ("{0} returned empty JSON output." -f $ScriptPath)
+    Assert-Condition `
+        -Condition (-not [string]::IsNullOrWhiteSpace($json)) `
+        -Message ("{0} returned empty JSON output." -f $ScriptPath)
     return ($json | ConvertFrom-Json)
 }
 
@@ -72,9 +76,20 @@ function Assert-PipelineJob {
     )
 
     $job = @($Selection.PipelineJobs | Where-Object { $_.Name -eq $JobName } | Select-Object -First 1)
-    Assert-Condition -Condition ($null -ne $job) -Message ("Selection {0} is missing pipeline job {1}." -f $Selection.Name, $JobName)
-    Assert-Condition -Condition ([string]$job.Path -eq $ExpectedPath) -Message ("{0} path mismatch. Expected {1}; found {2}." -f $JobName, $ExpectedPath, $job.Path)
-    Assert-Condition -Condition ([string]$job.Jenkinsfile -eq $ExpectedJenkinsfile) -Message ("{0} Jenkinsfile mismatch. Expected {1}; found {2}." -f $JobName, $ExpectedJenkinsfile, $job.Jenkinsfile)
+    Assert-Condition `
+        -Condition ($null -ne $job) `
+        -Message ("Selection {0} is missing pipeline job {1}." -f $Selection.Name, $JobName)
+    Assert-Condition `
+        -Condition ([string]$job.Path -eq $ExpectedPath) `
+        -Message (
+            "{0} path mismatch. Expected {1}; found {2}." -f $JobName, $ExpectedPath, $job.Path
+        )
+    Assert-Condition `
+        -Condition ([string]$job.Jenkinsfile -eq $ExpectedJenkinsfile) `
+        -Message (
+            "{0} Jenkinsfile mismatch. Expected {1}; found {2}." -f $JobName,
+                $ExpectedJenkinsfile, $job.Jenkinsfile
+        )
 
     foreach ($parameter in @($ExpectedKeyParameters)) {
         Assert-Condition `
@@ -89,14 +104,22 @@ function Assert-JobPlan {
         [string]$Preset
     )
 
-    Assert-Condition -Condition ([int]$Plan.SelectionCount -eq 1) -Message ("Preset {0} should produce exactly one bundle selection." -f $Preset)
+    Assert-Condition `
+        -Condition ([int]$Plan.SelectionCount -eq 1) `
+        -Message ("Preset {0} should produce exactly one bundle selection." -f $Preset)
 
     $selection = @($Plan.Selections | Select-Object -First 1)
-    Assert-Condition -Condition ([string]$selection.Name -eq $Preset) -Message ("Preset {0} produced selection {1}." -f $Preset, $selection.Name)
-    Assert-Condition -Condition ([bool]$selection.UsesPreset) -Message ("Preset {0} should be marked as a preset-backed selection." -f $Preset)
+    Assert-Condition `
+        -Condition ([string]$selection.Name -eq $Preset) `
+        -Message ("Preset {0} produced selection {1}." -f $Preset, $selection.Name)
+    Assert-Condition `
+        -Condition ([bool]$selection.UsesPreset) `
+        -Message ("Preset {0} should be marked as a preset-backed selection." -f $Preset)
 
     $expectedRoot = "platform/{0}" -f $Preset
-    Assert-Condition -Condition ([string]$selection.BundleFolderPath -eq $expectedRoot) -Message ("Preset {0} bundle folder path mismatch." -f $Preset)
+    Assert-Condition `
+        -Condition ([string]$selection.BundleFolderPath -eq $expectedRoot) `
+        -Message ("Preset {0} bundle folder path mismatch." -f $Preset)
 
     Assert-PipelineJob `
         -Selection $selection `
@@ -129,7 +152,9 @@ function Assert-JobPlan {
             "PROMOTION_DEPLOY_DRY_RUN=true"
         )
 
-    Assert-Condition -Condition (@(@($selection.RecommendedFlow) -match "manual approval").Count -gt 0) -Message ("Preset {0} should keep promotion behind manual approval guidance." -f $Preset)
+    Assert-Condition `
+        -Condition (@(@($selection.RecommendedFlow) -match "manual approval").Count -gt 0) `
+        -Message ("Preset {0} should keep promotion behind manual approval guidance." -f $Preset)
 }
 
 function Assert-GeneratedDsl {
@@ -139,7 +164,9 @@ function Assert-GeneratedDsl {
         [string]$Preset
     )
 
-    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Expected generated Job DSL was not written: {0}" -f $DslPath)
+    Assert-Condition `
+        -Condition (Test-Path -Path $DslPath -PathType Leaf) `
+        -Message ("Expected generated Job DSL was not written: {0}" -f $DslPath)
     $dsl = Get-Content -Path $DslPath -Raw
 
     Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Context $DslPath
@@ -149,9 +176,25 @@ function Assert-GeneratedDsl {
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Context $DslPath
     Assert-TextContains -Text $dsl -Expected "lightweight(useLightweightCheckout)" -Context $DslPath
 
-    Assert-Condition -Condition (-not ($dsl -match "https?://|git@")) -Message ("Generated Job DSL for {0} contains a concrete SCM URL." -f $Preset)
-    Assert-Condition -Condition (-not ($dsl -match "credentials\(['""]")) -Message ("Generated Job DSL for {0} contains an inline credentials ID instead of the scmCredentialsId parameter." -f $Preset)
-    Assert-Condition -Condition (-not ($dsl -match "branch\(['""]")) -Message ("Generated Job DSL for {0} contains an inline branch spec instead of the branchSpec parameter." -f $Preset)
+    Assert-Condition `
+        -Condition (-not ($dsl -match "https?://|git@")) `
+        -Message ("Generated Job DSL for {0} contains a concrete SCM URL." -f $Preset)
+    Assert-Condition `
+        -Condition (-not ($dsl -match "credentials\(['""]")) `
+        -Message (
+            (
+                "Generated Job DSL for {0} contains an inline credentials ID instead of " +
+                "the scmCredentialsId parameter."
+            ) -f $Preset
+        )
+    Assert-Condition `
+        -Condition (-not ($dsl -match "branch\(['""]")) `
+        -Message (
+            (
+                "Generated Job DSL for {0} contains an inline branch spec instead of " +
+                "the branchSpec parameter."
+            ) -f $Preset
+        )
 
     foreach ($selection in @($Plan.Selections)) {
         foreach ($job in @($selection.PipelineJobs)) {
@@ -171,19 +214,36 @@ function Assert-ServicePipelinePlan {
         [object]$Plan
     )
 
-    Assert-Condition -Condition (@($Plan.Services).Count -gt 0) -Message "Service pipeline plan should include at least one catalog service."
+    Assert-Condition `
+        -Condition (@($Plan.Services).Count -gt 0) `
+        -Message "Service pipeline plan should include at least one catalog service."
 
     foreach ($service in @($Plan.Services)) {
-        Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Name)) -Message "Service pipeline plan contains a service without a name."
-        Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Category)) -Message ("Service {0} is missing a category." -f $service.Name)
-        Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.ImageName)) -Message ("Service {0} is missing an image name." -f $service.Name)
-        Assert-Condition -Condition ($null -ne $service.HasJenkinsfile) -Message ("Service {0} is missing HasJenkinsfile metadata." -f $service.Name)
-        Assert-Condition -Condition (@($service.RequiredFiles).Count -gt 0) -Message ("Service {0} should declare required files." -f $service.Name)
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Name)) `
+            -Message "Service pipeline plan contains a service without a name."
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Category)) `
+            -Message ("Service {0} is missing a category." -f $service.Name)
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.ImageName)) `
+            -Message ("Service {0} is missing an image name." -f $service.Name)
+        Assert-Condition `
+            -Condition ($null -ne $service.HasJenkinsfile) `
+            -Message ("Service {0} is missing HasJenkinsfile metadata." -f $service.Name)
+        Assert-Condition `
+            -Condition (@($service.RequiredFiles).Count -gt 0) `
+            -Message ("Service {0} should declare required files." -f $service.Name)
 
         if (-not [bool]$service.HasJenkinsfile) {
             Assert-Condition `
                 -Condition (@($service.RequiredJenkinsStrings).Count -eq 0) `
-                -Message ("Service {0} has Jenkins string assertions but is marked as not Jenkinsfile-backed." -f $service.Name)
+                -Message (
+                    (
+                        "Service {0} has Jenkins string assertions but is marked as " +
+                        "not Jenkinsfile-backed."
+                    ) -f $service.Name
+                )
         }
     }
 }
