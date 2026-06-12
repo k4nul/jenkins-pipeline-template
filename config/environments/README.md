@@ -12,8 +12,8 @@ This directory contains reusable environment presets that reduce repeated argume
 
 ## What A Preset Usually Controls
 
+- `Description`: human-readable selection summary used in generated plans
 - `ValuesFile`: default values file path
-- `DockerRegistry`: optional registry host used only when you introduce private images
 - `Version`: default image tag or validation tag
 - `Profile`: default bundle profile
 - `Applications`: default application selection
@@ -22,15 +22,20 @@ This directory contains reusable environment presets that reduce repeated argume
 - `OutputPath`: default rendered bundle output path for delivery workflows
 - `ArchivePath`: default ZIP archive path for delivery or promotion workflows
 - `PromotionExtractPath`: default extraction path for promotion workflows
-- `RenderedPath`: optional default rendered bundle path for repository validation workflows
+
+The current checked-in presets use public images and do not set `DockerRegistry`.
+The scripts still accept a registry override when a downstream template adds
+private images. The `ValuesFile` entries are referenced defaults for runtime
+validation and delivery; the current controller-free Job DSL harness does not
+require those files to exist.
 
 ## How To Use A Preset
 
 Example:
 
 ```powershell
-.\scripts\invoke-repository-validation.ps1 -EnvironmentPreset dev
-.\scripts\invoke-bundle-delivery.ps1 -EnvironmentPreset dev
+.\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
+.\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
 Presets act as shared defaults, not hard locks. Explicit script arguments still override preset values.
@@ -49,3 +54,7 @@ That means you can start from `dev` and still override:
 - output paths
 
 without editing the preset file immediately.
+
+The generated plan includes repository validation, delivery, and promotion
+command fields for Jenkins runtime jobs. Use [../../docs/testing.md](../../docs/testing.md)
+for the local controller-free validation lane that exists in this repository.

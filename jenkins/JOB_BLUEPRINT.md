@@ -57,6 +57,10 @@ pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. It does not prove that a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
 
+For the exact local command lane and common failure interpretation, see
+[`docs/testing.md`](../docs/testing.md) and
+[`docs/troubleshooting.md`](../docs/troubleshooting.md).
+
 ## Preset Matrix
 
 The default preset matrix covers `dev`, `staging`, and `prod`.
