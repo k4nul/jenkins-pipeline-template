@@ -29,6 +29,7 @@ pipeline {
         booleanParam(name: 'SEED_USE_LIGHTWEIGHT_CHECKOUT', defaultValue: true, description: 'Enable lightweight checkout on the generated SCM-backed pipeline jobs.')
         booleanParam(name: 'SEED_APPLY_JOB_DSL', defaultValue: false, description: 'Apply the generated Job DSL immediately by using the Jenkins Job DSL plugin.')
         choice(name: 'SEED_REMOVED_JOB_ACTION', choices: ['IGNORE', 'DISABLE', 'DELETE'], description: 'Behavior for previously generated jobs that are missing from the refreshed DSL when SEED_APPLY_JOB_DSL is enabled.')
+        booleanParam(name: 'SEED_CONFIRM_REMOVED_JOB_DELETE', defaultValue: false, description: 'Required confirmation before SEED_APPLY_JOB_DSL can run with SEED_REMOVED_JOB_ACTION=DELETE.')
     }
 
     environment {
@@ -54,6 +55,7 @@ pipeline {
         SEED_USE_LIGHTWEIGHT_CHECKOUT = "${params.SEED_USE_LIGHTWEIGHT_CHECKOUT}"
         SEED_APPLY_JOB_DSL = "${params.SEED_APPLY_JOB_DSL}"
         SEED_REMOVED_JOB_ACTION = "${params.SEED_REMOVED_JOB_ACTION}"
+        SEED_CONFIRM_REMOVED_JOB_DELETE = "${params.SEED_CONFIRM_REMOVED_JOB_DELETE}"
     }
 
     stages {
@@ -151,6 +153,10 @@ function Assert-ConcreteScmParameter {
 if (Test-TrueValue -Value $env:SEED_APPLY_JOB_DSL) {
     Assert-ConcreteScmParameter -Name 'SEED_REPO_URL' -Value $env:SEED_REPO_URL -DisallowedValues @('REPLACE_WITH_REPOSITORY_URL')
     Assert-ConcreteScmParameter -Name 'SEED_BRANCH_SPEC' -Value $env:SEED_BRANCH_SPEC -DisallowedValues @('REPLACE_WITH_BRANCH_SPEC')
+
+    if ($env:SEED_REMOVED_JOB_ACTION -eq 'DELETE' -and -not (Test-TrueValue -Value $env:SEED_CONFIRM_REMOVED_JOB_DELETE)) {
+        throw 'SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE.'
+    }
 }
 
 $scriptPath = Join-Path $env:WORKSPACE 'scripts\\export-jenkins-job-dsl.ps1'

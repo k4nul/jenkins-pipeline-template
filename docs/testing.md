@@ -19,8 +19,10 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 
 The harness validates every preset in `config/environments`, exports ignored
 fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
-spec, and credentials handling stay parameterized, validates service catalog
-metadata, and runs service pipeline validation.
+spec, and credentials handling stay parameterized, verifies explicit seed SCM
+inputs are escaped in generated Groovy strings, verifies destructive removed-job
+deletion requires explicit seed confirmation, validates service catalog metadata,
+and runs service pipeline validation.
 
 ## Dashboard Validation Commands
 
@@ -61,6 +63,11 @@ gate to pass.
 - Job DSL export can produce folder and `pipelineJob` definitions.
 - Generated SCM URL, branch spec, and credentials ID values remain placeholders
   or parameters until a Jenkins seed job receives explicit values.
+- Explicit seed SCM URL, branch spec, and credentials ID values are emitted as
+  escaped Groovy strings while generated jobs still call `credentials(scmCredentialsId)`
+  and `branch(branchSpec)`.
+- Applying generated Job DSL with `SEED_REMOVED_JOB_ACTION=DELETE` requires the
+  separate `SEED_CONFIRM_REMOVED_JOB_DELETE` guard.
 - Service catalog entries remain public-safe and internally consistent.
 
 ## What These Checks Do Not Prove

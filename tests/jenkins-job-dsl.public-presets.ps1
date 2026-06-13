@@ -185,6 +185,40 @@ function Assert-GeneratedDsl {
     }
 }
 
+function Assert-ExplicitScmDsl {
+    param(
+        [string]$DslPath
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message "Generated explicit-SCM DSL should exist."
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'example.invalid/org/repo\'with-quote.git'" -Message "Explicit SCM URL should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote\'safe'" -Message "Explicit branch spec should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm\'credentials'" -Message "Explicit credentials ID should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message "Explicit SCM DSL should keep credentials parameterized."
+    Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message "Explicit SCM DSL should keep branch selection parameterized."
+
+    Assert-Condition -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) -Message "Explicit SCM URL should not be written without Groovy escaping."
+    Assert-Condition -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) -Message "Explicit branch spec should not be written without Groovy escaping."
+    Assert-Condition -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) -Message "Explicit credentials ID should not be written without Groovy escaping."
+    Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message "Explicit SCM DSL should not inline credentials calls."
+    Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message "Explicit SCM DSL should not inline branch calls."
+}
+
+function Assert-SeedJobSafety {
+    param(
+        [string]$SeedJobPath
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $SeedJobPath -PathType Leaf) -Message "Seed Jenkinsfile should exist."
+    $seedJob = Get-Content -Path $SeedJobPath -Raw
+
+    Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE" -Message "Seed job should expose a delete confirmation parameter."
+    Assert-TextContains -Text $seedJob -Expected "SEED_REMOVED_JOB_ACTION -eq 'DELETE'" -Message "Seed job should check destructive removed-job action."
+    Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE." -Message "Seed job should fail before destructive delete without confirmation."
+}
+
 if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
     $RepoRoot = Join-Path $PSScriptRoot ".."
 }
@@ -193,6 +227,7 @@ $root = (Resolve-Path -Path $RepoRoot).Path
 $jobPlanScript = Join-Path $root "scripts/show-jenkins-job-plan.ps1"
 $servicePlanScript = Join-Path $root "scripts/show-service-pipeline-plan.ps1"
 $jobDslScript = Join-Path $root "scripts/export-jenkins-job-dsl.ps1"
+$seedJobPath = Join-Path $root "jenkins/job-seed.Jenkinsfile"
 $outputDirectory = Join-Path $root "out/jenkins/tests/public-presets"
 $presets = @(Get-PresetNames -Root $root)
 
@@ -233,5 +268,19 @@ foreach ($preset in $presets) {
     Assert-GeneratedDsl -DslPath $dslPath -Plan $plan -Preset $preset
 }
 
+$explicitScmPreset = [string]($presets | Select-Object -First 1)
+$explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $explicitScmPreset `
+    -RepoUrl "example.invalid/org/repo'with-quote.git" `
+    -BranchSpec "*/feature/quote'safe" `
+    -ScmCredentialsId "jenkins-scm'credentials" `
+    -OutputPath $explicitScmDslPath 6>$null | Out-Null
+Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
+Assert-SeedJobSafety -SeedJobPath $seedJobPath
+
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
+Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+Write-Output "Validated seed job destructive delete confirmation guard."
