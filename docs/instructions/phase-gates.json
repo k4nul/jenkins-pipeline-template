@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0.0",
+  "project": "devops/jenkins-pipeline-template",
+  "current_phase": "job-dsl-coverage",
+  "next_phase": "pipeline-boundary-hardening",
+  "transition": {
+    "intent": "Move to pipeline-boundary-hardening only after public-safe job plan, service plan, Job DSL export, and service pipeline validation pass.",
+    "mode": "machine-gated-template-readiness",
+    "validation_command": "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json && pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json && pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy && pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
+    "transition_validation_command": "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json && pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json && pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy && pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
+    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
+  },
+  "phase_model": [
+    {
+      "id": "job-dsl-coverage",
+      "purpose": "Stabilize public-safe Job DSL generation and service pipeline catalog validation.",
+      "allowed_work": [
+        "dev preset job plan generation",
+        "service pipeline plan generation",
+        "Job DSL export",
+        "service pipeline validation"
+      ],
+      "blocked_work": [
+        "real credentials",
+        "hardcoded private repository URLs",
+        "unapproved production actions"
+      ],
+      "exit_criteria": [
+        "dev job plan passes",
+        "service pipeline plan passes",
+        "Job DSL export passes",
+        "service pipeline validation passes"
+      ]
+    },
+    {
+      "id": "pipeline-boundary-hardening",
+      "purpose": "Document Job DSL, Pipeline DSL, and JCasC boundaries plus controller-free regression strategy.",
+      "allowed_work": [
+        "responsibility boundary documentation",
+        "pipeline unit strategy",
+        "preset matrix documentation"
+      ],
+      "blocked_work": [
+        "controller-dependent validation requirements for public defaults"
+      ],
+      "exit_criteria": [
+        "DSL/Pipeline/JCasC boundaries are documented",
+        "pipeline unit strategy is documented",
+        "dev/staging/prod preset matrix is documented"
+      ]
+    },
+    {
+      "id": "template-maintenance",
+      "purpose": "Maintain the public Jenkins template after readiness gates are complete.",
+      "allowed_work": [
+        "maintenance-audit",
+        "security-review",
+        "docs-update"
+      ],
+      "blocked_work": [
+        "new Jenkins platform scope without an explicit phase"
+      ],
+      "exit_criteria": [
+        "new template scope is selected"
+      ]
+    }
+  ],
+  "required_gates": [
+    {
+      "id": "job-plan-dev-passes",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "The dev job plan command must pass.",
+      "evidence": [
+        "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json"
+      ]
+    },
+    {
+      "id": "service-pipeline-plan-passes",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "The service pipeline plan command must pass.",
+      "evidence": [
+        "pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json"
+      ]
+    },
+    {
+      "id": "job-dsl-export-passes",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "The Job DSL export command must pass.",
+      "evidence": [
+        "pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy"
+      ]
+    },
+    {
+      "id": "service-pipeline-validation-passes",
+      "status": "pending",
+      "required_for_transition": true,
+      "description": "Service pipeline validation must be public-safe and covered by fixture or catalog-only checks.",
+      "evidence": [
+        "pwsh -NoProfile -File scripts/validate-service-pipelines.ps1"
+      ],
+      "on_failure": "Stay in job-dsl-coverage and fix public-safe service pipeline validation."
+    }
+  ]
+}
