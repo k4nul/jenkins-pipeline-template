@@ -6,8 +6,8 @@
   "transition": {
     "intent": "Move to pipeline-boundary-hardening only after public-safe job plan, service plan, Job DSL export, and service pipeline validation pass.",
     "mode": "machine-gated-template-readiness",
-    "validation_command": "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json && pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json && pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy && pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
-    "transition_validation_command": "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json && pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json && pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy && pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
+    "validation_command": "sh scripts/run-phase-validation.sh",
+    "transition_validation_command": "sh scripts/run-phase-validation.sh",
     "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
   },
   "phase_model": [
@@ -72,6 +72,7 @@
       "required_for_transition": true,
       "description": "The dev job plan command must pass.",
       "evidence": [
+        "sh scripts/run-phase-validation.sh",
         "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json"
       ]
     },
@@ -81,6 +82,7 @@
       "required_for_transition": true,
       "description": "The service pipeline plan command must pass.",
       "evidence": [
+        "sh scripts/run-phase-validation.sh",
         "pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json"
       ]
     },
@@ -90,6 +92,7 @@
       "required_for_transition": true,
       "description": "The Job DSL export command must pass.",
       "evidence": [
+        "sh scripts/run-phase-validation.sh",
         "pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy"
       ]
     },
@@ -99,6 +102,7 @@
       "required_for_transition": true,
       "description": "Service pipeline validation is public-safe and controller-free. Catalog-only services without Jenkinsfiles pass when the catalog has no Jenkinsfile-backed service jobs.",
       "evidence": [
+        "sh scripts/run-phase-validation.sh",
         "pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
         "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1"
       ],

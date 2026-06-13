@@ -9,6 +9,11 @@ Install PowerShell 7 or newer and retry the command with `pwsh -NoProfile`.
 The repository validation scripts are PowerShell scripts and are not expected to
 run through `bash` directly.
 
+For automation, use `sh scripts/run-phase-validation.sh` or set
+`POWERSHELL_BIN` to the absolute `pwsh` path. The wrapper also checks `PWSH`,
+`$HOME/.local/bin/pwsh`, and common system install paths so cron-style shells do
+not fail only because their `PATH` omits a local PowerShell install.
+
 ## `OutputPath must resolve under the repository out directory`
 
 Plan and export scripts only write generated artifacts under `out/`. Use paths
