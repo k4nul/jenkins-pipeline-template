@@ -209,6 +209,54 @@ function Assert-GeneratedDsl {
     }
 }
 
+function Assert-ExplicitScmDsl {
+    param(
+        [string]$DslPath
+    )
+
+    Assert-Condition `
+        -Condition (Test-Path -Path $DslPath -PathType Leaf) `
+        -Message ("Expected generated explicit-SCM Job DSL was not written: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'example.invalid/org/repo\'with-quote.git'" -Context $DslPath
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote\'safe'" -Context $DslPath
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm\'credentials'" -Context $DslPath
+    Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Context $DslPath
+    Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Context $DslPath
+
+    Assert-Condition `
+        -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) `
+        -Message "Generated explicit-SCM Job DSL contains an unescaped repository URL value."
+    Assert-Condition `
+        -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) `
+        -Message "Generated explicit-SCM Job DSL contains an unescaped branch spec value."
+    Assert-Condition `
+        -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) `
+        -Message "Generated explicit-SCM Job DSL contains an unescaped credentials ID value."
+    Assert-Condition `
+        -Condition (-not ($dsl -match "credentials\(['""]")) `
+        -Message "Generated explicit-SCM Job DSL inlines the credentials ID instead of the scmCredentialsId parameter."
+    Assert-Condition `
+        -Condition (-not ($dsl -match "branch\(['""]")) `
+        -Message "Generated explicit-SCM Job DSL inlines the branch spec instead of the branchSpec parameter."
+}
+
+function Assert-SeedJobSafety {
+    param(
+        [string]$SeedJobPath
+    )
+
+    Assert-Condition `
+        -Condition (Test-Path -Path $SeedJobPath -PathType Leaf) `
+        -Message ("Expected seed Jenkinsfile was not found: {0}" -f $SeedJobPath)
+    $seedJob = Get-Content -Path $SeedJobPath -Raw
+
+    Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE" -Context $SeedJobPath
+    Assert-TextContains -Text $seedJob -Expected "SEED_REMOVED_JOB_ACTION -eq 'DELETE'" -Context $SeedJobPath
+    Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE." -Context $SeedJobPath
+}
+
 function Assert-ServicePipelinePlan {
     param(
         [object]$Plan
@@ -257,6 +305,7 @@ $jobPlanScript = Join-Path $root "scripts/show-jenkins-job-plan.ps1"
 $servicePlanScript = Join-Path $root "scripts/show-service-pipeline-plan.ps1"
 $jobDslScript = Join-Path $root "scripts/export-jenkins-job-dsl.ps1"
 $serviceValidationScript = Join-Path $root "scripts/validate-service-pipelines.ps1"
+$seedJobPath = Join-Path $root "jenkins/job-seed.Jenkinsfile"
 $presets = @(Get-PresetNames -Root $root -RequestedPresets $EnvironmentPreset)
 
 Assert-Condition -Condition ($presets.Count -gt 0) -Message "No environment presets were found for Jenkins validation."
@@ -288,6 +337,18 @@ foreach ($preset in $presets) {
     }) | Out-Null
 }
 
+$explicitScmPreset = [string]($presets | Select-Object -First 1)
+$explicitScmDslPath = Join-Path $resolvedOutputDirectory ("{0}-explicit-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $explicitScmPreset `
+    -RepoUrl "example.invalid/org/repo'with-quote.git" `
+    -BranchSpec "*/feature/quote'safe" `
+    -ScmCredentialsId "jenkins-scm'credentials" `
+    -OutputPath $explicitScmDslPath 6>$null | Out-Null
+Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
+Assert-SeedJobSafety -SeedJobPath $seedJobPath
+
 $servicePlan = Invoke-JsonScript -ScriptPath $servicePlanScript -Arguments @{
     RepoRoot = $root
     Format = "json"
@@ -301,6 +362,8 @@ $summary = [PSCustomObject]@{
     PresetCount = $presets.Count
     ServiceCount = @($servicePlan.Services).Count
     OutputDirectory = $resolvedOutputDirectory
+    ExplicitScmFixture = $explicitScmDslPath
+    SeedJobSafety = "passed"
     Results = @($results.ToArray())
 }
 
@@ -309,6 +372,8 @@ if ($Format -eq "json") {
 }
 else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
+    Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+    Write-Output "Validated seed job destructive delete confirmation guard."
     Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
     Write-Output ("Generated ignored Job DSL fixtures under: {0}" -f $resolvedOutputDirectory)
 }

@@ -46,6 +46,7 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
 - 서비스 단위 잡은 해당 서비스에 실제 Jenkinsfile 이 있고, 카탈로그에서도 활성화되어 있을 때만 나타납니다.
 - `job-seed.Jenkinsfile` 의 프리셋 목록은 기본 공란이며, 이는 `config/environments` 에 있는 프리셋을 모두 사용하겠다는 의미입니다.
 - `job-seed.Jenkinsfile` 의 SCM URL 과 브랜치 스펙 기본값은 비어 있습니다. `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하기 전까지 생성된 DSL 은 공개용 placeholder 를 사용합니다.
+- `SEED_APPLY_JOB_DSL=true` 에서 `SEED_REMOVED_JOB_ACTION=DELETE` 를 사용하려면 `SEED_CONFIRM_REMOVED_JOB_DELETE=true` 확인 값도 필요합니다.
 - dry-run 이 아닌 delivery 와 promotion 배포는 Jenkins 승인 프롬프트와 bootstrap secret/status 검증이 필요합니다.
 
 Jenkins 에서 생성된 DSL 을 적용하기 전에는 다음 값을 설정하세요.

@@ -56,6 +56,7 @@ For local validation details and known controller-free limits, see
 - Service-level jobs appear only if a service actually has its own Jenkinsfile and the catalog marks it as such.
 - `job-seed.Jenkinsfile` leaves the preset list blank by default, which means "use every preset currently found in `config/environments`".
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
+- `job-seed.Jenkinsfile` requires `SEED_CONFIRM_REMOVED_JOB_DELETE=true` before `SEED_APPLY_JOB_DSL=true` can run with `SEED_REMOVED_JOB_ACTION=DELETE`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
 - `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, and service catalog metadata without contacting a Jenkins controller.
 - Generated local command fields describe the Pipeline DSL entrypoint contract; the controller-free harness does not execute live validation, delivery, or promotion entrypoints.
@@ -80,7 +81,7 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 | `SEED_JOB_ROOT`, `SEED_SERVICE_JOB_ROOT` | Jenkins folder roots for bundle jobs and service image jobs. |
 | `SEED_SKIP_SERVICE_JOBS` | Generate only the validation, delivery, and promotion bundle chain. |
 | `SEED_USE_LIGHTWEIGHT_CHECKOUT` | Controls lightweight checkout in generated SCM-backed pipeline jobs. |
-| `SEED_APPLY_JOB_DSL`, `SEED_REMOVED_JOB_ACTION` | Applies the generated DSL through the Job DSL plugin and controls behavior for previously generated jobs. |
+| `SEED_APPLY_JOB_DSL`, `SEED_REMOVED_JOB_ACTION`, `SEED_CONFIRM_REMOVED_JOB_DELETE` | Applies the generated DSL through the Job DSL plugin and controls behavior for previously generated jobs. `DELETE` requires the confirmation parameter. |
 
 ## Job DSL Coverage
 
@@ -90,6 +91,7 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - exports ignored Job DSL fixtures under `out/jenkins/validation`
 - verifies the validation, delivery, and promotion `pipelineJob` entries
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
+- verifies destructive removed-job deletion requires explicit seed confirmation
 - validates service catalog metadata and runs the service pipeline validator
 
 This is a controller-free regression fixture. It does not prove a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete.

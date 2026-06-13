@@ -53,7 +53,7 @@ pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev 
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
-`validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By default it validates every built-in environment preset, exports ignored DSL fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials values remain parameterized, validates service catalog metadata, and runs service pipeline validation.
+`validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By default it validates every built-in environment preset, exports ignored DSL fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials values remain parameterized, exercises explicit SCM value escaping in generated Groovy, verifies destructive removed-job deletion requires explicit seed confirmation, validates service catalog metadata, and runs service pipeline validation.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. It does not prove that a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
 
