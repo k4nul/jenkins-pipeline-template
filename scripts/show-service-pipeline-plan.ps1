@@ -10,11 +10,7 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
 
-if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
-    $RepoRoot = Join-Path $PSScriptRoot ".."
-}
-
-$root = (Resolve-Path -Path $RepoRoot).Path
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $catalogPath = Join-Path $root "config\service-pipelines.psd1"
 $catalog = Import-PowerShellDataFile -Path $catalogPath
 $services = @($catalog.Services | Sort-Object { $_.Name })
@@ -95,14 +91,7 @@ switch ($Format) {
 }
 
 if ($PSBoundParameters.ContainsKey("OutputPath") -and $OutputPath) {
-    $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
-    $outputDirectory = Split-Path -Path $resolvedOutputPath -Parent
-    if ($outputDirectory) {
-        New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-    }
-
-    Set-Content -Path $resolvedOutputPath -Value $document -NoNewline
-    Write-Host ("Wrote service pipeline plan to {0}" -f $resolvedOutputPath)
+    Write-RepoDocument -RepoRoot $root -Path $OutputPath -Document $document -Description "service pipeline plan"
 }
 else {
     Write-Output $document

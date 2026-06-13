@@ -29,6 +29,21 @@ function Get-TextList {
     return $Empty
 }
 
+function Resolve-RepoRoot {
+    param(
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DefaultRoot
+    )
+
+    if (-not $RepoRoot) {
+        $RepoRoot = $DefaultRoot
+    }
+
+    return (Resolve-Path -Path $RepoRoot).Path
+}
+
 function Resolve-RepoOutputPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -53,4 +68,78 @@ function Resolve-RepoOutputPath {
     }
 
     return $resolvedPath
+}
+
+function Write-RepoDocument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [AllowEmptyString()]
+        [string]$Document,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $RepoRoot -Path $Path
+    $outputDirectory = Split-Path -Path $resolvedOutputPath -Parent
+    if ($outputDirectory) {
+        New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+    }
+
+    Set-Content -Path $resolvedOutputPath -Value $Document -NoNewline
+    Write-Host ("Wrote {0} to {1}" -f $Description, $resolvedOutputPath)
+}
+
+function Join-JobPath {
+    param(
+        [string[]]$Segments
+    )
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    foreach ($segment in @($Segments)) {
+        foreach ($part in @(([string]$segment -split "[\\/]+"))) {
+            $trimmed = $part.Trim()
+            if ($trimmed) {
+                if (
+                    $trimmed -in @(".", "..") -or
+                    $trimmed -match "[\x00-\x1F\x7F]" -or
+                    $trimmed -notmatch "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                ) {
+                    throw ("Jenkins job path segment is not allowed: {0}" -f $trimmed)
+                }
+
+                $parts.Add($trimmed) | Out-Null
+            }
+        }
+    }
+
+    return ($parts.ToArray() -join "/")
+}
+
+function Get-FolderPathsFromJobPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$JobPath
+    )
+
+    $segments = @(
+        $JobPath -split "[/\\]+" |
+            Where-Object { $_ }
+    )
+
+    $folders = New-Object System.Collections.Generic.List[string]
+    if ($segments.Count -lt 2) {
+        return @()
+    }
+
+    for ($index = 0; $index -lt ($segments.Count - 1); $index++) {
+        $folders.Add(($segments[0..$index] -join "/")) | Out-Null
+    }
+
+    return @($folders.ToArray())
 }

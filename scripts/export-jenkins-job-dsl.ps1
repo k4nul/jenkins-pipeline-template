@@ -49,29 +49,6 @@ function ConvertTo-RelativeScmPath {
     return ([string]$Path).Replace("\", "/")
 }
 
-function Get-FolderPathsFromJobPath {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$JobPath
-    )
-
-    $segments = @(
-        $JobPath -split "[/\\]+" |
-            Where-Object { $_ }
-    )
-
-    $folders = New-Object System.Collections.Generic.List[string]
-    if ($segments.Count -lt 2) {
-        return @()
-    }
-
-    for ($index = 0; $index -lt ($segments.Count - 1); $index++) {
-        $folders.Add(($segments[0..$index] -join "/")) | Out-Null
-    }
-
-    return @($folders.ToArray())
-}
-
 function Add-UniqueFolderDescription {
     param(
         [hashtable]$Map,
@@ -89,11 +66,7 @@ function Add-UniqueFolderDescription {
     }
 }
 
-if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
-    $RepoRoot = Join-Path $PSScriptRoot ".."
-}
-
-$root = (Resolve-Path -Path $RepoRoot).Path
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
 $repoUrlForDsl = if ([string]::IsNullOrWhiteSpace($RepoUrl)) { "REPLACE_WITH_REPOSITORY_URL" } else { $RepoUrl.Trim() }
 $branchSpecForDsl = if ([string]::IsNullOrWhiteSpace($BranchSpec)) { "REPLACE_WITH_BRANCH_SPEC" } else { $BranchSpec.Trim() }
@@ -150,8 +123,8 @@ $selections = @($jobPlan.Selections)
 $serviceJobs = @($jobPlan.ServiceJobs)
 
 $folderDescriptions = @{}
-$bundleRootPath = (($JobRoot -split "[/\\]+" | Where-Object { $_ }) -join "/")
-$serviceRootPath = (($ServiceJobRoot -split "[/\\]+" | Where-Object { $_ }) -join "/")
+$bundleRootPath = Join-JobPath -Segments @($JobRoot)
+$serviceRootPath = Join-JobPath -Segments @($ServiceJobRoot)
 
 foreach ($folderPath in @(Get-FolderPathsFromJobPath -JobPath ($bundleRootPath + "/placeholder"))) {
     Add-UniqueFolderDescription -Map $folderDescriptions -Path $folderPath -Description "Generated Jenkins folder for reusable bundle validation, delivery, and promotion jobs."
@@ -297,12 +270,4 @@ foreach ($serviceJob in $serviceJobs | Sort-Object Name) {
 
 $document = $lines -join [Environment]::NewLine
 
-$resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
-
-$outputDirectory = Split-Path -Path $resolvedOutputPath -Parent
-if ($outputDirectory) {
-    New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-}
-
-Set-Content -Path $resolvedOutputPath -Value $document -NoNewline
-Write-Host ("Wrote Jenkins Job DSL to {0}" -f $resolvedOutputPath)
+Write-RepoDocument -RepoRoot $root -Path $OutputPath -Document $document -Description "Jenkins Job DSL"

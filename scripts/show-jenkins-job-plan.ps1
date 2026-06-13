@@ -77,32 +77,6 @@ function Get-OptionalBoolean {
     return [bool]$Preset[$Key]
 }
 
-function Join-JobPath {
-    param(
-        [string[]]$Segments
-    )
-
-    $parts = New-Object System.Collections.Generic.List[string]
-    foreach ($segment in @($Segments)) {
-        foreach ($part in @(([string]$segment -split "[\\/]+"))) {
-            $trimmed = $part.Trim()
-            if ($trimmed) {
-                if (
-                    $trimmed -in @(".", "..") -or
-                    $trimmed -match "[\x00-\x1F\x7F]" -or
-                    $trimmed -notmatch "^[A-Za-z0-9][A-Za-z0-9._-]*$"
-                ) {
-                    throw ("Jenkins job path segment is not allowed: {0}" -f $trimmed)
-                }
-
-                $parts.Add($trimmed) | Out-Null
-            }
-        }
-    }
-
-    return ($parts.ToArray() -join "/")
-}
-
 function Format-PowerShellLiteral {
     param(
         [AllowEmptyString()]
@@ -274,11 +248,7 @@ function Get-KeyParameterList {
     return @()
 }
 
-if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
-    $RepoRoot = Join-Path $PSScriptRoot ".."
-}
-
-$root = (Resolve-Path -Path $RepoRoot).Path
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $presetDirectory = Join-Path $root "config\environments"
 $servicePipelineCatalogPath = Join-Path $root "config\service-pipelines.psd1"
 $servicePipelineCatalog = Import-PowerShellDataFile -Path $servicePipelineCatalogPath
@@ -728,14 +698,7 @@ switch ($Format) {
 }
 
 if ($PSBoundParameters.ContainsKey("OutputPath") -and $OutputPath) {
-    $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
-    $outputDirectory = Split-Path -Path $resolvedOutputPath -Parent
-    if ($outputDirectory) {
-        New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-    }
-
-    Set-Content -Path $resolvedOutputPath -Value $document -NoNewline
-    Write-Host ("Wrote Jenkins job plan to {0}" -f $resolvedOutputPath)
+    Write-RepoDocument -RepoRoot $root -Path $OutputPath -Document $document -Description "Jenkins job plan"
 }
 else {
     Write-Output $document
