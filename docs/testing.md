@@ -25,7 +25,15 @@ metadata, and runs service pipeline validation.
 ## Dashboard Validation Commands
 
 These commands match the repository's public-safe validation gate for the `dev`
-preset:
+preset. Automation should call the repository-owned wrapper so non-interactive
+shells can resolve PowerShell from `PATH`, `POWERSHELL_BIN`, `PWSH`, or common
+local install paths:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+The wrapper runs:
 
 ```powershell
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
