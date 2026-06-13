@@ -95,11 +95,12 @@
     },
     {
       "id": "service-pipeline-validation-passes",
-      "status": "pending",
+      "status": "machine-check",
       "required_for_transition": true,
-      "description": "Service pipeline validation must be public-safe and covered by fixture or catalog-only checks.",
+      "description": "Service pipeline validation is public-safe and controller-free. Catalog-only services without Jenkinsfiles pass when the catalog has no Jenkinsfile-backed service jobs.",
       "evidence": [
-        "pwsh -NoProfile -File scripts/validate-service-pipelines.ps1"
+        "pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
+        "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1"
       ],
       "on_failure": "Stay in job-dsl-coverage and fix public-safe service pipeline validation."
     }

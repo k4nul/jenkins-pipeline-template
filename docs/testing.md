@@ -37,6 +37,16 @@ pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 Generated output must stay under `out/`, which is ignored by Git. Do not commit
 generated Job DSL from a real controller or environment.
 
+## Service Pipeline Catalog-Only Gate
+
+`scripts/validate-service-pipelines.ps1` supports the current public template
+state where `config/service-pipelines.psd1` lists public-image examples but no
+`services/` directory is present. In that case the command passes only when the
+catalog has no Jenkinsfile-backed service jobs. If a catalog entry sets
+`HasJenkinsfile = $true` or defines required Jenkinsfile text assertions, add the
+matching `services/<name>/Jenkinsfile` and required files before expecting this
+gate to pass.
+
 ## What These Checks Prove
 
 - The `dev`, `staging`, and `prod` presets can render Jenkins job plans.
