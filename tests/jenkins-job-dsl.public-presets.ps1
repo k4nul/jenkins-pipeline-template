@@ -219,6 +219,48 @@ function Assert-SeedJobSafety {
     Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE." -Message "Seed job should fail before destructive delete without confirmation."
 }
 
+function Assert-JenkinsfileArtifactPathSafety {
+    param(
+        [string]$JenkinsfilePath,
+        [string[]]$ExpectedParameterNames,
+        [string[]]$ExpectedDirectoryParameterNames = @(),
+        [string[]]$ExpectedPipelineBoundaryNames = @()
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $JenkinsfilePath -PathType Leaf) -Message ("Jenkinsfile should exist: {0}" -f $JenkinsfilePath)
+    $jenkinsfile = Get-Content -Path $JenkinsfilePath -Raw
+
+    Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutPath" -Message ("{0} should validate literal out/ artifact paths" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "must stay under out/." -Message ("{0} should require archive paths under out/" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "must be a literal path, not an Ant glob pattern." -Message ("{0} should reject archive glob patterns" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "segment == '..'" -Message ("{0} should reject parent-directory archive segments" -f $JenkinsfilePath)
+
+    if (@($ExpectedDirectoryParameterNames).Count -gt 0) {
+        Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutDirectoryPattern" -Message ("{0} should sanitize directory archive patterns" -f $JenkinsfilePath)
+    }
+
+    foreach ($parameterName in @($ExpectedParameterNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("requireLiteralOutPath(params.{0}, '{0}')" -f $parameterName) `
+            -Message ("{0} should sanitize {1} before archiving" -f $JenkinsfilePath, $parameterName)
+    }
+
+    foreach ($parameterName in @($ExpectedDirectoryParameterNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("requireLiteralOutDirectoryPattern(params.{0}, '{0}')" -f $parameterName) `
+            -Message ("{0} should sanitize {1} before archiving" -f $JenkinsfilePath, $parameterName)
+    }
+
+    foreach ($parameterName in @($ExpectedPipelineBoundaryNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("Assert-LiteralOutPath -Name '{0}'" -f $parameterName) `
+            -Message ("{0} should validate {1} before invoking downstream scripts" -f $JenkinsfilePath, $parameterName)
+    }
+}
+
 if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
     $RepoRoot = Join-Path $PSScriptRoot ".."
 }
@@ -228,6 +270,8 @@ $jobPlanScript = Join-Path $root "scripts/show-jenkins-job-plan.ps1"
 $servicePlanScript = Join-Path $root "scripts/show-service-pipeline-plan.ps1"
 $jobDslScript = Join-Path $root "scripts/export-jenkins-job-dsl.ps1"
 $seedJobPath = Join-Path $root "jenkins/job-seed.Jenkinsfile"
+$deliveryJobPath = Join-Path $root "jenkins/bundle-delivery.Jenkinsfile"
+$promotionJobPath = Join-Path $root "jenkins/bundle-promotion.Jenkinsfile"
 $outputDirectory = Join-Path $root "out/jenkins/tests/public-presets"
 $presets = @(Get-PresetNames -Root $root)
 
@@ -279,8 +323,20 @@ $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
+Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
+Assert-JenkinsfileArtifactPathSafety `
+    -JenkinsfilePath $deliveryJobPath `
+    -ExpectedParameterNames @("BUNDLE_ARCHIVE_PATH") `
+    -ExpectedDirectoryParameterNames @("BUNDLE_OUTPUT_PATH") `
+    -ExpectedPipelineBoundaryNames @("BUNDLE_OUTPUT_PATH", "BUNDLE_ARCHIVE_PATH")
+Assert-JenkinsfileArtifactPathSafety `
+    -JenkinsfilePath $promotionJobPath `
+    -ExpectedParameterNames @("PROMOTION_ARCHIVE_PATH") `
+    -ExpectedDirectoryParameterNames @("PROMOTION_EXTRACT_PATH") `
+    -ExpectedPipelineBoundaryNames @("PROMOTION_ARCHIVE_PATH", "PROMOTION_EXTRACT_PATH")
 
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
 Write-Output "Validated seed job destructive delete confirmation guard."
+Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."

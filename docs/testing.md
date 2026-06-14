@@ -21,8 +21,9 @@ The harness validates every preset in `config/environments`, exports ignored
 fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
 spec, and credentials handling stay parameterized, verifies explicit seed SCM
 inputs are escaped in generated Groovy strings, verifies destructive removed-job
-deletion requires explicit seed confirmation, validates service catalog metadata,
-and runs service pipeline validation.
+deletion requires explicit seed confirmation, verifies Jenkins artifact archiving
+uses literal paths under `out/`, validates service catalog metadata and required
+service file paths, and runs service pipeline validation.
 
 ## Dashboard Validation Commands
 
@@ -74,6 +75,10 @@ gate to pass.
   and `branch(branchSpec)`.
 - Applying generated Job DSL with `SEED_REMOVED_JOB_ACTION=DELETE` requires the
   separate `SEED_CONFIRM_REMOVED_JOB_DELETE` guard.
+- Jenkins artifact archive paths are literal workspace-relative paths under
+  `out/`, not caller-controlled absolute paths, parent traversal, or Ant globs.
+- Service catalog required-file paths are relative service-local paths, not
+  absolute paths, parent traversal, or glob patterns.
 - Service catalog entries remain public-safe and internally consistent.
 
 ## What These Checks Do Not Prove

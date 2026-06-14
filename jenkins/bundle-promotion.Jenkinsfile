@@ -1,3 +1,33 @@
+String requireLiteralOutPath(String value, String parameterName) {
+    String normalized = value == null ? '' : value.trim().replace('\\', '/')
+    if (!normalized) {
+        throw new IllegalArgumentException("${parameterName} must not be empty before using it as a Jenkins artifact path.")
+    }
+    if (normalized.startsWith('/') || normalized ==~ /^[A-Za-z]:\/.*/) {
+        throw new IllegalArgumentException("${parameterName} must be workspace-relative and stay under out/.")
+    }
+    if (normalized != 'out' && !normalized.startsWith('out/')) {
+        throw new IllegalArgumentException("${parameterName} must stay under out/.")
+    }
+    ['*', '?', '[', ']', '{', '}'].each { token ->
+        if (normalized.contains(token)) {
+            throw new IllegalArgumentException("${parameterName} must be a literal path, not an Ant glob pattern.")
+        }
+    }
+
+    def pathSegments = normalized.split('/') as List
+    if (pathSegments.any { segment -> segment == '.' || segment == '..' || segment == '' }) {
+        throw new IllegalArgumentException("${parameterName} must not contain empty, current-directory, or parent-directory segments.")
+    }
+
+    return normalized
+}
+
+String requireLiteralOutDirectoryPattern(String value, String parameterName) {
+    String normalized = requireLiteralOutPath(value, parameterName)
+    return normalized == 'out' ? 'out/**' : "${normalized}/**"
+}
+
 pipeline {
     agent any
 
@@ -105,6 +135,33 @@ function Test-TrueValue {
     return ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase))
 }
 
+function Assert-LiteralOutPath {
+    param(
+        [string]$Name,
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    $normalized = ([string]$Value).Trim().Replace([char]92, [char]47)
+    if (-not $normalized) {
+        throw "$Name must not be empty before file output or artifact archiving."
+    }
+    if ($normalized.StartsWith('/') -or $normalized -match '^[A-Za-z]:/') {
+        throw "$Name must be workspace-relative and stay under out/."
+    }
+    if ($normalized -ne 'out' -and -not $normalized.StartsWith('out/')) {
+        throw "$Name must stay under out/."
+    }
+    if ($normalized -match '[*?\[\]{}]') {
+        throw "$Name must be a literal path, not a glob pattern."
+    }
+
+    $segments = @($normalized -split '/')
+    if (@($segments | Where-Object { $_ -eq '' -or $_ -eq '.' -or $_ -eq '..' }).Count -gt 0) {
+        throw "$Name must not contain empty, current-directory, or parent-directory segments."
+    }
+}
+
 if ((Test-TrueValue -Value $env:PROMOTION_DEPLOY) -and -not (Test-TrueValue -Value $env:PROMOTION_DEPLOY_DRY_RUN)) {
     if (-not (Test-TrueValue -Value $env:PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY)) {
         throw 'PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY must be true for non-dry-run deployments.'
@@ -114,6 +171,9 @@ if ((Test-TrueValue -Value $env:PROMOTION_DEPLOY) -and -not (Test-TrueValue -Val
         throw 'PROMOTION_REQUIRE_BOOTSTRAP_STATUS must be true for non-dry-run deployments.'
     }
 }
+
+Assert-LiteralOutPath -Name 'PROMOTION_ARCHIVE_PATH' -Value $env:PROMOTION_ARCHIVE_PATH
+Assert-LiteralOutPath -Name 'PROMOTION_EXTRACT_PATH' -Value $env:PROMOTION_EXTRACT_PATH
 
 $scriptPath = Join-Path $env:WORKSPACE 'scripts\\invoke-bundle-promotion.ps1'
 $arguments = [System.Collections.Generic.List[string]]::new()
@@ -148,10 +208,10 @@ Add-OptionalSwitch -Arguments $arguments -Name '-DeploymentDryRun' -Value $env:P
             script {
                 def archivePatterns = []
                 if (params.PROMOTION_ARCHIVE_PATH?.trim()) {
-                    archivePatterns << params.PROMOTION_ARCHIVE_PATH.replace('\\', '/')
+                    archivePatterns << requireLiteralOutPath(params.PROMOTION_ARCHIVE_PATH, 'PROMOTION_ARCHIVE_PATH')
                 }
                 if (params.PROMOTION_EXTRACT_PATH?.trim()) {
-                    archivePatterns << "${params.PROMOTION_EXTRACT_PATH.replace('\\', '/')}/**"
+                    archivePatterns << requireLiteralOutDirectoryPattern(params.PROMOTION_EXTRACT_PATH, 'PROMOTION_EXTRACT_PATH')
                 }
 
                 if (!archivePatterns.isEmpty()) {

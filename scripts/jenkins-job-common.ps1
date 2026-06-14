@@ -53,6 +53,10 @@ function Resolve-RepoOutputPath {
         [string]$Path
     )
 
+    if ($Path -match "[*?\[\]{}]") {
+        throw ("OutputPath must be a literal path without wildcard or glob characters: {0}" -f $Path)
+    }
+
     $resolvedRoot = [System.IO.Path]::GetFullPath($RepoRoot)
     $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot "out"))
     $resolvedPath = if ([System.IO.Path]::IsPathRooted($Path)) {

@@ -1,6 +1,7 @@
 out/
 .env
 .env.*
+config/platform-values*.env
 !.env.example
 *.groovy.local
 *.bak
