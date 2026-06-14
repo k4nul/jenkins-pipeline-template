@@ -80,6 +80,10 @@ Run `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` for the full pr
 - PowerShell runtime compatibility changes should be proven by the controller-free regression strategy on a current `pwsh` runtime before Jenkins agent images are updated.
 - Jenkinsfile behavior changes should preserve manual approval for non-dry-run deployment and promotion paths.
 
+Use [docs/dependency-plan.md](../docs/dependency-plan.md) for the staged
+dependency and toolchain upgrade plan before changing image tags, controller
+runtime assumptions, Jenkins plugins, or agent tool baselines.
+
 ## Optional Service Jobs
 
 The current public-image sample services do not require dedicated Jenkins build jobs.
