@@ -20,10 +20,12 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 The harness validates every preset in `config/environments`, exports ignored
 fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
 spec, and credentials handling stay parameterized, verifies explicit seed SCM
-inputs are escaped in generated Groovy strings, verifies destructive removed-job
-deletion requires explicit seed confirmation, verifies Jenkins artifact archiving
-uses literal paths under `out/`, validates service catalog metadata and required
-service file paths, and runs service pipeline validation.
+inputs are escaped in generated Groovy strings, verifies the generated
+validation-delivery-promotion dependency chain, verifies service-job projection
+for any Jenkinsfile-backed selected services, verifies destructive removed-job
+deletion requires explicit seed confirmation, verifies Jenkins artifact
+archiving uses literal paths under `out/`, validates service catalog metadata
+and required service file paths, and runs service pipeline validation.
 
 ## Dashboard Validation Commands
 
@@ -68,6 +70,8 @@ gate to pass.
 - Job DSL export can produce folder and `pipelineJob` definitions.
 - The phase gate exercises both the focused `dev` transition commands and the
   all-preset public Job DSL harness.
+- Generated bundle jobs preserve the validation, delivery, manual approval, and
+  promotion dependency order.
 - Generated SCM URL, branch spec, and credentials ID values remain placeholders
   or parameters until a Jenkins seed job receives explicit values.
 - Explicit seed SCM URL, branch spec, and credentials ID values are emitted as
@@ -80,6 +84,8 @@ gate to pass.
 - Service catalog required-file paths are relative service-local paths, not
   absolute paths, parent traversal, or glob patterns.
 - Service catalog entries remain public-safe and internally consistent.
+- Jenkinsfile-backed catalog services selected by a preset are projected into
+  generated service jobs with service-local Jenkinsfile paths.
 
 ## What These Checks Do Not Prove
 

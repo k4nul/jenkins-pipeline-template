@@ -93,6 +93,8 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - renders the Jenkins job plan
 - exports ignored Job DSL fixtures under `out/jenkins/validation`
 - verifies the validation, delivery, and promotion `pipelineJob` entries
+- verifies validation-to-delivery-to-promotion upstream dependencies
+- verifies Jenkinsfile-backed selected services are projected into service jobs
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies destructive removed-job deletion requires explicit seed confirmation

@@ -47,7 +47,8 @@ function Assert-PipelineJob {
 function Assert-JobPlan {
     param(
         [object]$Plan,
-        [string]$Preset
+        [string]$Preset,
+        [hashtable]$ServiceIndex
     )
 
     Assert-Condition `
@@ -97,6 +98,60 @@ function Assert-JobPlan {
             "PROMOTION_DEPLOY=false",
             "PROMOTION_DEPLOY_DRY_RUN=true"
         )
+
+    $validationJob = @($selection.PipelineJobs | Where-Object { [string]$_.Name -eq "repository-validation" })[0]
+    $deliveryJob = @($selection.PipelineJobs | Where-Object { [string]$_.Name -eq "bundle-delivery" })[0]
+    $promotionJob = @($selection.PipelineJobs | Where-Object { [string]$_.Name -eq "bundle-promotion" })[0]
+
+    Assert-Condition `
+        -Condition ([string]$selection.ValidationJobPath -eq ("{0}/repository-validation" -f $expectedRoot)) `
+        -Message ("Preset {0} validation job path field mismatch." -f $Preset)
+    Assert-Condition `
+        -Condition ([string]$selection.DeliveryJobPath -eq ("{0}/bundle-delivery" -f $expectedRoot)) `
+        -Message ("Preset {0} delivery job path field mismatch." -f $Preset)
+    Assert-Condition `
+        -Condition ([string]$selection.PromotionJobPath -eq ("{0}/bundle-promotion" -f $expectedRoot)) `
+        -Message ("Preset {0} promotion job path field mismatch." -f $Preset)
+    Assert-Condition `
+        -Condition (@($validationJob.UpstreamDependencies).Count -eq 0) `
+        -Message ("Preset {0} validation job should not depend on another generated job." -f $Preset)
+    Assert-Condition `
+        -Condition (@($deliveryJob.UpstreamDependencies) -contains [string]$selection.ValidationJobPath) `
+        -Message ("Preset {0} delivery job should depend on repository validation." -f $Preset)
+    Assert-Condition `
+        -Condition (@($promotionJob.UpstreamDependencies) -contains [string]$selection.DeliveryJobPath) `
+        -Message ("Preset {0} promotion job should depend on bundle delivery." -f $Preset)
+
+    $expectedServiceJobNames = @(
+        @($selection.ServiceDirectories) |
+            Where-Object { $ServiceIndex.ContainsKey([string]$_) -and [bool]$ServiceIndex[[string]$_].HasJenkinsfile } |
+            Sort-Object -Unique
+    )
+    Assert-Condition `
+        -Condition ([int]$Plan.ServiceJobCount -eq $expectedServiceJobNames.Count) `
+        -Message ("Preset {0} service job count should match Jenkinsfile-backed selected services." -f $Preset)
+
+    foreach ($serviceDirectory in @($selection.ServiceDirectories)) {
+        Assert-Condition `
+            -Condition $ServiceIndex.ContainsKey([string]$serviceDirectory) `
+            -Message ("Preset {0} selected service {1} should exist in the service pipeline plan." -f $Preset, $serviceDirectory)
+    }
+
+    foreach ($serviceName in $expectedServiceJobNames) {
+        $serviceJob = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1)
+        Assert-Condition `
+            -Condition ($null -ne $serviceJob) `
+            -Message ("Preset {0} should include a service job for {1}." -f $Preset, $serviceName)
+        Assert-Condition `
+            -Condition ([string]$serviceJob.Path -eq ("services/{0}" -f $serviceName)) `
+            -Message ("Preset {0} service job path for {1} is incorrect." -f $Preset, $serviceName)
+        Assert-Condition `
+            -Condition ([string]$serviceJob.Jenkinsfile -eq ("services\{0}\Jenkinsfile" -f $serviceName)) `
+            -Message ("Preset {0} service Jenkinsfile path for {1} is incorrect." -f $Preset, $serviceName)
+        Assert-Condition `
+            -Condition (@($serviceJob.UsedBySelections) -contains [string]$Preset) `
+            -Message ("Preset {0} service job for {1} should record preset usage." -f $Preset, $serviceName)
+    }
 
     Assert-Condition `
         -Condition (@(@($selection.RecommendedFlow) -match "manual approval").Count -gt 0) `
@@ -161,6 +216,17 @@ Assert-Condition -Condition ($presets.Count -gt 0) -Message "No environment pres
 $resolvedOutputDirectory = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputDirectory
 New-Item -ItemType Directory -Path $resolvedOutputDirectory -Force | Out-Null
 
+$servicePlan = Invoke-JsonScript -ScriptPath $servicePlanScript -Arguments @{
+    RepoRoot = $root
+    Format = "json"
+}
+Assert-ServicePipelinePlan -Plan $servicePlan
+
+$serviceIndex = @{}
+foreach ($service in @($servicePlan.Services)) {
+    $serviceIndex[[string]$service.Name] = $service
+}
+
 $results = New-Object System.Collections.Generic.List[object]
 
 foreach ($preset in $presets) {
@@ -170,7 +236,7 @@ foreach ($preset in $presets) {
         Format = "json"
     }
 
-    Assert-JobPlan -Plan $plan -Preset $preset
+    Assert-JobPlan -Plan $plan -Preset $preset -ServiceIndex $serviceIndex
 
     $dslPath = Join-Path $resolvedOutputDirectory ("{0}-seed-job-dsl.groovy" -f $preset)
     & $jobDslScript -RepoRoot $root -EnvironmentPreset $preset -OutputPath $dslPath 6>$null | Out-Null
@@ -208,11 +274,6 @@ Assert-JenkinsfileArtifactPathSafety `
     -ExpectedDirectoryParameterNames @("PROMOTION_EXTRACT_PATH") `
     -ExpectedPipelineBoundaryNames @("PROMOTION_ARCHIVE_PATH", "PROMOTION_EXTRACT_PATH")
 
-$servicePlan = Invoke-JsonScript -ScriptPath $servicePlanScript -Arguments @{
-    RepoRoot = $root
-    Format = "json"
-}
-Assert-ServicePipelinePlan -Plan $servicePlan
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
 $summary = [PSCustomObject]@{
