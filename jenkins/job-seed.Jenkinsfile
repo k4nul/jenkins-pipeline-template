@@ -1,3 +1,28 @@
+String requireLiteralOutPath(String value, String parameterName) {
+    String normalized = value == null ? '' : value.trim().replace('\\', '/')
+    if (!normalized) {
+        throw new IllegalArgumentException("${parameterName} must not be empty before using it as a Jenkins artifact path.")
+    }
+    if (normalized.startsWith('/') || normalized ==~ /^[A-Za-z]:\/.*/) {
+        throw new IllegalArgumentException("${parameterName} must be workspace-relative and stay under out/.")
+    }
+    if (normalized != 'out' && !normalized.startsWith('out/')) {
+        throw new IllegalArgumentException("${parameterName} must stay under out/.")
+    }
+    ['*', '?', '[', ']', '{', '}'].each { token ->
+        if (normalized.contains(token)) {
+            throw new IllegalArgumentException("${parameterName} must be a literal path, not an Ant glob pattern.")
+        }
+    }
+
+    def pathSegments = normalized.split('/') as List
+    if (pathSegments.any { segment -> segment == '.' || segment == '..' || segment == '' }) {
+        throw new IllegalArgumentException("${parameterName} must not contain empty, current-directory, or parent-directory segments.")
+    }
+
+    return normalized
+}
+
 pipeline {
     agent any
 
@@ -201,7 +226,7 @@ Add-OptionalSwitch -Arguments $arguments -Name '-SkipServiceJobs' -Value $env:SE
             steps {
                 script {
                     jobDsl(
-                        targets: params.SEED_OUTPUT_PATH.replace('\\', '/'),
+                        targets: requireLiteralOutPath(params.SEED_OUTPUT_PATH, 'SEED_OUTPUT_PATH'),
                         removedJobAction: params.SEED_REMOVED_JOB_ACTION,
                         removedViewAction: 'IGNORE',
                         lookupStrategy: 'JENKINS_ROOT'
@@ -213,7 +238,7 @@ Add-OptionalSwitch -Arguments $arguments -Name '-SkipServiceJobs' -Value $env:SE
 
     post {
         always {
-            archiveArtifacts artifacts: params.SEED_OUTPUT_PATH.replace('\\', '/'), allowEmptyArchive: true, fingerprint: true
+            archiveArtifacts artifacts: requireLiteralOutPath(params.SEED_OUTPUT_PATH, 'SEED_OUTPUT_PATH'), allowEmptyArchive: true, fingerprint: true
         }
     }
 }

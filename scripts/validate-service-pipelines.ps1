@@ -20,6 +20,52 @@ foreach ($service in @($catalog.Services | Sort-Object { $_.Name })) {
 }
 
 $errors = New-Object System.Collections.Generic.List[string]
+
+function Test-ServiceRelativePath {
+    param(
+        [string]$ServiceName,
+        [AllowEmptyString()]
+        [string]$Path,
+        [System.Collections.Generic.List[string]]$Errors
+    )
+
+    $pathText = ([string]$Path).Trim()
+    if (-not $pathText) {
+        $Errors.Add("Catalog entry for $ServiceName contains an empty required file path.") | Out-Null
+        return $false
+    }
+
+    if ([System.IO.Path]::IsPathRooted($pathText)) {
+        $Errors.Add("Catalog entry for $ServiceName uses an absolute required file path: $pathText") | Out-Null
+        return $false
+    }
+
+    if ($pathText -match "[*?\[\]{}]") {
+        $Errors.Add("Catalog entry for $ServiceName uses a wildcard required file path: $pathText") | Out-Null
+        return $false
+    }
+
+    $segments = @($pathText -split "[/\\]+")
+    if (@($segments | Where-Object { $_ -eq "" -or $_ -eq "." -or $_ -eq ".." }).Count -gt 0) {
+        $Errors.Add("Catalog entry for $ServiceName uses a required file path outside the service directory: $pathText") | Out-Null
+        return $false
+    }
+
+    return $true
+}
+
+$safeRequiredFilesByService = @{}
+foreach ($serviceName in $catalogMap.Keys) {
+    $safeRequiredFiles = [System.Collections.Generic.List[string]]::new()
+    foreach ($fileName in @($catalogMap[$serviceName].RequiredFiles)) {
+        if (Test-ServiceRelativePath -ServiceName $serviceName -Path $fileName -Errors $errors) {
+            $safeRequiredFiles.Add([string]$fileName) | Out-Null
+        }
+    }
+
+    $safeRequiredFilesByService[$serviceName] = @($safeRequiredFiles.ToArray())
+}
+
 $servicesRootExists = Test-Path -Path $servicesRoot -PathType Container
 $serviceDirectories = @()
 
@@ -64,8 +110,16 @@ foreach ($serviceName in $catalogMap.Keys) {
         continue
     }
 
-    foreach ($fileName in @($definition.RequiredFiles)) {
+    foreach ($fileName in @($safeRequiredFilesByService[$serviceName])) {
         $filePath = Join-Path $serviceRoot $fileName
+        $resolvedServiceRoot = [System.IO.Path]::GetFullPath($serviceRoot)
+        $resolvedFilePath = [System.IO.Path]::GetFullPath($filePath)
+        $serviceRootPrefix = $resolvedServiceRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if ($resolvedFilePath -ne $resolvedServiceRoot -and -not $resolvedFilePath.StartsWith($serviceRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $errors.Add("Required service file for ${serviceName} resolves outside its service directory: services/$serviceName/$fileName") | Out-Null
+            continue
+        }
+
         if (-not (Test-Path -Path $filePath -PathType Leaf)) {
             $errors.Add("Missing required service file for ${serviceName}: services/$serviceName/$fileName") | Out-Null
         }

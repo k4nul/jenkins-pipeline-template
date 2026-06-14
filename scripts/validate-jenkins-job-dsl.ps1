@@ -257,6 +257,50 @@ function Assert-SeedJobSafety {
     Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE." -Context $SeedJobPath
 }
 
+function Assert-JenkinsfileArtifactPathSafety {
+    param(
+        [string]$JenkinsfilePath,
+        [string[]]$ExpectedParameterNames,
+        [string[]]$ExpectedDirectoryParameterNames = @(),
+        [string[]]$ExpectedPipelineBoundaryNames = @()
+    )
+
+    Assert-Condition `
+        -Condition (Test-Path -Path $JenkinsfilePath -PathType Leaf) `
+        -Message ("Expected Jenkinsfile was not found: {0}" -f $JenkinsfilePath)
+
+    $jenkinsfile = Get-Content -Path $JenkinsfilePath -Raw
+    Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutPath" -Context $JenkinsfilePath
+    Assert-TextContains -Text $jenkinsfile -Expected "must stay under out/." -Context $JenkinsfilePath
+    Assert-TextContains -Text $jenkinsfile -Expected "must be a literal path, not an Ant glob pattern." -Context $JenkinsfilePath
+    Assert-TextContains -Text $jenkinsfile -Expected "segment == '..'" -Context $JenkinsfilePath
+
+    if (@($ExpectedDirectoryParameterNames).Count -gt 0) {
+        Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutDirectoryPattern" -Context $JenkinsfilePath
+    }
+
+    foreach ($parameterName in @($ExpectedParameterNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("requireLiteralOutPath(params.{0}, '{0}')" -f $parameterName) `
+            -Context $JenkinsfilePath
+    }
+
+    foreach ($parameterName in @($ExpectedDirectoryParameterNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("requireLiteralOutDirectoryPattern(params.{0}, '{0}')" -f $parameterName) `
+            -Context $JenkinsfilePath
+    }
+
+    foreach ($parameterName in @($ExpectedPipelineBoundaryNames)) {
+        Assert-TextContains `
+            -Text $jenkinsfile `
+            -Expected ("Assert-LiteralOutPath -Name '{0}'" -f $parameterName) `
+            -Context $JenkinsfilePath
+    }
+}
+
 function Assert-ServicePipelinePlan {
     param(
         [object]$Plan
@@ -306,6 +350,8 @@ $servicePlanScript = Join-Path $root "scripts/show-service-pipeline-plan.ps1"
 $jobDslScript = Join-Path $root "scripts/export-jenkins-job-dsl.ps1"
 $serviceValidationScript = Join-Path $root "scripts/validate-service-pipelines.ps1"
 $seedJobPath = Join-Path $root "jenkins/job-seed.Jenkinsfile"
+$deliveryJobPath = Join-Path $root "jenkins/bundle-delivery.Jenkinsfile"
+$promotionJobPath = Join-Path $root "jenkins/bundle-promotion.Jenkinsfile"
 $presets = @(Get-PresetNames -Root $root -RequestedPresets $EnvironmentPreset)
 
 Assert-Condition -Condition ($presets.Count -gt 0) -Message "No environment presets were found for Jenkins validation."
@@ -348,6 +394,17 @@ $explicitScmDslPath = Join-Path $resolvedOutputDirectory ("{0}-explicit-scm-seed
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
+Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
+Assert-JenkinsfileArtifactPathSafety `
+    -JenkinsfilePath $deliveryJobPath `
+    -ExpectedParameterNames @("BUNDLE_ARCHIVE_PATH") `
+    -ExpectedDirectoryParameterNames @("BUNDLE_OUTPUT_PATH") `
+    -ExpectedPipelineBoundaryNames @("BUNDLE_OUTPUT_PATH", "BUNDLE_ARCHIVE_PATH")
+Assert-JenkinsfileArtifactPathSafety `
+    -JenkinsfilePath $promotionJobPath `
+    -ExpectedParameterNames @("PROMOTION_ARCHIVE_PATH") `
+    -ExpectedDirectoryParameterNames @("PROMOTION_EXTRACT_PATH") `
+    -ExpectedPipelineBoundaryNames @("PROMOTION_ARCHIVE_PATH", "PROMOTION_EXTRACT_PATH")
 
 $servicePlan = Invoke-JsonScript -ScriptPath $servicePlanScript -Arguments @{
     RepoRoot = $root
@@ -374,6 +431,7 @@ else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
     Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
     Write-Output "Validated seed job destructive delete confirmation guard."
+    Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
     Write-Output ("Generated ignored Job DSL fixtures under: {0}" -f $resolvedOutputDirectory)
 }
