@@ -76,6 +76,69 @@ function Assert-PresetPlan {
     }
 }
 
+function Assert-CustomDirectSelectionPlan {
+    param(
+        [object]$Plan
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Custom direct selection should produce one selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Custom direct selection should skip service jobs when requested"
+
+    $selection = @($Plan.Selections | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$selection.Name) -Expected "feature-blue-green" -Message "Custom selection name should be path-safe"
+    Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "Custom direct selection should not be marked as preset-backed"
+    Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "team/bundles/feature-blue-green" -Message "Custom selection should use the requested bundle root"
+    Assert-Equal -Actual ([string]$selection.ValidationJobPath) -Expected "team/bundles/feature-blue-green/repository-validation" -Message "Custom validation job path"
+    Assert-Equal -Actual ([string]$selection.DeliveryJobPath) -Expected "team/bundles/feature-blue-green/bundle-delivery" -Message "Custom delivery job path"
+    Assert-Equal -Actual ([string]$selection.PromotionJobPath) -Expected "team/bundles/feature-blue-green/bundle-promotion" -Message "Custom promotion job path"
+    Assert-Equal -Actual ([string]$selection.ValuesFile) -Expected "config/custom-values.env" -Message "Custom values file should be preserved"
+    Assert-Equal -Actual ([string]$selection.Version) -Expected "1.2.3" -Message "Custom version should be preserved"
+    Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected "out/delivery/custom" -Message "Custom bundle output path should be preserved"
+    Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out/delivery/custom.zip" -Message "Custom archive path should be preserved"
+    Assert-Equal -Actual ([string]$selection.PromotionExtractPath) -Expected "out/promotion/custom" -Message "Custom promotion extract path should be preserved"
+
+    $validationJob = Get-PipelineJob -Selection $selection -Name "repository-validation"
+    $deliveryJob = Get-PipelineJob -Selection $selection -Name "bundle-delivery"
+    $promotionJob = Get-PipelineJob -Selection $selection -Name "bundle-promotion"
+
+    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_PROFILE=web-platform" -Message "Custom validation job should expose the profile parameter"
+    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_APPLICATIONS=nginx-web, whoami" -Message "Custom validation job should expose application parameters"
+    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_DATA_SERVICES=redis" -Message "Custom validation job should expose data service parameters"
+    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_OUTPUT_PATH=out/delivery/custom" -Message "Custom delivery job should expose the bundle output path"
+    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom delivery job should expose the archive path"
+    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom promotion job should expose the archive path"
+    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_EXTRACT_PATH=out/promotion/custom" -Message "Custom promotion job should expose the extract path"
+
+    Assert-Condition -Condition (-not (@($validationJob.KeyParameters) -contains "VALIDATION_ENVIRONMENT_PRESET=feature-blue-green")) -Message "Custom validation job should not invent a preset parameter"
+    Assert-ContainsItem -Values @($deliveryJob.UpstreamDependencies) -Expected ([string]$validationJob.Path) -Message "Custom delivery should depend on validation"
+    Assert-ContainsItem -Values @($promotionJob.UpstreamDependencies) -Expected ([string]$deliveryJob.Path) -Message "Custom promotion should depend on delivery"
+}
+
+function Assert-CustomDirectSelectionDsl {
+    param(
+        [string]$DslPath,
+        [object]$Plan
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated custom direct-selection DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "// Service job count: 0" -Message "Custom direct-selection DSL should record that service jobs were skipped"
+    Assert-TextContains -Text $dsl -Expected "boolean useLightweightCheckout = false" -Message "Custom direct-selection DSL should honor the lightweight checkout override"
+    Assert-TextContains -Text $dsl -Expected "folder('team')" -Message "Custom direct-selection DSL should create the top-level custom folder"
+    Assert-TextContains -Text $dsl -Expected "folder('team/bundles')" -Message "Custom direct-selection DSL should create the requested bundle root folder"
+    Assert-TextContains -Text $dsl -Expected "folder('team/bundles/feature-blue-green')" -Message "Custom direct-selection DSL should create the sanitized selection folder"
+    Assert-TextContains -Text $dsl -Expected "folder('team/services')" -Message "Custom direct-selection DSL should create the requested service root folder"
+    Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('team/services/" -Message "Custom direct-selection DSL should not generate service jobs when service jobs are skipped"
+
+    foreach ($selection in @($Plan.Selections)) {
+        foreach ($job in @($selection.PipelineJobs)) {
+            Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $job.Path) -Message ("Custom direct-selection DSL should include job {0}" -f $job.Path)
+            Assert-TextContains -Text $dsl -Expected ([string]$job.Jenkinsfile).Replace("\", "/") -Message ("Custom direct-selection DSL should include Jenkinsfile {0}" -f $job.Jenkinsfile)
+        }
+    }
+}
+
 if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
     $RepoRoot = Join-Path $PSScriptRoot ".."
 }
@@ -137,6 +200,44 @@ $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl
     -ScmCredentialsId "jenkins-scm'credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
+
+$customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    SelectionName = "feature/blue green"
+    Profile = "web-platform"
+    Applications = @("nginx-web", "whoami")
+    DataServices = @("redis")
+    ValuesFile = "config/custom-values.env"
+    Version = "1.2.3"
+    BundleOutputPath = "out/delivery/custom"
+    ArchivePath = "out/delivery/custom.zip"
+    PromotionExtractPath = "out/promotion/custom"
+    JobRoot = "team/bundles"
+    ServiceJobRoot = "team/services"
+    SkipServiceJobs = $true
+    Format = "json"
+}
+Assert-CustomDirectSelectionPlan -Plan $customDirectSelectionPlan
+
+$customDirectSelectionDslPath = Join-Path $outputDirectory "custom-direct-selection-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -SelectionName "feature/blue green" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web", "whoami") `
+    -DataServices @("redis") `
+    -ValuesFile "config/custom-values.env" `
+    -Version "1.2.3" `
+    -BundleOutputPath "out/delivery/custom" `
+    -ArchivePath "out/delivery/custom.zip" `
+    -PromotionExtractPath "out/promotion/custom" `
+    -JobRoot "team/bundles" `
+    -ServiceJobRoot "team/services" `
+    -SkipServiceJobs `
+    -UseLightweightCheckout:$false `
+    -OutputPath $customDirectSelectionDslPath 6>$null | Out-Null
+Assert-CustomDirectSelectionDsl -DslPath $customDirectSelectionDslPath -Plan $customDirectSelectionPlan
+
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
 Assert-JenkinsfileArtifactPathSafety `
@@ -153,5 +254,6 @@ Assert-JenkinsfileArtifactPathSafety `
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output "Validated seed job destructive delete confirmation guard."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
