@@ -54,6 +54,38 @@ writes generated fixtures under `out/jenkins/validation`. Generated output must
 stay under `out/`, which is ignored by Git. Do not commit generated Job DSL from
 a real controller or environment.
 
+## Phase-Ready Job DSL Evidence
+
+The `job-dsl-coverage` phase is ready to hand off only when the controller-free
+wrapper passes end to end:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+That passing result means the local harness has evidence for the focused `dev`
+dashboard lane and the full public-safe preset matrix:
+
+- `dev` job planning renders one bundle selection with validation, delivery,
+  and promotion jobs under the `platform/dev` folder.
+- The service pipeline plan can render the public service catalog without a
+  `services/` directory because the built-in services are public-image examples
+  and do not declare Jenkinsfile-backed jobs.
+- Job DSL export can create the seed fixture under `out/jenkins/` while keeping
+  repository URL, branch spec, and credentials ID values parameterized.
+- Service pipeline validation and the aggregate Job DSL harness both pass
+  without contacting a Jenkins controller.
+
+Use this evidence as a boundary, not as live-controller approval. The wrapper
+does not install Jenkins plugins, verify JCasC, create credentials, check agent
+tool images, or run delivery/promotion against a cluster. Those are
+`pipeline-boundary-hardening` and controller rollout concerns.
+
+When a documentation-only change explains these boundaries, rerun the wrapper if
+the wording describes command behavior, generated job topology, or phase
+readiness. For prose that only links existing runbooks together, a Markdown
+review plus `git diff --check` is sufficient.
+
 ## Service Pipeline Catalog-Only Gate
 
 `scripts/validate-service-pipelines.ps1` supports the current public template

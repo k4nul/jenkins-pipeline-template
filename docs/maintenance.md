@@ -115,3 +115,23 @@ The next phase, `pipeline-boundary-hardening`, is for keeping the Job DSL,
 Pipeline DSL, and future JCasC responsibilities explicit. Documentation updates
 may improve those explanations, but only a `phase-transition` task should edit
 `docs/instructions/phase-gates.json` or other phase metadata.
+
+## Pipeline Boundary Hardening Checklist
+
+Use this checklist when preparing documentation or implementation work for the
+next phase. It keeps responsibility boundaries explicit without adding
+controller-dependent requirements to the public defaults.
+
+| Boundary | Keep in this repository | Keep outside the public default |
+| --- | --- | --- |
+| Job DSL | Folder paths, `pipelineJob` declarations, SCM parameter names, branch spec parameters, credentials ID parameters, lightweight checkout settings, and removed-job apply guards | Real SCM URLs, real credentials IDs, controller names, private folder policies, and organization-specific branch protections |
+| Pipeline DSL | Validation, delivery, promotion, archive, dry-run defaults, manual approval prompts, and bootstrap readiness checks in checked-in Jenkinsfiles | Unapproved production deployment behavior, private cluster assumptions, and controller-specific credential lookup logic |
+| JCasC/controller | Public-safe examples and documentation for plugin, agent, credential-provider, and security-realm expectations | Treating a live controller plugin set as proven by local Job DSL export, or embedding private controller configuration in generated jobs |
+| Service catalog | Public image metadata, required service-local file expectations, and whether a selected service has a Jenkinsfile-backed job | Generated service jobs for catalog entries that do not provide `services/<name>/Jenkinsfile` and matching required files |
+
+Before moving a concern across a boundary, run the command lane for the source
+area in the responsibility map above and update the matching reader-facing
+document. For example, a new Jenkinsfile-backed service needs service catalog
+docs, service validation, and the aggregate Job DSL harness; a future JCasC
+package needs separate controller validation guidance instead of broadening the
+controller-free phase gate.

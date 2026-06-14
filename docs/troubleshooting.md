@@ -48,6 +48,30 @@ The checked-in Jenkinsfiles also reference runtime helpers such as
 controller-free harness, so a live Jenkins rollout must provide or implement
 them before enabling validation, delivery, or promotion jobs.
 
+## Phase Validation Passes But Jenkins Rollout Is Not Ready
+
+`sh scripts/run-phase-validation.sh` is a local phase gate for public-safe Job
+DSL coverage. A passing result proves the `dev` dashboard lane, service catalog
+plan, Job DSL export, service validation, and full preset matrix harness can run
+without a Jenkins controller.
+
+It does not prove that a live controller is ready. Before applying generated DSL
+outside the local fixture, separately verify:
+
+- the Job DSL plugin and any controller plugins are installed or declared in
+  JCasC;
+- Jenkins agents provide `pwsh`, `git`, `kubectl`, and `helm` as needed by the
+  selected Jenkinsfiles;
+- `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and optional `SEED_SCM_CREDENTIALS_ID`
+  are set as Jenkins parameters rather than committed values;
+- runtime helper scripts and environment value files referenced by the
+  Jenkinsfiles exist in the seeded repository or workspace;
+- non-dry-run delivery and promotion still require the manual approval prompts.
+
+If the local phase gate passes but Jenkins fails while applying DSL or running a
+job, troubleshoot that as a controller, plugin, agent, credential, or target
+repository rollout issue rather than weakening the public-safe defaults.
+
 ## Service Jobs Do Not Appear
 
 Service jobs are generated only for catalog entries that set

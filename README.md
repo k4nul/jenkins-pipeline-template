@@ -40,7 +40,10 @@ Keep repository URLs, credentials IDs, branch specs, and approval behavior param
 
 See [docs/testing.md](docs/testing.md) for the controller-free validation lane
 and [docs/maintenance.md](docs/maintenance.md) for the Job DSL maintenance
-runbook. Use [docs/troubleshooting.md](docs/troubleshooting.md) for common local
-failures.
+runbook, including the Job DSL, Pipeline DSL, and controller/JCasC responsibility
+boundaries for the next phase. Use
+[docs/troubleshooting.md](docs/troubleshooting.md) for common local failures and
+for interpreting a passing local phase gate that still needs live-controller
+rollout checks.
 Use [docs/dependency-plan.md](docs/dependency-plan.md) when planning public image,
 Jenkins controller, PowerShell runtime, or Jenkins agent tool updates.
