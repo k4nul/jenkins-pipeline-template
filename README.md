@@ -34,3 +34,5 @@ Keep repository URLs, credentials IDs, branch specs, and approval behavior param
 
 See [docs/testing.md](docs/testing.md) for the controller-free validation lane
 and [docs/troubleshooting.md](docs/troubleshooting.md) for common local failures.
+Use [docs/dependency-plan.md](docs/dependency-plan.md) when planning public image,
+Jenkins controller, PowerShell runtime, or Jenkins agent tool updates.
