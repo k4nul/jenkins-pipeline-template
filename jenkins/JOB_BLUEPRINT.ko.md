@@ -34,6 +34,21 @@ platform/
 - `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하지 않으면 생성된 DSL 은 공개용 SCM placeholder 를 사용합니다.
 - Jenkins 에서 생성된 DSL 을 적용한다면, 먼저 `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, 필요 시 `SEED_SCM_CREDENTIALS_ID` 를 설정해 SCM 기반 잡이 의도한 저장소를 바라보게 하세요.
 
+## 컨트롤러 없는 회귀 전략
+
+Jenkins 플러그인 가정, 공개 이미지 버전, 생성되는 파이프라인 구조를 바꾸기 전에는 로컬 phase wrapper 와 PowerShell 하네스를 먼저 실행하세요.
+
+```text
+sh scripts/run-phase-validation.sh
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+```
+
+`run-phase-validation.sh` 는 전환 gate 이며, `dev` 기본 경로 검증 뒤에 전체 공개 프리셋 Job DSL 하네스를 실행합니다. `validate-jenkins-job-dsl.ps1` 는 `dev`, `staging`, `prod` 프리셋, SCM placeholder, 명시적 SCM 값 escaping, 삭제 보호, 서비스 카탈로그 메타데이터를 컨트롤러 없이 검증합니다.
+
 ## 선택형 서비스 잡
 
 현재 공개 이미지 기반 샘플 서비스는 전용 Jenkins 빌드 잡이 필요하지 않습니다.

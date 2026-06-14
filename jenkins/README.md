@@ -91,10 +91,15 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - exports ignored Job DSL fixtures under `out/jenkins/validation`
 - verifies the validation, delivery, and promotion `pipelineJob` entries
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
+- verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies destructive removed-job deletion requires explicit seed confirmation
 - validates service catalog metadata and runs the service pipeline validator
 
 This is a controller-free regression fixture. It does not prove a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete.
+
+The phase transition wrapper, `scripts/run-phase-validation.sh`, runs the focused
+`dev` dashboard commands and then this aggregate harness so transition checks
+exercise both the public default path and the full public-safe preset matrix.
 
 ## Custom Selection Example
 

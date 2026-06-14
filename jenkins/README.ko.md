@@ -30,15 +30,21 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
 .\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
 ```
 
-2. Job DSL 생성:
+2. 컨트롤러 없는 Job DSL 회귀 하네스 실행:
+
+```powershell
+.\scripts\validate-jenkins-job-dsl.ps1
+```
+
+3. Job DSL 생성:
 
 ```powershell
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
-3. 생성된 DSL 과 SCM 설정 검토
-4. Jenkins 에서 DSL 적용
-5. 팀 단위 활성화 전에 `repository-validation` 먼저 실행
+4. 생성된 DSL 과 SCM 설정 검토
+5. Jenkins 에서 DSL 적용
+6. 팀 단위 활성화 전에 `repository-validation` 먼저 실행
 
 ## 중요한 기본값
 
@@ -48,6 +54,12 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
 - `job-seed.Jenkinsfile` 의 SCM URL 과 브랜치 스펙 기본값은 비어 있습니다. `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하기 전까지 생성된 DSL 은 공개용 placeholder 를 사용합니다.
 - `SEED_APPLY_JOB_DSL=true` 에서 `SEED_REMOVED_JOB_ACTION=DELETE` 를 사용하려면 `SEED_CONFIRM_REMOVED_JOB_DELETE=true` 확인 값도 필요합니다.
 - dry-run 이 아닌 delivery 와 promotion 배포는 Jenkins 승인 프롬프트와 bootstrap secret/status 검증이 필요합니다.
+
+## Job DSL 커버리지
+
+`scripts/validate-jenkins-job-dsl.ps1` 는 기본적으로 `dev`, `staging`, `prod` 공개 프리셋 전체를 검증합니다. 각 프리셋에 대해 잡 계획 렌더링, ignored `out/jenkins/validation` 아래 Job DSL fixture 생성, `pipelineJob` 항목, SCM URL/브랜치/credentials parameterization, 명시적 SCM 값 Groovy escaping, 삭제 보호, 서비스 카탈로그 메타데이터와 서비스 파이프라인 validator 를 확인합니다.
+
+Phase 전환 wrapper 인 `scripts/run-phase-validation.sh` 는 `dev` dashboard 명령을 먼저 실행한 뒤 이 aggregate 하네스를 실행하므로, 공개 기본 경로와 전체 공개 프리셋 matrix 를 함께 검증합니다.
 
 Jenkins 에서 생성된 DSL 을 적용하기 전에는 다음 값을 설정하세요.
 
