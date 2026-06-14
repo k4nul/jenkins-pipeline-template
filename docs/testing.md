@@ -35,17 +35,21 @@ local install paths:
 sh scripts/run-phase-validation.sh
 ```
 
-The wrapper runs:
+The wrapper runs the phase-gate commands first, then the full public preset
+matrix harness:
 
 ```powershell
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
 ```
 
-Generated output must stay under `out/`, which is ignored by Git. Do not commit
-generated Job DSL from a real controller or environment.
+The final aggregate command validates every built-in public-safe preset and
+writes generated fixtures under `out/jenkins/validation`. Generated output must
+stay under `out/`, which is ignored by Git. Do not commit generated Job DSL from
+a real controller or environment.
 
 ## Service Pipeline Catalog-Only Gate
 
@@ -61,6 +65,8 @@ gate to pass.
 
 - The `dev`, `staging`, and `prod` presets can render Jenkins job plans.
 - Job DSL export can produce folder and `pipelineJob` definitions.
+- The phase gate exercises both the focused `dev` transition commands and the
+  all-preset public Job DSL harness.
 - Generated SCM URL, branch spec, and credentials ID values remain placeholders
   or parameters until a Jenkins seed job receives explicit values.
 - Explicit seed SCM URL, branch spec, and credentials ID values are emitted as

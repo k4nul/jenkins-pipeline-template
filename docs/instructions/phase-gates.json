@@ -4,7 +4,7 @@
   "current_phase": "job-dsl-coverage",
   "next_phase": "pipeline-boundary-hardening",
   "transition": {
-    "intent": "Move to pipeline-boundary-hardening only after public-safe job plan, service plan, Job DSL export, and service pipeline validation pass.",
+    "intent": "Move to pipeline-boundary-hardening only after public-safe job plan, service plan, Job DSL export, service pipeline validation, and the full public preset matrix harness pass.",
     "mode": "machine-gated-template-readiness",
     "validation_command": "sh scripts/run-phase-validation.sh",
     "transition_validation_command": "sh scripts/run-phase-validation.sh",
@@ -29,7 +29,8 @@
         "dev job plan passes",
         "service pipeline plan passes",
         "Job DSL export passes",
-        "service pipeline validation passes"
+        "service pipeline validation passes",
+        "public preset matrix validation passes"
       ]
     },
     {
@@ -107,6 +108,17 @@
         "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1"
       ],
       "on_failure": "Stay in job-dsl-coverage and fix public-safe service pipeline validation."
+    },
+    {
+      "id": "public-preset-matrix-validation-passes",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "The full public-safe preset matrix harness must pass so dev, staging, and prod Job DSL coverage stay validated together.",
+      "evidence": [
+        "sh scripts/run-phase-validation.sh",
+        "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json"
+      ],
+      "on_failure": "Stay in job-dsl-coverage and fix all-preset Job DSL validation before transitioning."
     }
   ]
 }

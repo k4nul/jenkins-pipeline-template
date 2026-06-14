@@ -43,9 +43,12 @@ Do not move private controller settings, fixed branch policies, or real credenti
 
 ## Controller-Free Regression Strategy
 
-Use the local PowerShell scripts as the first regression fixture before changing Jenkins plugin assumptions, public image versions, or generated pipeline topology:
+Use the local phase wrapper and PowerShell scripts as the first regression
+fixture before changing Jenkins plugin assumptions, public image versions, or
+generated pipeline topology:
 
-```powershell
+```text
+sh scripts/run-phase-validation.sh
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
@@ -53,7 +56,15 @@ pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev 
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
-`validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By default it validates every built-in environment preset, exports ignored DSL fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials values remain parameterized, exercises explicit SCM value escaping in generated Groovy, verifies destructive removed-job deletion requires explicit seed confirmation, validates service catalog metadata, and runs service pipeline validation.
+`run-phase-validation.sh` is the transition gate and calls the focused `dev`
+commands plus the aggregate harness. `validate-jenkins-job-dsl.ps1` is the
+aggregate controller-free harness. By default it validates every built-in
+environment preset, exports ignored DSL fixtures under `out/jenkins/validation`,
+checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials
+values remain parameterized, exercises explicit SCM value escaping in generated
+Groovy, verifies destructive removed-job deletion requires explicit seed
+confirmation, validates service catalog metadata, and runs service pipeline
+validation.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. It does not prove that a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
 

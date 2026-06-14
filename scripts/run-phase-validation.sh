@@ -36,3 +36,4 @@ cd "$repo_root"
 "$pwsh_bin" -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 "$pwsh_bin" -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 "$pwsh_bin" -NoProfile -File scripts/validate-service-pipelines.ps1
+"$pwsh_bin" -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
