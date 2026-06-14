@@ -86,3 +86,6 @@ gate to pass.
 
 Review [jenkins/JOB_BLUEPRINT.md](../jenkins/JOB_BLUEPRINT.md) before changing
 the Job DSL, Pipeline DSL, JCasC, or preset responsibility boundaries.
+Use [maintenance.md](maintenance.md) for the change-lane checklist that maps
+presets, profiles, service catalog entries, Job DSL export, Jenkinsfiles, and
+controller/JCasC scope to their validation commands.

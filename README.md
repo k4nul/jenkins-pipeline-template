@@ -15,10 +15,16 @@ or generated Job DSL for a real environment.
 - `jenkins/`: repository validation, bundle delivery, promotion, and seed Jenkinsfiles
 - `scripts/`: Job plan, Job DSL export, and service pipeline helpers
 - `config/`: reusable environment and service pipeline catalogs
-- `docs/`: local validation and troubleshooting guidance
+- `docs/`: local validation, maintenance, and troubleshooting guidance
 - `k8s/jenkins-controller/`: optional in-cluster Jenkins controller manifests
 
 ## Typical Commands
+
+Automation and phase validation use the repository-owned wrapper:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
 
 ```powershell
 .\scripts\validate-jenkins-job-dsl.ps1
@@ -33,6 +39,8 @@ Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export,
 Keep repository URLs, credentials IDs, branch specs, and approval behavior parameterized before applying the template to a real project.
 
 See [docs/testing.md](docs/testing.md) for the controller-free validation lane
-and [docs/troubleshooting.md](docs/troubleshooting.md) for common local failures.
+and [docs/maintenance.md](docs/maintenance.md) for the Job DSL maintenance
+runbook. Use [docs/troubleshooting.md](docs/troubleshooting.md) for common local
+failures.
 Use [docs/dependency-plan.md](docs/dependency-plan.md) when planning public image,
 Jenkins controller, PowerShell runtime, or Jenkins agent tool updates.

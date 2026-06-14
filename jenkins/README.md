@@ -48,7 +48,10 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 
 For local validation details and known controller-free limits, see
 [`docs/testing.md`](../docs/testing.md) and
-[`docs/troubleshooting.md`](../docs/troubleshooting.md).
+[`docs/troubleshooting.md`](../docs/troubleshooting.md). For the maintenance
+checklist that maps presets, service catalog changes, Job DSL export, and
+Jenkinsfiles to validation commands, see
+[`docs/maintenance.md`](../docs/maintenance.md).
 
 ## Important Defaults
 
@@ -100,6 +103,9 @@ This is a controller-free regression fixture. It does not prove a live Jenkins c
 The phase transition wrapper, `scripts/run-phase-validation.sh`, runs the focused
 `dev` dashboard commands and then this aggregate harness so transition checks
 exercise both the public default path and the full public-safe preset matrix.
+Use [`docs/maintenance.md`](../docs/maintenance.md) when selecting the narrower
+validation lane for a preset, service catalog, Job DSL, Jenkinsfile, or
+controller/JCasC documentation change.
 
 ## Custom Selection Example
 

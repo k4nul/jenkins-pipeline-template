@@ -53,3 +53,6 @@ them before enabling validation, delivery, or promotion jobs.
 Service jobs are generated only for catalog entries that set
 `HasJenkinsfile = $true`. The current public-image examples do not require
 dedicated image build jobs, so `ServiceJobCount` is expected to be `0`.
+If you are adding a Jenkinsfile-backed service, update the service catalog,
+`services/<name>/Jenkinsfile`, and required-file expectations together; see
+[maintenance.md](maintenance.md) for the complete service catalog change lane.
