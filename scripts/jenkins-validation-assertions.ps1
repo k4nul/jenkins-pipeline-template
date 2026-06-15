@@ -359,6 +359,12 @@ function Assert-SeedJobSafety {
     Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE" -Message "Seed job should expose a delete confirmation parameter."
     Assert-TextContains -Text $seedJob -Expected "SEED_REMOVED_JOB_ACTION -eq 'DELETE'" -Message "Seed job should check destructive removed-job action."
     Assert-TextContains -Text $seedJob -Expected "SEED_CONFIRM_REMOVED_JOB_DELETE must be true before applying Job DSL with SEED_REMOVED_JOB_ACTION=DELETE." -Message "Seed job should fail before destructive delete without confirmation."
+    Assert-TextContains -Text $seedJob -Expected "Assert-ConcreteScmParameter -Name 'SEED_REPO_URL'" -Message "Seed job should require a concrete SCM URL before applying Job DSL."
+    Assert-TextContains -Text $seedJob -Expected "Assert-ConcreteScmParameter -Name 'SEED_BRANCH_SPEC'" -Message "Seed job should require a concrete branch spec before applying Job DSL."
+    Assert-TextContains -Text $seedJob -Expected "DisallowedValues @('REPLACE_WITH_REPOSITORY_URL')" -Message "Seed job should reject the public-safe repository URL placeholder before applying Job DSL."
+    Assert-TextContains -Text $seedJob -Expected "DisallowedValues @('REPLACE_WITH_BRANCH_SPEC')" -Message "Seed job should reject the public-safe branch spec placeholder before applying Job DSL."
+    Assert-TextContains -Text $seedJob -Expected "must be set before SEED_APPLY_JOB_DSL=true." -Message "Seed job should fail closed when required SCM fields are blank."
+    Assert-TextContains -Text $seedJob -Expected "must be changed from its public-safe placeholder before SEED_APPLY_JOB_DSL=true." -Message "Seed job should fail closed when SCM placeholders are still present."
 }
 
 function Assert-JenkinsfileArtifactPathSafety {
@@ -401,4 +407,24 @@ function Assert-JenkinsfileArtifactPathSafety {
             -Expected ("Assert-LiteralOutPath -Name '{0}'" -f $parameterName) `
             -Message ("{0} should validate {1} before invoking downstream scripts" -f $JenkinsfilePath, $parameterName)
     }
+}
+
+function Assert-JenkinsfileDeploymentApprovalSafety {
+    param(
+        [string]$JenkinsfilePath,
+        [string]$DeployParameterName,
+        [string]$DryRunParameterName,
+        [string]$RequireSecretsParameterName,
+        [string]$RequireStatusParameterName
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $JenkinsfilePath -PathType Leaf) -Message ("Jenkinsfile should exist: {0}" -f $JenkinsfilePath)
+    $jenkinsfile = Get-Content -Path $JenkinsfilePath -Raw
+
+    Assert-TextContains -Text $jenkinsfile -Expected ("booleanParam(name: '{0}', defaultValue: false" -f $DeployParameterName) -Message ("{0} should keep deployment opt-in disabled by default" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected ("booleanParam(name: '{0}', defaultValue: true" -f $DryRunParameterName) -Message ("{0} should keep deployment dry-run enabled by default" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected ("params.{0} && !params.{1}" -f $DeployParameterName, $DryRunParameterName) -Message ("{0} should gate approval on non-dry-run deployment" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "input message:" -Message ("{0} should require Jenkins input approval for non-dry-run deployment" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected ("{0} must be true for non-dry-run deployments." -f $RequireSecretsParameterName) -Message ("{0} should require bootstrap secret readiness before non-dry-run deployment" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected ("{0} must be true for non-dry-run deployments." -f $RequireStatusParameterName) -Message ("{0} should require bootstrap status validation before non-dry-run deployment" -f $JenkinsfilePath)
 }

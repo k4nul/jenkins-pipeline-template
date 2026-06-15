@@ -88,6 +88,18 @@ Assert-JenkinsfileArtifactPathSafety `
     -ExpectedParameterNames @("PROMOTION_ARCHIVE_PATH") `
     -ExpectedDirectoryParameterNames @("PROMOTION_EXTRACT_PATH") `
     -ExpectedPipelineBoundaryNames @("PROMOTION_ARCHIVE_PATH", "PROMOTION_EXTRACT_PATH")
+Assert-JenkinsfileDeploymentApprovalSafety `
+    -JenkinsfilePath $deliveryJobPath `
+    -DeployParameterName "BUNDLE_DEPLOY" `
+    -DryRunParameterName "BUNDLE_DEPLOY_DRY_RUN" `
+    -RequireSecretsParameterName "BUNDLE_REQUIRE_BOOTSTRAP_SECRETS_READY" `
+    -RequireStatusParameterName "BUNDLE_REQUIRE_BOOTSTRAP_STATUS"
+Assert-JenkinsfileDeploymentApprovalSafety `
+    -JenkinsfilePath $promotionJobPath `
+    -DeployParameterName "PROMOTION_DEPLOY" `
+    -DryRunParameterName "PROMOTION_DEPLOY_DRY_RUN" `
+    -RequireSecretsParameterName "PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY" `
+    -RequireStatusParameterName "PROMOTION_REQUIRE_BOOTSTRAP_STATUS"
 
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
@@ -108,8 +120,9 @@ if ($Format -eq "json") {
 else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
     Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
-    Write-Output "Validated seed job destructive delete confirmation guard."
+    Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
+    Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
     Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
     Write-Output ("Generated ignored Job DSL fixtures under: {0}" -f $resolvedOutputDirectory)
 }
