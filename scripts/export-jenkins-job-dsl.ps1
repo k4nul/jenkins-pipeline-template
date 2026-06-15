@@ -46,7 +46,111 @@ function ConvertTo-RelativeScmPath {
         [string]$Path
     )
 
-    return ([string]$Path).Replace("\", "/")
+    $normalized = ([string]$Path).Trim().Replace("\", "/")
+    if (-not $normalized) {
+        throw "Jenkinsfile path must not be empty."
+    }
+
+    if ([System.IO.Path]::IsPathRooted($normalized) -or $normalized.StartsWith("/")) {
+        throw ("Jenkinsfile path must be repository-relative: {0}" -f $Path)
+    }
+
+    if ($normalized -match "[\x00-\x1F\x7F*?\[\]{}]") {
+        throw ("Jenkinsfile path must be a literal repository-relative path: {0}" -f $Path)
+    }
+
+    $segments = @($normalized -split "/")
+    if (@($segments | Where-Object { $_ -eq "" -or $_ -eq "." -or $_ -eq ".." }).Count -gt 0) {
+        throw ("Jenkinsfile path must not contain empty, current-directory, or parent-directory segments: {0}" -f $Path)
+    }
+
+    $leafName = [System.IO.Path]::GetFileName($normalized)
+    if ($leafName -ne "Jenkinsfile" -and -not $leafName.EndsWith(".Jenkinsfile", [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw ("Jenkinsfile path must point to a Jenkinsfile: {0}" -f $Path)
+    }
+
+    return $normalized
+}
+
+function Assert-NoControlCharacters {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    if ($Value -match "[\x00-\x1F\x7F]") {
+        throw ("{0} must not contain control characters." -f $Name)
+    }
+}
+
+function Assert-RepoUrlSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    Assert-NoControlCharacters -Name "RepoUrl" -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+
+    if ($trimmed -eq "REPLACE_WITH_REPOSITORY_URL") {
+        return
+    }
+
+    if ($trimmed -match "\s") {
+        throw "RepoUrl must not contain whitespace."
+    }
+
+    if ($trimmed -match "^[A-Za-z][A-Za-z0-9+.-]*://") {
+        [System.Uri]$parsedUri = $null
+        if (-not [System.Uri]::TryCreate($trimmed, [System.UriKind]::Absolute, [ref]$parsedUri)) {
+            throw "RepoUrl must be an absolute URI or a Git scp-like repository path."
+        }
+
+        if (-not [string]::IsNullOrEmpty($parsedUri.UserInfo)) {
+            throw "RepoUrl must not include embedded credentials; configure repository access with -ScmCredentialsId."
+        }
+    }
+}
+
+function Assert-BranchSpecSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    Assert-NoControlCharacters -Name "BranchSpec" -Value $Value
+}
+
+function Assert-ScmCredentialsIdSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    Assert-NoControlCharacters -Name "ScmCredentialsId" -Value $Value
 }
 
 function Add-UniqueFolderDescription {
@@ -156,6 +260,9 @@ function Get-GeneratedPipelineJobDslLines {
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
+Assert-RepoUrlSafety -Value $RepoUrl
+Assert-BranchSpecSafety -Value $BranchSpec
+Assert-ScmCredentialsIdSafety -Value $ScmCredentialsId
 $repoUrlForDsl = if ([string]::IsNullOrWhiteSpace($RepoUrl)) { "REPLACE_WITH_REPOSITORY_URL" } else { $RepoUrl.Trim() }
 $branchSpecForDsl = if ([string]::IsNullOrWhiteSpace($BranchSpec)) { "REPLACE_WITH_BRANCH_SPEC" } else { $BranchSpec.Trim() }
 $scmCredentialsIdForDsl = if ([string]::IsNullOrWhiteSpace($ScmCredentialsId)) { "" } else { $ScmCredentialsId.Trim() }

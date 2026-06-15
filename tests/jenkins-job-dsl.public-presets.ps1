@@ -189,6 +189,11 @@ $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl
     -ScmCredentialsId "jenkins-scm'credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
+Assert-JobDslScmInputValidation `
+    -ScriptPath $jobDslScript `
+    -Root $root `
+    -OutputDirectory $outputDirectory `
+    -Preset $explicitScmPreset
 
 $customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
@@ -329,6 +334,7 @@ Assert-JenkinsfileDeploymentApprovalSafety `
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output "Validated unsafe Job DSL root segments fail closed."

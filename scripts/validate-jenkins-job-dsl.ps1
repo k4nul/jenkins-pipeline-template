@@ -76,6 +76,11 @@ $explicitScmDslPath = Join-Path $resolvedOutputDirectory ("{0}-explicit-scm-seed
     -ScmCredentialsId "jenkins-scm'credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
+Assert-JobDslScmInputValidation `
+    -ScriptPath $jobDslScript `
+    -Root $root `
+    -OutputDirectory $resolvedOutputDirectory `
+    -Preset $explicitScmPreset
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
 Assert-JenkinsfileArtifactPathSafety `
@@ -148,6 +153,7 @@ if ($Format -eq "json") {
 else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
     Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+    Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
     Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
     Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."

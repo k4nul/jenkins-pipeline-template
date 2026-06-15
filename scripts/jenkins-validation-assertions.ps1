@@ -499,6 +499,75 @@ function Assert-ExplicitScmDsl {
     Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message "Explicit SCM DSL should not inline branch calls."
 }
 
+function Assert-JobDslScmInputValidation {
+    param(
+        [string]$ScriptPath,
+        [string]$Root,
+        [string]$OutputDirectory,
+        [string]$Preset
+    )
+
+    $cases = @(
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                RepoUrl = "https://user:token@example.invalid/org/repo.git"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-embedded-scm-credentials.groovy")
+            }
+            ExpectedMessage = "RepoUrl must not include embedded credentials"
+            Message = "Job DSL export should reject repository URLs with embedded credentials."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                RepoUrl = "https://example.invalid/org/repo.git`nbranch('main')"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-repo-url-control-character.groovy")
+            }
+            ExpectedMessage = "RepoUrl must not contain control characters."
+            Message = "Job DSL export should reject repository URLs with control characters."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                BranchSpec = "*/feature/safe`n*/main"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-branch-spec-control-character.groovy")
+            }
+            ExpectedMessage = "BranchSpec must not contain control characters."
+            Message = "Job DSL export should reject branch specs with control characters."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                ScmCredentialsId = "jenkins-scm`ncredential"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-scm-credentials-control-character.groovy")
+            }
+            ExpectedMessage = "ScmCredentialsId must not contain control characters."
+            Message = "Job DSL export should reject SCM credentials IDs with control characters."
+        }
+    )
+
+    foreach ($case in $cases) {
+        $failed = $false
+        $failureMessage = ""
+        $arguments = $case.Arguments
+
+        try {
+            & $ScriptPath @arguments 6>$null | Out-Null
+        }
+        catch {
+            $failed = $true
+            $failureMessage = [string]$_
+        }
+
+        Assert-Condition -Condition $failed -Message ([string]$case.Message)
+        Assert-TextContains -Text $failureMessage -Expected ([string]$case.ExpectedMessage) -Message ("Failure should explain rejected SCM input: {0}" -f $case.ExpectedMessage)
+    }
+}
+
 function Assert-SeedJobSafety {
     param(
         [string]$SeedJobPath

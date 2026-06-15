@@ -99,6 +99,7 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - verifies Jenkinsfile-backed selected services are projected into service jobs
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
+- verifies embedded SCM credentials and control-character inputs fail before Job DSL generation
 - verifies destructive removed-job deletion requires explicit seed confirmation
 - validates service catalog metadata and runs the service pipeline validator
 
