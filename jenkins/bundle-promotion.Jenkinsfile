@@ -197,7 +197,8 @@ Add-OptionalSwitch -Arguments $arguments -Name '-SkipBundleValidation' -Value $e
 Add-OptionalSwitch -Arguments $arguments -Name '-DeployBundle' -Value $env:PROMOTION_DEPLOY
 Add-OptionalSwitch -Arguments $arguments -Name '-DeploymentDryRun' -Value $env:PROMOTION_DEPLOY_DRY_RUN
 
-& $scriptPath @($arguments.ToArray())
+$argumentArray = @($arguments.ToArray())
+& $scriptPath @argumentArray
 '''
             }
         }

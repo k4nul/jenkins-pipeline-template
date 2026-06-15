@@ -214,7 +214,8 @@ Add-OptionalStringArgument -Arguments $arguments -Name '-ScmCredentialsId' -Valu
 Add-OptionalSwitch -Arguments $arguments -Name '-IncludeJenkins' -Value $env:SEED_INCLUDE_JENKINS
 Add-OptionalSwitch -Arguments $arguments -Name '-SkipServiceJobs' -Value $env:SEED_SKIP_SERVICE_JOBS
 
-& $scriptPath @($arguments.ToArray())
+$argumentArray = @($arguments.ToArray())
+& $scriptPath @argumentArray
 '''
             }
         }

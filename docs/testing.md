@@ -26,9 +26,10 @@ with a synthetic Jenkinsfile-backed service fixture, verifies destructive
 removed-job deletion requires explicit seed confirmation, verifies Job DSL apply
 still requires concrete SCM URL and branch inputs, verifies Jenkins artifact
 archiving uses literal paths under `out/`, verifies non-dry-run delivery and
-promotion stay behind approval plus bootstrap readiness/status checks, validates
-service catalog metadata and required service file paths, verifies
-Jenkinsfile-backed catalog entries fail closed when
+promotion stay behind approval plus bootstrap readiness/status checks, verifies
+the committed runtime helper scripts and tracked public-safe values defaults
+exist, validates service catalog metadata and required service file paths,
+verifies Jenkinsfile-backed catalog entries fail closed when
 `services/<name>/Jenkinsfile` is missing, and runs service pipeline validation.
 
 ## Dashboard Validation Commands
@@ -43,7 +44,7 @@ sh scripts/run-phase-validation.sh
 ```
 
 The wrapper runs the phase-gate commands first, then the full public preset
-matrix harness:
+matrix harness and the extended public preset test suite:
 
 ```powershell
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
@@ -51,6 +52,7 @@ pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
 The final aggregate command validates every built-in public-safe preset and
@@ -79,8 +81,11 @@ dashboard lane and the full public-safe preset matrix:
   and do not declare Jenkinsfile-backed jobs.
 - Job DSL export can create the seed fixture under `out/jenkins/` while keeping
   repository URL, branch spec, and credentials ID values parameterized.
-- Service pipeline validation and the aggregate Job DSL harness both pass
-  without contacting a Jenkins controller.
+- Service pipeline validation, the aggregate Job DSL harness, and the public
+  preset test suite all pass without contacting a Jenkins controller.
+- Jenkins runtime helpers for repository validation, delivery, promotion, and
+  workstation checks exist and can produce or verify a public-safe contract
+  bundle under `out/`.
 
 Use this evidence as a boundary, not as live-controller approval. The wrapper
 does not install Jenkins plugins, verify JCasC, create credentials, check agent
@@ -126,6 +131,8 @@ gate to pass.
   `out/`, not caller-controlled absolute paths, parent traversal, or Ant globs.
 - Non-dry-run delivery and promotion stay manually approved and require bootstrap
   secret readiness plus bootstrap status checks.
+- Runtime entrypoint scripts and public-safe values defaults referenced by the
+  checked-in Jenkinsfiles exist in the repository.
 - Service catalog required-file paths are relative service-local paths, not
   absolute paths, parent traversal, or glob patterns.
 - Service catalog entries remain public-safe and internally consistent.
@@ -138,8 +145,9 @@ gate to pass.
 
 - A live Jenkins controller has the required Job DSL plugin or JCasC setup.
 - Jenkins agents have `kubectl`, `helm`, registry access, or cluster access.
-- Runtime entrypoint scripts and config files referenced by Jenkinsfiles exist
-  for a controller deployment.
+- The controller-free contract bundle contains live cluster manifests.
+- Dry-run delivery or promotion proves registry, Helm, Kubernetes, credential,
+  or cluster permissions.
 - Non-dry-run delivery and promotion can run without manual approval.
 
 Review [jenkins/JOB_BLUEPRINT.md](../jenkins/JOB_BLUEPRINT.md) before changing

@@ -1,6 +1,6 @@
 @{
     Description = "Generic staging preset for validating shared services and public demo applications before production rollout."
-    ValuesFile = "config\platform-values.staging.env"
+    ValuesFile = "config\platform-values.staging.env.example"
     Version = "0.0.0-staging"
     Profile = "shared-services"
     Applications = @(

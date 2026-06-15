@@ -1,6 +1,6 @@
 @{
     Description = "Generic production preset for a reusable shared-services baseline with public-image workloads."
-    ValuesFile = "config\platform-values.prod.env"
+    ValuesFile = "config\platform-values.prod.env.example"
     Version = "1.0.0"
     Profile = "shared-services"
     Applications = @(

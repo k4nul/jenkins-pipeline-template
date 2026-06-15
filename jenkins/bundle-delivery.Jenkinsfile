@@ -270,7 +270,8 @@ Add-OptionalSwitch -Arguments $arguments -Name '-SkipArchive' -Value $env:BUNDLE
 Add-OptionalSwitch -Arguments $arguments -Name '-DeployBundle' -Value $env:BUNDLE_DEPLOY
 Add-OptionalSwitch -Arguments $arguments -Name '-DeploymentDryRun' -Value $env:BUNDLE_DEPLOY_DRY_RUN
 
-& $scriptPath @($arguments.ToArray())
+$argumentArray = @($arguments.ToArray())
+& $scriptPath @argumentArray
 '''
             }
         }

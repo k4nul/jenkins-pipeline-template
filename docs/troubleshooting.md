@@ -39,21 +39,22 @@ service and the matching `services/<name>` directory is missing.
 repository validation, delivery, and promotion jobs. Treat those command strings
 as the Pipeline DSL contract for Jenkins runtime entrypoints. The controller-free
 validation lane in [testing.md](testing.md) verifies job planning, generated DSL,
-SCM placeholder safety, and service catalog consistency; it does not execute a
-live repository validation or delivery entrypoint.
+SCM placeholder safety, service catalog consistency, committed runtime helper
+scripts, and tracked public-safe values defaults.
 
-The checked-in Jenkinsfiles also reference runtime helpers such as
-`scripts/validate-workstation.ps1` and environment value files such as
-`config/platform-values.dev.env`. Those files are not part of the current
-controller-free harness, so a live Jenkins rollout must provide or implement
-them before enabling validation, delivery, or promotion jobs.
+The checked-in runtime entrypoints are public-safe contract helpers. Delivery
+can write a `bundle-manifest.json` and archive under `out/`, and promotion can
+extract and verify that archive. They intentionally do not perform non-dry-run
+cluster deployment, Helm repository updates, or live bootstrap status checks.
+Those actions require a downstream implementation or controller rollout lane.
 
 ## Phase Validation Passes But Jenkins Rollout Is Not Ready
 
 `sh scripts/run-phase-validation.sh` is a local phase gate for public-safe Job
 DSL coverage. A passing result proves the `dev` dashboard lane, service catalog
-plan, Job DSL export, service validation, and full preset matrix harness can run
-without a Jenkins controller.
+plan, Job DSL export, service validation, full preset matrix harness, public
+preset test suite, and committed runtime contract can run without a Jenkins
+controller.
 
 It does not prove that a live controller is ready. Before applying generated DSL
 outside the local fixture, separately verify:
@@ -64,8 +65,9 @@ outside the local fixture, separately verify:
   selected Jenkinsfiles;
 - `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and optional `SEED_SCM_CREDENTIALS_ID`
   are set as Jenkins parameters rather than committed values;
-- runtime helper scripts and environment value files referenced by the
-  Jenkinsfiles exist in the seeded repository or workspace;
+- private values, credentials, registry access, cluster context, and any
+  downstream render/deploy implementation are available outside the public
+  defaults;
 - non-dry-run delivery and promotion still require the manual approval prompts.
 
 If the local phase gate passes but Jenkins fails while applying DSL or running a

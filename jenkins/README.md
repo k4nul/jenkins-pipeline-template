@@ -63,9 +63,9 @@ Pipeline DSL, service catalog, and controller/JCasC ownership, see
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - `job-seed.Jenkinsfile` requires `SEED_CONFIRM_REMOVED_JOB_DELETE=true` before `SEED_APPLY_JOB_DSL=true` can run with `SEED_REMOVED_JOB_ACTION=DELETE`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
-- `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, and service catalog metadata without contacting a Jenkins controller.
-- Generated local command fields describe the Pipeline DSL entrypoint contract; the controller-free harness does not execute live validation, delivery, or promotion entrypoints.
-- Live validation, delivery, and promotion jobs require the runtime helper scripts and environment value files referenced by the Jenkinsfiles to exist in the target repository or seed workspace.
+- `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, service catalog metadata, committed runtime helper scripts, and public-safe values defaults without contacting a Jenkins controller.
+- Generated local command fields describe the Pipeline DSL entrypoint contract; the checked-in runtime helpers can validate inputs and write or verify a controller-free contract bundle under `out/`.
+- Live validation, delivery, and promotion still require private values, credentials, registry access, cluster context, and any downstream non-dry-run deployment implementation outside this public template.
 
 Before applying generated DSL in Jenkins, set:
 
@@ -102,12 +102,17 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - verifies embedded SCM credentials and control-character inputs fail before Job DSL generation
 - verifies destructive removed-job deletion requires explicit seed confirmation
 - validates service catalog metadata and runs the service pipeline validator
+- verifies committed runtime helper scripts and public-safe values defaults
 
-This is a controller-free regression fixture. It does not prove a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete.
+This is a controller-free regression fixture. It does not prove a live Jenkins
+controller has the Job DSL plugin installed or that private cluster deployment
+is ready.
 
 The phase transition wrapper, `scripts/run-phase-validation.sh`, runs the focused
-`dev` dashboard commands and then this aggregate harness so transition checks
-exercise both the public default path and the full public-safe preset matrix.
+`dev` dashboard commands, this aggregate harness, and
+`tests/jenkins-job-dsl.public-presets.ps1` so transition checks exercise the
+public default path, the full public-safe preset matrix, custom selection path
+safety, and runtime contract files.
 Use [`docs/maintenance.md`](../docs/maintenance.md) when selecting the narrower
 validation lane for a preset, service catalog, Job DSL, Jenkinsfile, or
 controller/JCasC documentation change. Use

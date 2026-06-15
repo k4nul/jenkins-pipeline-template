@@ -133,6 +133,7 @@ $summary = [PSCustomObject]@{
     ExplicitScmFixture = $explicitScmDslPath
     ServiceJobFixture = $serviceJobFixtureDslPath
     SeedJobSafety = "passed"
+    RuntimeContract = "passed"
     Results = @($results.ToArray())
 }
 
@@ -148,6 +149,7 @@ else {
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
+    Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
     Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
     Write-Output ("Generated ignored Job DSL fixtures under: {0}" -f $resolvedOutputDirectory)
 }

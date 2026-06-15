@@ -151,7 +151,8 @@ Add-OptionalSwitch -Arguments $arguments -Name '-SkipTemplateValidation' -Value 
 Add-OptionalSwitch -Arguments $arguments -Name '-SkipWorkstationValidation' -Value $env:VALIDATION_SKIP_WORKSTATION_VALIDATION
 Add-OptionalSwitch -Arguments $arguments -Name '-SkipPlatformAssetValidation' -Value $env:VALIDATION_SKIP_PLATFORM_ASSET_VALIDATION
 
-& $scriptPath @($arguments.ToArray())
+$argumentArray = @($arguments.ToArray())
+& $scriptPath @argumentArray
 '''
             }
         }

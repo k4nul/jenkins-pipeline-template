@@ -25,9 +25,10 @@ This directory contains reusable environment presets that reduce repeated argume
 
 The current checked-in presets use public images and do not set `DockerRegistry`.
 The scripts still accept a registry override when a downstream template adds
-private images. The `ValuesFile` entries are referenced defaults for runtime
-validation and delivery; the current controller-free Job DSL harness does not
-require those files to exist.
+private images. The `ValuesFile` entries point at tracked `.env.example` files
+so generated Jenkins jobs have a public-safe runtime contract by default. Copy
+those examples to ignored `config/platform-values*.env` files before adding
+private, environment-specific values downstream.
 
 ## How To Use A Preset
 

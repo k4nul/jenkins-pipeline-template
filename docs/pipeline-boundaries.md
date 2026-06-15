@@ -78,8 +78,8 @@ these concerns separately before rollout:
 - Jenkins agents provide `pwsh`, `git`, `kubectl`, and `helm` as required by
   the selected Jenkinsfiles;
 - credentials providers and credential IDs exist on the controller;
-- runtime helper scripts and environment value files referenced by the
-  Jenkinsfiles exist in the target repository or seeded workspace;
+- private values, downstream render/deploy behavior, and environment-specific
+  runtime extensions are present outside the public defaults when needed;
 - registry and cluster permissions are available for non-dry-run delivery and
   promotion.
 

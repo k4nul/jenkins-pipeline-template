@@ -100,9 +100,100 @@ function Get-JenkinsValidationPaths {
         ServicePlanScript = Join-Path $Root "scripts/show-service-pipeline-plan.ps1"
         JobDslScript = Join-Path $Root "scripts/export-jenkins-job-dsl.ps1"
         ServiceValidationScript = Join-Path $Root "scripts/validate-service-pipelines.ps1"
+        WorkstationValidationScript = Join-Path $Root "scripts/validate-workstation.ps1"
+        RepositoryValidationScript = Join-Path $Root "scripts/invoke-repository-validation.ps1"
+        BundleDeliveryScript = Join-Path $Root "scripts/invoke-bundle-delivery.ps1"
+        BundlePromotionScript = Join-Path $Root "scripts/invoke-bundle-promotion.ps1"
+        PublicPresetTestScript = Join-Path $Root "tests/jenkins-job-dsl.public-presets.ps1"
+        HelmConfigFile = Join-Path $Root "config/helm-releases.psd1"
         SeedJobPath = Join-Path $Root "jenkins/job-seed.Jenkinsfile"
         DeliveryJobPath = Join-Path $Root "jenkins/bundle-delivery.Jenkinsfile"
         PromotionJobPath = Join-Path $Root "jenkins/bundle-promotion.Jenkinsfile"
+        RepositoryJobPath = Join-Path $Root "jenkins/repository-validation.Jenkinsfile"
+    }
+}
+
+function Assert-RepoRelativeFileExists {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace($Path)) -Message ("{0} must not be empty." -f $Description)
+    Assert-Condition -Condition (-not ([System.IO.Path]::IsPathRooted($Path))) -Message ("{0} must be repository-relative: {1}" -f $Description, $Path)
+    Assert-Condition -Condition (-not ($Path -match "[*?\[\]{}]")) -Message ("{0} must be a literal path: {1}" -f $Description, $Path)
+
+    $resolvedRoot = [System.IO.Path]::GetFullPath($Root)
+    $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot $Path))
+    $rootPrefix = $resolvedRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+
+    Assert-Condition `
+        -Condition ($resolvedPath -ne $resolvedRoot -and $resolvedPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) `
+        -Message ("{0} must resolve inside the repository: {1}" -f $Description, $Path)
+    Assert-Condition -Condition (Test-Path -Path $resolvedPath -PathType Leaf) -Message ("{0} was not found: {1}" -f $Description, $Path)
+
+    return $resolvedPath
+}
+
+function Assert-JenkinsRuntimeContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Paths,
+
+        [string[]]$Presets = @()
+    )
+
+    foreach ($scriptPath in @(
+        $Paths.WorkstationValidationScript,
+        $Paths.RepositoryValidationScript,
+        $Paths.BundleDeliveryScript,
+        $Paths.BundlePromotionScript,
+        $Paths.PublicPresetTestScript
+    )) {
+        Assert-Condition -Condition (Test-Path -Path $scriptPath -PathType Leaf) -Message ("Jenkins runtime contract file should exist: {0}" -f $scriptPath)
+    }
+
+    Assert-Condition -Condition (Test-Path -Path $Paths.HelmConfigFile -PathType Leaf) -Message ("Public-safe Helm release catalog should exist: {0}" -f $Paths.HelmConfigFile)
+
+    $repositoryJenkinsfile = Get-Content -Path $Paths.RepositoryJobPath -Raw
+    $deliveryJenkinsfile = Get-Content -Path $Paths.DeliveryJobPath -Raw
+    $promotionJenkinsfile = Get-Content -Path $Paths.PromotionJobPath -Raw
+    $seedJenkinsfile = Get-Content -Path $Paths.SeedJobPath -Raw
+
+    Assert-TextContains -Text $repositoryJenkinsfile -Expected "scripts\\validate-workstation.ps1" -Message "Repository validation job should call the committed workstation validator."
+    Assert-TextContains -Text $repositoryJenkinsfile -Expected "scripts\\invoke-repository-validation.ps1" -Message "Repository validation job should call the committed repository validation entrypoint."
+    Assert-TextContains -Text $deliveryJenkinsfile -Expected "scripts\\validate-workstation.ps1" -Message "Bundle delivery job should call the committed workstation validator."
+    Assert-TextContains -Text $deliveryJenkinsfile -Expected "scripts\\invoke-bundle-delivery.ps1" -Message "Bundle delivery job should call the committed delivery entrypoint."
+    Assert-TextContains -Text $promotionJenkinsfile -Expected "scripts\\validate-workstation.ps1" -Message "Bundle promotion job should call the committed workstation validator."
+    Assert-TextContains -Text $promotionJenkinsfile -Expected "scripts\\invoke-bundle-promotion.ps1" -Message "Bundle promotion job should call the committed promotion entrypoint."
+
+    foreach ($jenkinsfile in @($repositoryJenkinsfile, $deliveryJenkinsfile, $promotionJenkinsfile, $seedJenkinsfile)) {
+        Assert-TextNotMatch -Text $jenkinsfile -Pattern '\&\s+\$scriptPath\s+@\(\$arguments\.ToArray\(\)\)' -Message "Jenkinsfiles should splat named runtime arguments through an intermediate array variable."
+        Assert-TextContains -Text $jenkinsfile -Expected '& $scriptPath @argumentArray' -Message "Jenkinsfiles should splat the runtime argument array when invoking PowerShell scripts."
+    }
+
+    Assert-RepoRelativeFileExists -Root $Root -Path "config/helm-releases.psd1" -Description "Default Helm release catalog" | Out-Null
+    Assert-RepoRelativeFileExists -Root $Root -Path "config/platform-values.env.example" -Description "Default platform values example" | Out-Null
+
+    foreach ($preset in @($Presets)) {
+        $presetPath = Join-Path $Root ("config/environments/{0}.psd1" -f $preset)
+        Assert-Condition -Condition (Test-Path -Path $presetPath -PathType Leaf) -Message ("Preset file should exist: {0}" -f $presetPath)
+        $presetData = Import-PowerShellDataFile -Path $presetPath
+        if ($presetData.ContainsKey("ValuesFile")) {
+            Assert-RepoRelativeFileExists `
+                -Root $Root `
+                -Path ([string]$presetData.ValuesFile) `
+                -Description ("ValuesFile for preset {0}" -f $preset) | Out-Null
+        }
     }
 }
 
@@ -126,6 +217,7 @@ function Initialize-JenkinsValidationContext {
     $presets = @(Get-PresetNames -Root $root -RequestedPresets $RequestedPresets)
 
     Assert-Condition -Condition ($presets.Count -gt 0) -Message $MissingPresetMessage
+    Assert-JenkinsRuntimeContract -Root $root -Paths $paths -Presets $presets
 
     $resolvedOutputDirectory = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputDirectory
     New-Item -ItemType Directory -Path $resolvedOutputDirectory -Force | Out-Null
