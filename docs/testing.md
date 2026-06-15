@@ -7,6 +7,8 @@ catalog. The commands below do not contact a live Jenkins controller.
 ## Prerequisite
 
 Install PowerShell 7 or newer so `pwsh` is available on your shell path.
+For first-time setup and the recommended read order across the local runbooks,
+start with [onboarding.md](onboarding.md).
 
 ## Full Local Harness
 

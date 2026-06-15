@@ -15,7 +15,7 @@ or generated Job DSL for a real environment.
 - `jenkins/`: repository validation, bundle delivery, promotion, and seed Jenkinsfiles
 - `scripts/`: Job plan, Job DSL export, and service pipeline helpers
 - `config/`: reusable environment and service pipeline catalogs
-- `docs/`: local validation, maintenance, and troubleshooting guidance
+- `docs/`: onboarding, local validation, maintenance, and troubleshooting guidance
 - `k8s/jenkins-controller/`: optional in-cluster Jenkins controller manifests
 
 ## Typical Commands
@@ -38,9 +38,11 @@ Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export,
 
 Keep repository URLs, credentials IDs, branch specs, and approval behavior parameterized before applying the template to a real project.
 
-See [docs/testing.md](docs/testing.md) for the controller-free validation lane
-and [docs/maintenance.md](docs/maintenance.md) for the Job DSL maintenance
-runbook, including the Job DSL, Pipeline DSL, and controller/JCasC responsibility
+Start with [docs/onboarding.md](docs/onboarding.md) if you are setting up a
+fresh checkout or preparing first validation evidence. See
+[docs/testing.md](docs/testing.md) for the controller-free validation lane and
+[docs/maintenance.md](docs/maintenance.md) for the Job DSL maintenance runbook,
+including the Job DSL, Pipeline DSL, and controller/JCasC responsibility
 boundaries for the next phase. Use [docs/pipeline-boundaries.md](docs/pipeline-boundaries.md)
 as the focused guide for deciding whether a change belongs in Job DSL generation,
 Pipeline DSL execution, service catalog metadata, or live controller/JCasC
