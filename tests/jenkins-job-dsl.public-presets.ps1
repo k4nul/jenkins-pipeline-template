@@ -137,6 +137,35 @@ function Assert-NestedRootPlanAndDsl {
     }
 }
 
+function Assert-ServiceJobFixtureDsl {
+    param(
+        [object]$Plan,
+        [string]$DslPath
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated service-job fixture DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    $serviceJobs = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq "nginx-web" })
+    Assert-Equal -Actual $serviceJobs.Count -Expected 1 -Message "Service-job fixture DSL assertions require one nginx-web service job"
+    $serviceJob = $serviceJobs[0]
+
+    Assert-TextContains -Text $dsl -Expected "// Service job count: 1" -Message "Service-job fixture DSL should record the generated service job count"
+    Assert-TextContains -Text $dsl -Expected "folder('services')" -Message "Service-job fixture DSL should create the service job root folder"
+    Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $serviceJob.Path) -Message "Service-job fixture DSL should include the Jenkinsfile-backed service job"
+    Assert-TextContains -Text $dsl -Expected "configureGeneratedPipelineJob(delegate, 'services/nginx-web/Jenkinsfile'" -Message "Service-job fixture DSL should point service jobs at service-local Jenkinsfiles"
+    Assert-TextContains -Text $dsl -Expected "Generated service image pipeline job." -Message "Service-job fixture DSL should describe service image jobs distinctly from bundle jobs"
+    Assert-TextContains -Text $dsl -Expected "Service: nginx-web" -Message "Service-job fixture DSL should include service identity in the description"
+    Assert-TextContains -Text $dsl -Expected "Category: fixture-service" -Message "Service-job fixture DSL should include service category metadata"
+    Assert-TextContains -Text $dsl -Expected "Image name: fixture/nginx-web:1.0.0" -Message "Service-job fixture DSL should include the public image name"
+    Assert-TextContains -Text $dsl -Expected "Used by selections: service-job-fixture" -Message "Service-job fixture DSL should preserve the selection-to-service relationship"
+    Assert-TextContains -Text $dsl -Expected "Required environment variables: DOCKER_REGISTRY" -Message "Service-job fixture DSL should document required service environment variables"
+    Assert-TextContains -Text $dsl -Expected "Optional environment variables: CACHE" -Message "Service-job fixture DSL should document optional service environment variables"
+    Assert-TextContains -Text $dsl -Expected "Upstream artifact inputs:" -Message "Service-job fixture DSL should include upstream artifact input guidance"
+    Assert-TextContains -Text $dsl -Expected "Consumes the bundle validation output before publishing a service image." -Message "Service-job fixture DSL should include service artifact input notes"
+    Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('services/nginx-web/.+'\)" -Message "Service-job fixture DSL should keep one service job at the service root, not nested under generated children"
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -291,6 +320,7 @@ Assert-JenkinsServiceJobFixturePlan -Plan $serviceJobFixturePlan
     -Applications @("nginx-web") `
     -OutputPath $serviceJobFixtureDslOutputPath 6>$null | Out-Null
 Assert-GeneratedDsl -DslPath $serviceJobFixtureDslPath -Plan $serviceJobFixturePlan -Preset "service-job-fixture"
+Assert-ServiceJobFixtureDsl -Plan $serviceJobFixturePlan -DslPath $serviceJobFixtureDslPath
 & $serviceJobFixtureValidationScript -RepoRoot $serviceJobFixtureRoot 6>$null | Out-Null
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $outputDirectory
 
