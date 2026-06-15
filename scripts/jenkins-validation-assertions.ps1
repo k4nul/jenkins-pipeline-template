@@ -89,6 +89,210 @@ function Get-PresetNames {
     )
 }
 
+function Get-JenkinsPlanPipelineJob {
+    param(
+        [object]$Selection,
+        [string]$Name
+    )
+
+    $jobs = @($Selection.PipelineJobs | Where-Object { [string]$_.Name -eq $Name })
+    Assert-Equal `
+        -Actual $jobs.Count `
+        -Expected 1 `
+        -Message ("Selection {0} should include exactly one {1} job" -f $Selection.Name, $Name)
+
+    return $jobs[0]
+}
+
+function Assert-JenkinsPlanPipelineJob {
+    param(
+        [object]$Selection,
+        [string]$JobName,
+        [string]$ExpectedPath,
+        [string]$ExpectedJenkinsfile,
+        [string[]]$ExpectedKeyParameters
+    )
+
+    $job = Get-JenkinsPlanPipelineJob -Selection $Selection -Name $JobName
+    Assert-Equal `
+        -Actual ([string]$job.Path) `
+        -Expected $ExpectedPath `
+        -Message ("{0} path" -f $ExpectedPath)
+    Assert-Equal `
+        -Actual ([string]$job.Jenkinsfile) `
+        -Expected $ExpectedJenkinsfile `
+        -Message ("{0} Jenkinsfile" -f $ExpectedPath)
+
+    foreach ($parameter in @($ExpectedKeyParameters)) {
+        Assert-ContainsItem `
+            -Values @($job.KeyParameters) `
+            -Expected $parameter `
+            -Message ("{0} is missing key parameter {1}." -f $ExpectedPath, $parameter)
+    }
+}
+
+function Assert-JenkinsPresetJobPlan {
+    param(
+        [object]$Plan,
+        [string]$Preset,
+        [hashtable]$ServiceIndex
+    )
+
+    Assert-Equal `
+        -Actual ([int]$Plan.SelectionCount) `
+        -Expected 1 `
+        -Message ("Preset {0} should produce exactly one bundle selection" -f $Preset)
+
+    $selection = $Plan.Selections | Select-Object -First 1
+    Assert-Equal `
+        -Actual ([string]$selection.Name) `
+        -Expected $Preset `
+        -Message ("Preset {0} selection name" -f $Preset)
+    Assert-Condition `
+        -Condition ([bool]$selection.UsesPreset) `
+        -Message ("Preset {0} should be marked as a preset-backed selection." -f $Preset)
+
+    $expectedRoot = "platform/{0}" -f $Preset
+    Assert-Equal `
+        -Actual ([string]$selection.BundleFolderPath) `
+        -Expected $expectedRoot `
+        -Message ("Preset {0} bundle folder path" -f $Preset)
+
+    Assert-JenkinsPlanPipelineJob `
+        -Selection $selection `
+        -JobName "repository-validation" `
+        -ExpectedPath ("{0}/repository-validation" -f $expectedRoot) `
+        -ExpectedJenkinsfile "jenkins\repository-validation.Jenkinsfile" `
+        -ExpectedKeyParameters @(
+            ("VALIDATION_ENVIRONMENT_PRESET={0}" -f $Preset),
+            "VALIDATION_REQUIRE_BOOTSTRAP_SECRETS_READY=false"
+        )
+
+    Assert-JenkinsPlanPipelineJob `
+        -Selection $selection `
+        -JobName "bundle-delivery" `
+        -ExpectedPath ("{0}/bundle-delivery" -f $expectedRoot) `
+        -ExpectedJenkinsfile "jenkins\bundle-delivery.Jenkinsfile" `
+        -ExpectedKeyParameters @(
+            ("BUNDLE_ENVIRONMENT_PRESET={0}" -f $Preset),
+            "BUNDLE_DEPLOY=false"
+        )
+
+    Assert-JenkinsPlanPipelineJob `
+        -Selection $selection `
+        -JobName "bundle-promotion" `
+        -ExpectedPath ("{0}/bundle-promotion" -f $expectedRoot) `
+        -ExpectedJenkinsfile "jenkins\bundle-promotion.Jenkinsfile" `
+        -ExpectedKeyParameters @(
+            ("PROMOTION_ENVIRONMENT_PRESET={0}" -f $Preset),
+            "PROMOTION_DEPLOY=false",
+            "PROMOTION_DEPLOY_DRY_RUN=true"
+        )
+
+    $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+    $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
+    $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
+
+    Assert-Equal `
+        -Actual ([string]$selection.ValidationJobPath) `
+        -Expected ("{0}/repository-validation" -f $expectedRoot) `
+        -Message ("Preset {0} validation job path field" -f $Preset)
+    Assert-Equal `
+        -Actual ([string]$selection.DeliveryJobPath) `
+        -Expected ("{0}/bundle-delivery" -f $expectedRoot) `
+        -Message ("Preset {0} delivery job path field" -f $Preset)
+    Assert-Equal `
+        -Actual ([string]$selection.PromotionJobPath) `
+        -Expected ("{0}/bundle-promotion" -f $expectedRoot) `
+        -Message ("Preset {0} promotion job path field" -f $Preset)
+    Assert-Equal `
+        -Actual @($validationJob.UpstreamDependencies).Count `
+        -Expected 0 `
+        -Message ("Preset {0} validation job dependency count" -f $Preset)
+    Assert-ContainsItem `
+        -Values @($deliveryJob.UpstreamDependencies) `
+        -Expected ([string]$selection.ValidationJobPath) `
+        -Message ("Preset {0} delivery should depend on repository validation." -f $Preset)
+    Assert-ContainsItem `
+        -Values @($promotionJob.UpstreamDependencies) `
+        -Expected ([string]$selection.DeliveryJobPath) `
+        -Message ("Preset {0} promotion should depend on bundle delivery." -f $Preset)
+
+    $expectedServiceJobNames = @(
+        @($selection.ServiceDirectories) |
+            Where-Object { $ServiceIndex.ContainsKey([string]$_) -and [bool]$ServiceIndex[[string]$_].HasJenkinsfile } |
+            Sort-Object -Unique
+    )
+    Assert-Equal `
+        -Actual ([int]$Plan.ServiceJobCount) `
+        -Expected $expectedServiceJobNames.Count `
+        -Message ("Preset {0} service job count should match Jenkinsfile-backed selected services" -f $Preset)
+
+    foreach ($serviceDirectory in @($selection.ServiceDirectories)) {
+        Assert-Condition `
+            -Condition $ServiceIndex.ContainsKey([string]$serviceDirectory) `
+            -Message ("Preset {0} selected service {1} should exist in the service pipeline plan." -f $Preset, $serviceDirectory)
+    }
+
+    foreach ($serviceName in $expectedServiceJobNames) {
+        $serviceJob = $Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1
+        Assert-Condition `
+            -Condition ($null -ne $serviceJob) `
+            -Message ("Preset {0} should include a service job for {1}." -f $Preset, $serviceName)
+        Assert-Equal `
+            -Actual ([string]$serviceJob.Path) `
+            -Expected ("services/{0}" -f $serviceName) `
+            -Message ("Preset {0} service job path for {1}" -f $Preset, $serviceName)
+        Assert-Equal `
+            -Actual ([string]$serviceJob.Jenkinsfile) `
+            -Expected ("services\{0}\Jenkinsfile" -f $serviceName) `
+            -Message ("Preset {0} service Jenkinsfile path for {1}" -f $Preset, $serviceName)
+        Assert-ContainsItem `
+            -Values @($serviceJob.UsedBySelections) `
+            -Expected ([string]$Preset) `
+            -Message ("Preset {0} service job for {1} should record preset usage." -f $Preset, $serviceName)
+    }
+
+    Assert-Condition `
+        -Condition (@(@($selection.RecommendedFlow) -match "manual approval").Count -gt 0) `
+        -Message ("Preset {0} should keep promotion behind manual approval guidance." -f $Preset)
+}
+
+function Assert-ServicePipelinePlan {
+    param(
+        [object]$Plan
+    )
+
+    Assert-Condition `
+        -Condition (@($Plan.Services).Count -gt 0) `
+        -Message "Service pipeline plan should include at least one catalog service."
+
+    foreach ($service in @($Plan.Services)) {
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Name)) `
+            -Message "Service pipeline plan contains a service without a name."
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.Category)) `
+            -Message ("Service {0} is missing a category." -f $service.Name)
+        Assert-Condition `
+            -Condition (-not [string]::IsNullOrWhiteSpace([string]$service.ImageName)) `
+            -Message ("Service {0} is missing an image name." -f $service.Name)
+        Assert-Condition `
+            -Condition ($null -ne $service.HasJenkinsfile) `
+            -Message ("Service {0} is missing HasJenkinsfile metadata." -f $service.Name)
+        Assert-Condition `
+            -Condition (@($service.RequiredFiles).Count -gt 0) `
+            -Message ("Service {0} should declare required files." -f $service.Name)
+
+        if (-not [bool]$service.HasJenkinsfile) {
+            Assert-Equal `
+                -Actual @($service.RequiredJenkinsStrings).Count `
+                -Expected 0 `
+                -Message ("Service {0} without a Jenkinsfile should not require Jenkinsfile text assertions" -f $service.Name)
+        }
+    }
+}
+
 function Assert-GeneratedDsl {
     param(
         [string]$DslPath,
