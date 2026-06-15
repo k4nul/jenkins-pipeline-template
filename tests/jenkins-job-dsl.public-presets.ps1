@@ -71,6 +71,72 @@ function Assert-CustomDirectSelectionDsl {
     }
 }
 
+function Invoke-ScriptExpectingFailure {
+    param(
+        [string]$ScriptPath,
+        [hashtable]$Arguments,
+        [string]$ExpectedMessage,
+        [string]$Message
+    )
+
+    $failed = $false
+    $failureMessage = ""
+
+    try {
+        & $ScriptPath @Arguments 6>$null | Out-Null
+    }
+    catch {
+        $failed = $true
+        $failureMessage = [string]$_
+    }
+
+    Assert-Condition -Condition $failed -Message $Message
+    Assert-TextContains -Text $failureMessage -Expected $ExpectedMessage -Message ("Failure should explain rejected Job DSL path input: {0}" -f $ExpectedMessage)
+}
+
+function Assert-NestedRootPlanAndDsl {
+    param(
+        [object]$Plan,
+        [string]$DslPath
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Nested-root selection should produce one selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Nested-root selection should skip service jobs"
+
+    $selection = $Plan.Selections | Select-Object -First 1
+    Assert-Equal -Actual ([string]$selection.Name) -Expected "qa-blue-canary" -Message "Nested-root selection name should be path-safe"
+    Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "team/platform/bundles/qa-blue-canary" -Message "Nested bundle folder path"
+    Assert-Equal -Actual ([string]$selection.ValidationJobPath) -Expected "team/platform/bundles/qa-blue-canary/repository-validation" -Message "Nested validation job path"
+    Assert-Equal -Actual ([string]$selection.DeliveryJobPath) -Expected "team/platform/bundles/qa-blue-canary/bundle-delivery" -Message "Nested delivery job path"
+    Assert-Equal -Actual ([string]$selection.PromotionJobPath) -Expected "team/platform/bundles/qa-blue-canary/bundle-promotion" -Message "Nested promotion job path"
+
+    $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+    $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
+    $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
+
+    Assert-ContainsItem -Values @($deliveryJob.UpstreamDependencies) -Expected ([string]$validationJob.Path) -Message "Nested-root delivery should depend on validation"
+    Assert-ContainsItem -Values @($promotionJob.UpstreamDependencies) -Expected ([string]$deliveryJob.Path) -Message "Nested-root promotion should depend on delivery"
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated nested-root DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    foreach ($folderPath in @(
+        "team",
+        "team/platform",
+        "team/platform/bundles",
+        "team/platform/bundles/qa-blue-canary",
+        "team/services",
+        "team/services/shared"
+    )) {
+        Assert-TextContains -Text $dsl -Expected ("folder('{0}')" -f $folderPath) -Message ("Nested-root DSL should include folder {0}" -f $folderPath)
+    }
+
+    foreach ($job in @($selection.PipelineJobs)) {
+        Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $job.Path) -Message ("Nested-root DSL should include job {0}" -f $job.Path)
+        Assert-TextContains -Text $dsl -Expected ([string]$job.Jenkinsfile).Replace("\", "/") -Message ("Nested-root DSL should include Jenkinsfile {0}" -f $job.Jenkinsfile)
+    }
+}
+
 if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
     $RepoRoot = Join-Path $PSScriptRoot ".."
 }
@@ -161,6 +227,54 @@ $customDirectSelectionDslPath = Join-Path $outputDirectory "custom-direct-select
     -OutputPath $customDirectSelectionDslPath 6>$null | Out-Null
 Assert-CustomDirectSelectionDsl -DslPath $customDirectSelectionDslPath -Plan $customDirectSelectionPlan
 
+$nestedRootPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    SelectionName = "qa/blue canary"
+    Profile = "web-platform"
+    Applications = @("nginx-web", "whoami")
+    DataServices = @("redis")
+    JobRoot = "team/platform/bundles"
+    ServiceJobRoot = "team/services/shared"
+    SkipServiceJobs = $true
+    Format = "json"
+}
+$nestedRootDslPath = Join-Path $outputDirectory "nested-root-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -SelectionName "qa/blue canary" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web", "whoami") `
+    -DataServices @("redis") `
+    -JobRoot "team/platform/bundles" `
+    -ServiceJobRoot "team/services/shared" `
+    -SkipServiceJobs `
+    -OutputPath $nestedRootDslPath 6>$null | Out-Null
+Assert-NestedRootPlanAndDsl -Plan $nestedRootPlan -DslPath $nestedRootDslPath
+
+Invoke-ScriptExpectingFailure `
+    -ScriptPath $jobPlanScript `
+    -Arguments @{
+        RepoRoot = $root
+        SelectionName = "unsafe-root"
+        Profile = "web-platform"
+        JobRoot = "../team"
+        Format = "json"
+    } `
+    -ExpectedMessage "Jenkins job path segment is not allowed" `
+    -Message "Job plan generation should reject parent-directory JobRoot segments"
+
+Invoke-ScriptExpectingFailure `
+    -ScriptPath $jobDslScript `
+    -Arguments @{
+        RepoRoot = $root
+        SelectionName = "unsafe-service-root"
+        Profile = "web-platform"
+        ServiceJobRoot = 'services/${name}'
+        OutputPath = "out/jenkins/tests/public-presets/unsafe-service-root-seed-job-dsl.groovy"
+    } `
+    -ExpectedMessage "Jenkins job path segment is not allowed" `
+    -Message "Job DSL export should reject unsafe ServiceJobRoot segments"
+
 $serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $outputDirectory
 $serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
 $serviceJobFixtureDslScript = Join-Path $serviceJobFixtureRoot "scripts/export-jenkins-job-dsl.ps1"
@@ -216,6 +330,8 @@ Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
+Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
+Write-Output "Validated unsafe Job DSL root segments fail closed."
 Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
 Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
