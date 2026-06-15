@@ -21,7 +21,7 @@ function Assert-PipelineJob {
         [string[]]$ExpectedKeyParameters
     )
 
-    $job = @($Selection.PipelineJobs | Where-Object { $_.Name -eq $JobName } | Select-Object -First 1)
+    $job = $Selection.PipelineJobs | Where-Object { $_.Name -eq $JobName } | Select-Object -First 1
     Assert-Condition `
         -Condition ($null -ne $job) `
         -Message ("Selection {0} is missing pipeline job {1}." -f $Selection.Name, $JobName)
@@ -55,7 +55,7 @@ function Assert-JobPlan {
         -Condition ([int]$Plan.SelectionCount -eq 1) `
         -Message ("Preset {0} should produce exactly one bundle selection." -f $Preset)
 
-    $selection = @($Plan.Selections | Select-Object -First 1)
+    $selection = $Plan.Selections | Select-Object -First 1
     Assert-Condition `
         -Condition ([string]$selection.Name -eq $Preset) `
         -Message ("Preset {0} produced selection {1}." -f $Preset, $selection.Name)
@@ -138,7 +138,7 @@ function Assert-JobPlan {
     }
 
     foreach ($serviceName in $expectedServiceJobNames) {
-        $serviceJob = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1)
+        $serviceJob = $Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1
         Assert-Condition `
             -Condition ($null -ne $serviceJob) `
             -Message ("Preset {0} should include a service job for {1}." -f $Preset, $serviceName)

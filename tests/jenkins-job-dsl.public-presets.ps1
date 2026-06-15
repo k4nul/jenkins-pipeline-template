@@ -28,7 +28,7 @@ function Assert-PresetPlan {
 
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message ("Preset {0} should produce one selection" -f $Preset)
 
-    $selection = @($Plan.Selections | Select-Object -First 1)
+    $selection = $Plan.Selections | Select-Object -First 1
     Assert-Equal -Actual ([string]$selection.Name) -Expected $Preset -Message ("Preset {0} selection name" -f $Preset)
     Assert-Condition -Condition ([bool]$selection.UsesPreset) -Message ("Preset {0} should be preset-backed" -f $Preset)
 
@@ -70,7 +70,7 @@ function Assert-PresetPlan {
     }
 
     foreach ($serviceName in $expectedServiceJobNames) {
-        $serviceJob = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1)
+        $serviceJob = $Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1
         Assert-Condition -Condition ($null -ne $serviceJob) -Message ("Preset {0} should include a service job for {1}" -f $Preset, $serviceName)
         Assert-Equal -Actual ([string]$serviceJob.Path) -Expected ("services/{0}" -f $serviceName) -Message ("Preset {0} service job path for {1}" -f $Preset, $serviceName)
     }
@@ -84,7 +84,7 @@ function Assert-CustomDirectSelectionPlan {
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Custom direct selection should produce one selection"
     Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Custom direct selection should skip service jobs when requested"
 
-    $selection = @($Plan.Selections | Select-Object -First 1)
+    $selection = $Plan.Selections | Select-Object -First 1
     Assert-Equal -Actual ([string]$selection.Name) -Expected "feature-blue-green" -Message "Custom selection name should be path-safe"
     Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "Custom direct selection should not be marked as preset-backed"
     Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "team/bundles/feature-blue-green" -Message "Custom selection should use the requested bundle root"
