@@ -55,8 +55,10 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
 
 The final aggregate command validates every built-in public-safe preset and
 writes generated fixtures under `out/jenkins/validation`. Generated output must
-stay under `out/`, which is ignored by Git. Do not commit generated Job DSL from
-a real controller or environment.
+stay under `out/`, which is ignored by Git. Job DSL fixture content is
+deterministic and the writer skips unchanged files, so repeated validation runs
+do not rewrite ignored artifacts just because the command was re-run. Do not
+commit generated Job DSL from a real controller or environment.
 
 ## Phase-Ready Job DSL Evidence
 

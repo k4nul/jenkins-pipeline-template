@@ -95,6 +95,14 @@ function Write-RepoDocument {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     }
 
+    if (Test-Path -Path $resolvedOutputPath -PathType Leaf) {
+        $existingDocument = Get-Content -Path $resolvedOutputPath -Raw
+        if ($existingDocument -eq $Document) {
+            Write-Information -MessageData ("{0} is already up to date at {1}" -f $Description, $resolvedOutputPath) -InformationAction Continue
+            return
+        }
+    }
+
     Set-Content -Path $resolvedOutputPath -Value $Document -NoNewline
     Write-Information -MessageData ("Wrote {0} to {1}" -f $Description, $resolvedOutputPath) -InformationAction Continue
 }
