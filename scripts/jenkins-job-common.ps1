@@ -96,7 +96,7 @@ function Write-RepoDocument {
     }
 
     Set-Content -Path $resolvedOutputPath -Value $Document -NoNewline
-    Write-Host ("Wrote {0} to {1}" -f $Description, $resolvedOutputPath)
+    Write-Information -MessageData ("Wrote {0} to {1}" -f $Description, $resolvedOutputPath) -InformationAction Continue
 }
 
 function Join-JobPath {

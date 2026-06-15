@@ -83,7 +83,7 @@ else {
     }
 
     if ($jenkinsBackedDefinitions.Count -eq 0) {
-        Write-Host "No services directory found; catalog contains no Jenkinsfile-backed service jobs."
+        Write-Information -MessageData "No services directory found; catalog contains no Jenkinsfile-backed service jobs." -InformationAction Continue
     }
 }
 
@@ -206,4 +206,4 @@ if ($errors.Count -gt 0) {
     Write-Error ("Service pipeline validation failed:`n- {0}" -f ($errors -join "`n- "))
 }
 
-Write-Host "Service pipeline validation completed."
+Write-Information -MessageData "Service pipeline validation completed." -InformationAction Continue
