@@ -51,7 +51,9 @@ For local validation details and known controller-free limits, see
 [`docs/troubleshooting.md`](../docs/troubleshooting.md). For the maintenance
 checklist that maps presets, service catalog changes, Job DSL export, and
 Jenkinsfiles to validation commands, see
-[`docs/maintenance.md`](../docs/maintenance.md).
+[`docs/maintenance.md`](../docs/maintenance.md). For a focused map of Job DSL,
+Pipeline DSL, service catalog, and controller/JCasC ownership, see
+[`docs/pipeline-boundaries.md`](../docs/pipeline-boundaries.md).
 
 ## Important Defaults
 
@@ -107,7 +109,10 @@ The phase transition wrapper, `scripts/run-phase-validation.sh`, runs the focuse
 exercise both the public default path and the full public-safe preset matrix.
 Use [`docs/maintenance.md`](../docs/maintenance.md) when selecting the narrower
 validation lane for a preset, service catalog, Job DSL, Jenkinsfile, or
-controller/JCasC documentation change.
+controller/JCasC documentation change. Use
+[`docs/pipeline-boundaries.md`](../docs/pipeline-boundaries.md) before moving a
+responsibility from generated Job DSL into Jenkinsfiles or from Jenkinsfiles into
+controller/JCasC rollout work.
 
 ## Custom Selection Example
 

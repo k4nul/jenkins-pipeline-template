@@ -4,6 +4,10 @@ Use this runbook when changing Jenkins job planning, Job DSL export, service
 pipeline metadata, or the documentation that explains those areas. It keeps the
 public template safe to inspect without a live Jenkins controller.
 
+For a focused ownership map across generated Job DSL, checked-in Jenkinsfiles,
+service catalog metadata, and live controller/JCasC rollout, read
+[pipeline-boundaries.md](pipeline-boundaries.md) with this runbook.
+
 ## Maintenance Rules
 
 - Keep repository URLs, branch specs, and Jenkins credentials IDs parameterized.
@@ -117,6 +121,13 @@ The next phase, `pipeline-boundary-hardening`, is for keeping the Job DSL,
 Pipeline DSL, and future JCasC responsibilities explicit. Documentation updates
 may improve those explanations, but only a `phase-transition` task should edit
 `docs/instructions/phase-gates.json` or other phase metadata.
+
+The reader-facing boundary package for that phase is
+[pipeline-boundaries.md](pipeline-boundaries.md). Keep it aligned with
+`jenkins/JOB_BLUEPRINT.md`, `jenkins/README.md`, and the validation commands in
+this runbook when future changes move responsibilities between template
+generation, Jenkinsfile execution, service catalog metadata, and controller
+rollout.
 
 ## Pipeline Boundary Hardening Checklist
 
