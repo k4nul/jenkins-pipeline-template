@@ -137,33 +137,21 @@ function Assert-NestedRootPlanAndDsl {
     }
 }
 
-if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
-    $RepoRoot = Join-Path $PSScriptRoot ".."
-}
+$context = Initialize-JenkinsValidationContext `
+    -RepoRoot $RepoRoot `
+    -DefaultRoot (Join-Path $PSScriptRoot "..") `
+    -OutputDirectory "out/jenkins/tests/public-presets"
 
-$root = (Resolve-Path -Path $RepoRoot).Path
-$jobPlanScript = Join-Path $root "scripts/show-jenkins-job-plan.ps1"
-$servicePlanScript = Join-Path $root "scripts/show-service-pipeline-plan.ps1"
-$jobDslScript = Join-Path $root "scripts/export-jenkins-job-dsl.ps1"
-$seedJobPath = Join-Path $root "jenkins/job-seed.Jenkinsfile"
-$deliveryJobPath = Join-Path $root "jenkins/bundle-delivery.Jenkinsfile"
-$promotionJobPath = Join-Path $root "jenkins/bundle-promotion.Jenkinsfile"
-$outputDirectory = Join-Path $root "out/jenkins/tests/public-presets"
-$presets = @(Get-PresetNames -Root $root)
-
-Assert-Condition -Condition ($presets.Count -gt 0) -Message "At least one public-safe environment preset should exist."
-New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-
-$servicePlan = Invoke-JsonScript -ScriptPath $servicePlanScript -Arguments @{
-    RepoRoot = $root
-    Format = "json"
-}
-Assert-ServicePipelinePlan -Plan $servicePlan
-
-$serviceIndex = @{}
-foreach ($service in @($servicePlan.Services)) {
-    $serviceIndex[[string]$service.Name] = $service
-}
+$root = $context.Root
+$jobPlanScript = $context.Paths.JobPlanScript
+$jobDslScript = $context.Paths.JobDslScript
+$seedJobPath = $context.Paths.SeedJobPath
+$deliveryJobPath = $context.Paths.DeliveryJobPath
+$promotionJobPath = $context.Paths.PromotionJobPath
+$outputDirectory = $context.OutputDirectory
+$presets = @($context.Presets)
+$servicePlan = $context.ServicePlan
+$serviceIndex = $context.ServiceIndex
 
 foreach ($preset in $presets) {
     $plan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{

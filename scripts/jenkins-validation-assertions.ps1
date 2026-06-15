@@ -89,6 +89,68 @@ function Get-PresetNames {
     )
 }
 
+function Get-JenkinsValidationPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    return [PSCustomObject]@{
+        JobPlanScript = Join-Path $Root "scripts/show-jenkins-job-plan.ps1"
+        ServicePlanScript = Join-Path $Root "scripts/show-service-pipeline-plan.ps1"
+        JobDslScript = Join-Path $Root "scripts/export-jenkins-job-dsl.ps1"
+        ServiceValidationScript = Join-Path $Root "scripts/validate-service-pipelines.ps1"
+        SeedJobPath = Join-Path $Root "jenkins/job-seed.Jenkinsfile"
+        DeliveryJobPath = Join-Path $Root "jenkins/bundle-delivery.Jenkinsfile"
+        PromotionJobPath = Join-Path $Root "jenkins/bundle-promotion.Jenkinsfile"
+    }
+}
+
+function Initialize-JenkinsValidationContext {
+    param(
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DefaultRoot,
+
+        [string[]]$RequestedPresets = @(),
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [string]$MissingPresetMessage = "At least one public-safe environment preset should exist."
+    )
+
+    $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot $DefaultRoot
+    $paths = Get-JenkinsValidationPaths -Root $root
+    $presets = @(Get-PresetNames -Root $root -RequestedPresets $RequestedPresets)
+
+    Assert-Condition -Condition ($presets.Count -gt 0) -Message $MissingPresetMessage
+
+    $resolvedOutputDirectory = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputDirectory
+    New-Item -ItemType Directory -Path $resolvedOutputDirectory -Force | Out-Null
+
+    $servicePlan = Invoke-JsonScript -ScriptPath $paths.ServicePlanScript -Arguments @{
+        RepoRoot = $root
+        Format = "json"
+    }
+    Assert-ServicePipelinePlan -Plan $servicePlan
+
+    $serviceIndex = @{}
+    foreach ($service in @($servicePlan.Services)) {
+        $serviceIndex[[string]$service.Name] = $service
+    }
+
+    return [PSCustomObject]@{
+        Root = $root
+        Paths = $paths
+        Presets = @($presets)
+        OutputDirectory = $resolvedOutputDirectory
+        ServicePlan = $servicePlan
+        ServiceIndex = $serviceIndex
+    }
+}
+
 function Get-JenkinsPlanPipelineJob {
     param(
         [object]$Selection,
