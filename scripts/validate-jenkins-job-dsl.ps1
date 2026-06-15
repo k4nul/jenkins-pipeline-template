@@ -103,6 +103,33 @@ Assert-JenkinsfileDeploymentApprovalSafety `
 
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
+$serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $resolvedOutputDirectory
+$serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
+$serviceJobFixtureDslScript = Join-Path $serviceJobFixtureRoot "scripts/export-jenkins-job-dsl.ps1"
+$serviceJobFixtureValidationScript = Join-Path $serviceJobFixtureRoot "scripts/validate-service-pipelines.ps1"
+$serviceJobFixtureDslOutputPath = "out/jenkins/validation/service-job-fixture-seed-job-dsl.groovy"
+$serviceJobFixtureDslPath = Join-Path $serviceJobFixtureRoot $serviceJobFixtureDslOutputPath
+
+$serviceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScript -Arguments @{
+    RepoRoot = $serviceJobFixtureRoot
+    SelectionName = "service-job-fixture"
+    Profile = "web-platform"
+    Applications = @("nginx-web")
+    Format = "json"
+}
+Assert-JenkinsServiceJobFixturePlan -Plan $serviceJobFixturePlan
+
+& $serviceJobFixtureDslScript `
+    -RepoRoot $serviceJobFixtureRoot `
+    -SelectionName "service-job-fixture" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web") `
+    -OutputPath $serviceJobFixtureDslOutputPath 6>$null | Out-Null
+Assert-GeneratedDsl -DslPath $serviceJobFixtureDslPath -Plan $serviceJobFixturePlan -Preset "service-job-fixture"
+
+& $serviceJobFixtureValidationScript -RepoRoot $serviceJobFixtureRoot 6>$null | Out-Null
+Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $resolvedOutputDirectory
+
 $summary = [PSCustomObject]@{
     Status = "passed"
     Presets = @($presets)
@@ -110,6 +137,7 @@ $summary = [PSCustomObject]@{
     ServiceCount = @($servicePlan.Services).Count
     OutputDirectory = $resolvedOutputDirectory
     ExplicitScmFixture = $explicitScmDslPath
+    ServiceJobFixture = $serviceJobFixtureDslPath
     SeedJobSafety = "passed"
     Results = @($results.ToArray())
 }
@@ -120,6 +148,8 @@ if ($Format -eq "json") {
 else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
     Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+    Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
+    Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."

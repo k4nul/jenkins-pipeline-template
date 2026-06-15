@@ -293,6 +293,155 @@ function Assert-ServicePipelinePlan {
     }
 }
 
+function New-JenkinsServiceJobFixtureRoot {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory,
+        [string]$Name = "service-job-fixture-repo"
+    )
+
+    $fixtureRoot = Join-Path $OutputDirectory $Name
+    if (Test-Path -Path $fixtureRoot) {
+        Remove-Item -Path $fixtureRoot -Recurse -Force
+    }
+
+    foreach ($relativeDirectory in @(
+        "config",
+        "config/profiles",
+        "scripts",
+        "services/nginx-web",
+        "services/nginx-web/site"
+    )) {
+        New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $relativeDirectory) -Force | Out-Null
+    }
+
+    foreach ($scriptName in @(
+        "environment-preset.ps1",
+        "export-jenkins-job-dsl.ps1",
+        "jenkins-job-common.ps1",
+        "platform-catalog.ps1",
+        "show-jenkins-job-plan.ps1",
+        "validate-service-pipelines.ps1"
+    )) {
+        Copy-Item -Path (Join-Path $Root "scripts/$scriptName") -Destination (Join-Path $fixtureRoot "scripts/$scriptName")
+    }
+
+    Copy-Item -Path (Join-Path $Root "config/profiles/*.psd1") -Destination (Join-Path $fixtureRoot "config/profiles")
+
+    $catalog = @'
+@{
+    Services = @(
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @(
+                "CACHE"
+            )
+            RequiredFiles = @(
+                "README.md",
+                "docker-compose.yaml",
+                "site\index.html"
+            )
+            ArtifactInputs = @(
+                "Consumes the bundle validation output before publishing a service image."
+            )
+            RequiredJenkinsStrings = @(
+                "stage('Build')",
+                "docker.withRegistry("
+            )
+            Notes = "Synthetic public-safe fixture for Jenkinsfile-backed service job projection."
+        }
+    )
+}
+'@
+    Set-Content -Path (Join-Path $fixtureRoot "config/service-pipelines.psd1") -Value $catalog
+
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/README.md") -Value "# NGINX fixture service"
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/docker-compose.yaml") -Value "services: {}"
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/site/index.html") -Value "<h1>NGINX fixture service</h1>"
+
+    $jenkinsfile = @'
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "fixture/nginx-web:1.0.0"
+        DOCKER_CREDENTIALS_ID = "fixture-docker-registry"
+    }
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    def app = docker.build("${DOCKER_IMAGE}")
+                    docker.withRegistry('', DOCKER_CREDENTIALS_ID) {
+                        app.push("${env.BUILD_NUMBER}")
+                    }
+                }
+            }
+        }
+    }
+}
+'@
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Value $jenkinsfile
+
+    return $fixtureRoot
+}
+
+function Assert-JenkinsServiceJobFixturePlan {
+    param(
+        [object]$Plan
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Service job fixture should produce one bundle selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 1 -Message "Service job fixture should produce one Jenkinsfile-backed service job"
+
+    $selection = $Plan.Selections | Select-Object -First 1
+    Assert-Equal -Actual ([string]$selection.Name) -Expected "service-job-fixture" -Message "Service job fixture selection name"
+    Assert-ContainsItem -Values @($selection.ServiceDirectories) -Expected "nginx-web" -Message "Service job fixture should select nginx-web"
+
+    $serviceJobs = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq "nginx-web" })
+    Assert-Equal -Actual $serviceJobs.Count -Expected 1 -Message "Service job fixture should include exactly one nginx-web service job"
+
+    $serviceJob = $serviceJobs[0]
+    Assert-Equal -Actual ([string]$serviceJob.Path) -Expected "services/nginx-web" -Message "Service job fixture path"
+    Assert-Equal -Actual ([string]$serviceJob.Jenkinsfile) -Expected "services\nginx-web\Jenkinsfile" -Message "Service job fixture Jenkinsfile path"
+    Assert-ContainsItem -Values @($serviceJob.RequiredEnvironmentVariables) -Expected "DOCKER_REGISTRY" -Message "Service job fixture should expose registry requirement"
+    Assert-ContainsItem -Values @($serviceJob.OptionalEnvironmentVariables) -Expected "CACHE" -Message "Service job fixture should expose optional service variables"
+    Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "service-job-fixture" -Message "Service job fixture should record selection usage"
+}
+
+function Assert-MissingServiceJenkinsfileValidationFails {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "missing-service-jenkinsfile-fixture-repo"
+    Remove-Item -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Force
+
+    $validationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+    $failed = $false
+    $message = ""
+
+    try {
+        & $validationScript -RepoRoot $fixtureRoot 6>$null | Out-Null
+    }
+    catch {
+        $failed = $true
+        $message = [string]$_
+    }
+
+    Assert-Condition -Condition $failed -Message "Service pipeline validation should fail when a Jenkinsfile-backed service is missing services/<name>/Jenkinsfile."
+    Assert-TextContains -Text $message -Expected "expects a Jenkinsfile-backed service" -Message "Missing Jenkinsfile failure should explain the catalog/service mismatch."
+}
+
 function Assert-GeneratedDsl {
     param(
         [string]$DslPath,

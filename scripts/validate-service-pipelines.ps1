@@ -126,7 +126,11 @@ foreach ($serviceName in $catalogMap.Keys) {
     }
 
     $jenkinsfilePath = Join-Path $serviceRoot "Jenkinsfile"
+    $expectsJenkinsfile = [bool]$definition.HasJenkinsfile -or @($definition.RequiredJenkinsStrings).Count -gt 0
     if (-not (Test-Path -Path $jenkinsfilePath -PathType Leaf)) {
+        if ($expectsJenkinsfile) {
+            $errors.Add("Catalog entry for $serviceName expects a Jenkinsfile-backed service but services/$serviceName/Jenkinsfile is missing.") | Out-Null
+        }
         continue
     }
 

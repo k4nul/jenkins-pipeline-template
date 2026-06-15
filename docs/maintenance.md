@@ -62,7 +62,9 @@ instead of inlining real values.
 
 The current catalog is public-image only, and every service has
 `HasJenkinsfile = $false`. A missing `services/` directory is valid only while
-the catalog has no Jenkinsfile-backed services.
+the catalog has no Jenkinsfile-backed services. If a service is marked
+Jenkinsfile-backed, validation requires `services/<name>/Jenkinsfile` even when
+the service directory and other required files exist.
 
 When adding a Jenkinsfile-backed service:
 

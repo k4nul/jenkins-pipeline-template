@@ -22,13 +22,14 @@ fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
 spec, and credentials handling stay parameterized, verifies explicit seed SCM
 inputs are escaped in generated Groovy strings, verifies the generated
 validation-delivery-promotion dependency chain, verifies service-job projection
-for any Jenkinsfile-backed selected services, verifies destructive removed-job
-deletion requires explicit seed confirmation, verifies Job DSL apply still
-requires concrete SCM URL and branch inputs, verifies Jenkins artifact archiving
-uses literal paths under `out/`, verifies non-dry-run delivery and promotion stay
-behind approval plus bootstrap readiness/status checks, validates service
-catalog metadata and required service file paths, and runs service pipeline
-validation.
+with a synthetic Jenkinsfile-backed service fixture, verifies destructive
+removed-job deletion requires explicit seed confirmation, verifies Job DSL apply
+still requires concrete SCM URL and branch inputs, verifies Jenkins artifact
+archiving uses literal paths under `out/`, verifies non-dry-run delivery and
+promotion stay behind approval plus bootstrap readiness/status checks, validates
+service catalog metadata and required service file paths, verifies
+Jenkinsfile-backed catalog entries fail closed when
+`services/<name>/Jenkinsfile` is missing, and runs service pipeline validation.
 
 ## Dashboard Validation Commands
 
@@ -123,8 +124,10 @@ gate to pass.
 - Service catalog required-file paths are relative service-local paths, not
   absolute paths, parent traversal, or glob patterns.
 - Service catalog entries remain public-safe and internally consistent.
-- Jenkinsfile-backed catalog services selected by a preset are projected into
-  generated service jobs with service-local Jenkinsfile paths.
+- Jenkinsfile-backed catalog services selected by a preset or fixture are
+  projected into generated service jobs with service-local Jenkinsfile paths.
+- Jenkinsfile-backed catalog entries fail validation when the service directory
+  exists but `services/<name>/Jenkinsfile` is missing.
 
 ## What These Checks Do Not Prove
 

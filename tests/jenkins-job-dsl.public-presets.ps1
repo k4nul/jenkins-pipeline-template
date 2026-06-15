@@ -161,6 +161,32 @@ $customDirectSelectionDslPath = Join-Path $outputDirectory "custom-direct-select
     -OutputPath $customDirectSelectionDslPath 6>$null | Out-Null
 Assert-CustomDirectSelectionDsl -DslPath $customDirectSelectionDslPath -Plan $customDirectSelectionPlan
 
+$serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $outputDirectory
+$serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
+$serviceJobFixtureDslScript = Join-Path $serviceJobFixtureRoot "scripts/export-jenkins-job-dsl.ps1"
+$serviceJobFixtureValidationScript = Join-Path $serviceJobFixtureRoot "scripts/validate-service-pipelines.ps1"
+$serviceJobFixtureDslOutputPath = "out/jenkins/tests/service-job-fixture-seed-job-dsl.groovy"
+$serviceJobFixtureDslPath = Join-Path $serviceJobFixtureRoot $serviceJobFixtureDslOutputPath
+
+$serviceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScript -Arguments @{
+    RepoRoot = $serviceJobFixtureRoot
+    SelectionName = "service-job-fixture"
+    Profile = "web-platform"
+    Applications = @("nginx-web")
+    Format = "json"
+}
+Assert-JenkinsServiceJobFixturePlan -Plan $serviceJobFixturePlan
+
+& $serviceJobFixtureDslScript `
+    -RepoRoot $serviceJobFixtureRoot `
+    -SelectionName "service-job-fixture" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web") `
+    -OutputPath $serviceJobFixtureDslOutputPath 6>$null | Out-Null
+Assert-GeneratedDsl -DslPath $serviceJobFixtureDslPath -Plan $serviceJobFixturePlan -Preset "service-job-fixture"
+& $serviceJobFixtureValidationScript -RepoRoot $serviceJobFixtureRoot 6>$null | Out-Null
+Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $outputDirectory
+
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
 Assert-JenkinsfileArtifactPathSafety `
@@ -190,6 +216,8 @@ Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
+Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
+Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."

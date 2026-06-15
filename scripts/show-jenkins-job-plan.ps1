@@ -493,7 +493,7 @@ if (-not $SkipServiceJobs) {
 
         if ($null -ne $serviceDefinition -and [bool]$serviceDefinition.HasJenkinsfile) {
             $requiredEnvVars = @()
-            if ($serviceDefinition.PSObject.Properties.Name -contains "RequiresRegistry" -and [bool]$serviceDefinition.RequiresRegistry) {
+            if ([bool]$serviceDefinition.RequiresRegistry) {
                 $requiredEnvVars += "DOCKER_REGISTRY"
             }
             if ([bool]$serviceDefinition.RequiresMode) {

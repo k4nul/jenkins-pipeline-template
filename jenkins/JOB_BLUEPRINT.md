@@ -64,8 +64,10 @@ checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials
 values remain parameterized, exercises explicit SCM value escaping in generated
 Groovy, verifies destructive removed-job deletion requires explicit seed
 confirmation, validates validation-to-delivery-to-promotion dependencies,
-verifies Jenkinsfile-backed service job projection, validates service catalog
-metadata, and runs service pipeline validation.
+verifies Jenkinsfile-backed service job projection with a synthetic fixture,
+checks that Jenkinsfile-backed service entries fail closed when
+`services/<name>/Jenkinsfile` is missing, validates service catalog metadata, and
+runs service pipeline validation.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test lane for generated command arguments, public-safe SCM placeholders, service catalog coverage, and generated Job DSL structure. It does not prove that a live Jenkins controller has the Job DSL plugin installed or that the runtime validation, delivery, and promotion entrypoints are complete. Add JenkinsPipelineUnit tests only when scripted or shared-library logic grows beyond the current declarative Jenkinsfile wrappers.
 
