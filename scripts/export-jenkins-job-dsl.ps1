@@ -66,6 +66,94 @@ function Add-UniqueFolderDescription {
     }
 }
 
+function Get-BundlePipelineJobDescriptionLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Selection,
+
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Job
+    )
+
+    $descriptionLines = @(
+        "Generated bundle pipeline job.",
+        ("Selection: {0}" -f $Selection.Name),
+        ("Profile: {0}" -f $Selection.Profile),
+        ("Applications: {0}" -f (Get-TextList -Values $Selection.Applications)),
+        ("Data services: {0}" -f (Get-TextList -Values $Selection.DataServices)),
+        ("Purpose: {0}" -f $Job.Purpose),
+        ("Recommended trigger: {0}" -f $Job.RecommendedTrigger),
+        ("Upstream dependencies: {0}" -f (Get-TextList -Values $Job.UpstreamDependencies))
+    )
+
+    if ($Job.ArtifactOutputs) {
+        $descriptionLines += ("Artifact outputs: {0}" -f (Get-TextList -Values $Job.ArtifactOutputs))
+    }
+
+    if ($Job.KeyParameters) {
+        $descriptionLines += "Key parameters:"
+        foreach ($keyParameter in @($Job.KeyParameters)) {
+            $descriptionLines += ("- {0}" -f $keyParameter)
+        }
+    }
+
+    $descriptionLines += ("Local command: {0}" -f $Job.LocalCommand)
+
+    return @($descriptionLines)
+}
+
+function Get-ServicePipelineJobDescriptionLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$ServiceJob
+    )
+
+    $descriptionLines = @(
+        "Generated service image pipeline job.",
+        ("Service: {0}" -f $ServiceJob.Name),
+        ("Category: {0}" -f $ServiceJob.Category),
+        ("Image name: {0}" -f $ServiceJob.ImageName),
+        ("Build tag strategy: {0}" -f $ServiceJob.BuildTagStrategy),
+        ("Compose update behavior: {0}" -f $ServiceJob.ComposeUpdate),
+        ("Used by selections: {0}" -f (Get-TextList -Values $ServiceJob.UsedBySelections)),
+        ("Required environment variables: {0}" -f (Get-TextList -Values $ServiceJob.RequiredEnvironmentVariables)),
+        ("Optional environment variables: {0}" -f (Get-TextList -Values $ServiceJob.OptionalEnvironmentVariables)),
+        ("Recommended trigger: {0}" -f $ServiceJob.RecommendedTrigger),
+        ("Notes: {0}" -f $ServiceJob.Notes)
+    )
+
+    if ($ServiceJob.UpstreamArtifactInputs) {
+        $descriptionLines += "Upstream artifact inputs:"
+        foreach ($artifactInput in @($ServiceJob.UpstreamArtifactInputs)) {
+            $descriptionLines += ("- {0}" -f $artifactInput)
+        }
+    }
+
+    return @($descriptionLines)
+}
+
+function Get-GeneratedPipelineJobDslLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Jenkinsfile,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$DescriptionLines
+    )
+
+    return @(
+        ("pipelineJob({0}) {{" -f (ConvertTo-GroovyString -Value $Path)),
+        ("    configureGeneratedPipelineJob(delegate, {0}, {1})" -f `
+            (ConvertTo-GroovyString -Value (ConvertTo-RelativeScmPath -Path $Jenkinsfile)), `
+            (ConvertTo-GroovyString -Value ($DescriptionLines -join "`n"))),
+        "}",
+        ""
+    )
+}
+
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
 $repoUrlForDsl = if ([string]::IsNullOrWhiteSpace($RepoUrl)) { "REPLACE_WITH_REPOSITORY_URL" } else { $RepoUrl.Trim() }
@@ -205,67 +293,18 @@ foreach ($folderPath in $sortedFolderPaths) {
 
 foreach ($selection in $selections) {
     foreach ($job in @($selection.PipelineJobs)) {
-        $descriptionLines = @(
-            "Generated bundle pipeline job.",
-            ("Selection: {0}" -f $selection.Name),
-            ("Profile: {0}" -f $selection.Profile),
-            ("Applications: {0}" -f (Get-TextList -Values $selection.Applications)),
-            ("Data services: {0}" -f (Get-TextList -Values $selection.DataServices)),
-            ("Purpose: {0}" -f $job.Purpose),
-            ("Recommended trigger: {0}" -f $job.RecommendedTrigger),
-            ("Upstream dependencies: {0}" -f (Get-TextList -Values $job.UpstreamDependencies))
-        )
-
-        if ($job.ArtifactOutputs) {
-            $descriptionLines += ("Artifact outputs: {0}" -f (Get-TextList -Values $job.ArtifactOutputs))
-        }
-
-        if ($job.KeyParameters) {
-            $descriptionLines += "Key parameters:"
-            foreach ($keyParameter in @($job.KeyParameters)) {
-                $descriptionLines += ("- {0}" -f $keyParameter)
-            }
-        }
-
-        $descriptionLines += ("Local command: {0}" -f $job.LocalCommand)
-
-        $lines += ("pipelineJob({0}) {{" -f (ConvertTo-GroovyString -Value ([string]$job.Path)))
-        $lines += ("    configureGeneratedPipelineJob(delegate, {0}, {1})" -f `
-            (ConvertTo-GroovyString -Value (ConvertTo-RelativeScmPath -Path ([string]$job.Jenkinsfile))), `
-            (ConvertTo-GroovyString -Value ($descriptionLines -join "`n")))
-        $lines += "}"
-        $lines += ""
+        $lines += Get-GeneratedPipelineJobDslLines `
+            -Path ([string]$job.Path) `
+            -Jenkinsfile ([string]$job.Jenkinsfile) `
+            -DescriptionLines @(Get-BundlePipelineJobDescriptionLines -Selection $selection -Job $job)
     }
 }
 
 foreach ($serviceJob in $serviceJobs | Sort-Object Name) {
-    $descriptionLines = @(
-        "Generated service image pipeline job.",
-        ("Service: {0}" -f $serviceJob.Name),
-        ("Category: {0}" -f $serviceJob.Category),
-        ("Image name: {0}" -f $serviceJob.ImageName),
-        ("Build tag strategy: {0}" -f $serviceJob.BuildTagStrategy),
-        ("Compose update behavior: {0}" -f $serviceJob.ComposeUpdate),
-        ("Used by selections: {0}" -f (Get-TextList -Values $serviceJob.UsedBySelections)),
-        ("Required environment variables: {0}" -f (Get-TextList -Values $serviceJob.RequiredEnvironmentVariables)),
-        ("Optional environment variables: {0}" -f (Get-TextList -Values $serviceJob.OptionalEnvironmentVariables)),
-        ("Recommended trigger: {0}" -f $serviceJob.RecommendedTrigger),
-        ("Notes: {0}" -f $serviceJob.Notes)
-    )
-
-    if ($serviceJob.UpstreamArtifactInputs) {
-        $descriptionLines += "Upstream artifact inputs:"
-        foreach ($artifactInput in @($serviceJob.UpstreamArtifactInputs)) {
-            $descriptionLines += ("- {0}" -f $artifactInput)
-        }
-    }
-
-    $lines += ("pipelineJob({0}) {{" -f (ConvertTo-GroovyString -Value ([string]$serviceJob.Path)))
-    $lines += ("    configureGeneratedPipelineJob(delegate, {0}, {1})" -f `
-        (ConvertTo-GroovyString -Value (ConvertTo-RelativeScmPath -Path ([string]$serviceJob.Jenkinsfile))), `
-        (ConvertTo-GroovyString -Value ($descriptionLines -join "`n")))
-    $lines += "}"
-    $lines += ""
+    $lines += Get-GeneratedPipelineJobDslLines `
+        -Path ([string]$serviceJob.Path) `
+        -Jenkinsfile ([string]$serviceJob.Jenkinsfile) `
+        -DescriptionLines @(Get-ServicePipelineJobDescriptionLines -ServiceJob $serviceJob)
 }
 
 $document = $lines -join [Environment]::NewLine
