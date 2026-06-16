@@ -516,11 +516,11 @@ function New-JenkinsServiceJobFixtureRoot {
     )
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "config/service-pipelines.psd1") -Value $catalog
+    Set-Content -Path (Join-Path $fixtureRoot "config/service-pipelines.psd1") -Value $catalog -Encoding utf8NoBOM
 
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/README.md") -Value "# NGINX fixture service"
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/docker-compose.yaml") -Value "services: {}"
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/site/index.html") -Value "<h1>NGINX fixture service</h1>"
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/README.md") -Value "# NGINX fixture service" -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/docker-compose.yaml") -Value "services: {}" -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/site/index.html") -Value "<h1>NGINX fixture service</h1>" -Encoding utf8NoBOM
 
     $jenkinsfile = @'
 pipeline {
@@ -543,7 +543,7 @@ pipeline {
     }
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Value $jenkinsfile
+    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Value $jenkinsfile -Encoding utf8NoBOM
 
     return $fixtureRoot
 }

@@ -57,7 +57,7 @@ if (-not $SkipBundleValidation) {
 }
 
 if ($DeployBundle -and $DeploymentDryRun) {
-    Set-Content -Path (Join-Path $resolvedExtractPath "promotion-dry-run.txt") -Value "Dry-run promotion deployment requested; no live cluster action was performed by this public-safe template."
+    Set-Content -Path (Join-Path $resolvedExtractPath "promotion-dry-run.txt") -Value "Dry-run promotion deployment requested; no live cluster action was performed by this public-safe template." -Encoding utf8NoBOM
 }
 
 if ($RequireBootstrapSecretsReady) {

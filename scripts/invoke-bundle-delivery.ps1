@@ -157,7 +157,7 @@ $manifest = [PSCustomObject]@{
 }
 
 $manifestPath = Join-Path $resolvedOutputPath "bundle-manifest.json"
-$manifest | ConvertTo-Json -Depth 12 | Set-Content -Path $manifestPath
+$manifest | ConvertTo-Json -Depth 12 | Set-Content -Path $manifestPath -Encoding utf8NoBOM
 
 $readme = @"
 # Jenkins Runtime Contract Bundle
@@ -172,7 +172,7 @@ agents, credentials, registry access, or cluster permissions are ready.
 See `bundle-manifest.json` for the selected inputs and generated Jenkins job
 plan.
 "@
-Set-Content -Path (Join-Path $resolvedOutputPath "README.md") -Value $readme
+Set-Content -Path (Join-Path $resolvedOutputPath "README.md") -Value $readme -Encoding utf8NoBOM
 
 if (-not $SkipBundleValidation) {
     if (-not (Test-Path -Path $manifestPath -PathType Leaf)) {
@@ -181,7 +181,7 @@ if (-not $SkipBundleValidation) {
 }
 
 if ($DeployBundle -and $DeploymentDryRun) {
-    Set-Content -Path (Join-Path $resolvedOutputPath "deployment-dry-run.txt") -Value "Dry-run deployment requested; no live cluster action was performed by this public-safe template."
+    Set-Content -Path (Join-Path $resolvedOutputPath "deployment-dry-run.txt") -Value "Dry-run deployment requested; no live cluster action was performed by this public-safe template." -Encoding utf8NoBOM
 }
 
 if (-not $SkipArchive) {
