@@ -171,6 +171,41 @@ function Assert-ServiceJobFixtureDsl {
     Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('services/nginx-web/.+'\)" -Message "Service-job fixture DSL should keep one service job at the service root, not nested under generated children"
 }
 
+function Assert-MultiPresetPlanAndDsl {
+    param(
+        [object]$Plan,
+        [string[]]$ExpectedPresets,
+        [string]$DslPath
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected $ExpectedPresets.Count -Message "Multi-preset plan should include every requested preset selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Current public-safe presets should not create shared service jobs without service Jenkinsfiles"
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated multi-preset DSL should exist: {0}" -f $DslPath)
+
+    $dsl = Get-Content -Path $DslPath -Raw
+    Assert-TextContains -Text $dsl -Expected ("// Selection count: {0}" -f $ExpectedPresets.Count) -Message "Multi-preset DSL should record the combined selection count"
+    Assert-TextContains -Text $dsl -Expected "// Service job count: 0" -Message "Multi-preset DSL should record the absence of generated service jobs"
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Message "Multi-preset DSL should keep the SCM URL parameterized"
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = 'REPLACE_WITH_BRANCH_SPEC'" -Message "Multi-preset DSL should keep the branch spec parameterized"
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = ''" -Message "Multi-preset DSL should keep credentials unset by default"
+    Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message "Multi-preset DSL should not include concrete SCM URLs"
+
+    foreach ($preset in @($ExpectedPresets)) {
+        $selections = @($Plan.Selections | Where-Object { [string]$_.Name -eq $preset })
+        Assert-Equal -Actual $selections.Count -Expected 1 -Message ("Multi-preset plan should include selection {0} once" -f $preset)
+
+        $selection = $selections[0]
+        Assert-Condition -Condition ([bool]$selection.UsesPreset) -Message ("Selection {0} should remain preset-backed" -f $preset)
+        Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected ("platform/{0}" -f $preset) -Message ("Selection {0} should keep its own bundle folder" -f $preset)
+        Assert-TextContains -Text $dsl -Expected ("folder('platform/{0}')" -f $preset) -Message ("Multi-preset DSL should include folder for {0}" -f $preset)
+
+        foreach ($job in @($selection.PipelineJobs)) {
+            Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $job.Path) -Message ("Multi-preset DSL should include job {0}" -f $job.Path)
+            Assert-TextContains -Text $dsl -Expected ([string]$job.Jenkinsfile).Replace("\", "/") -Message ("Multi-preset DSL should include Jenkinsfile {0}" -f $job.Jenkinsfile)
+        }
+    }
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -216,6 +251,19 @@ Assert-JobDslScmInputValidation `
     -Root $root `
     -OutputDirectory $outputDirectory `
     -Preset $explicitScmPreset
+
+$multiPresetNames = @("dev", "staging")
+$multiPresetPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    EnvironmentPreset = $multiPresetNames
+    Format = "json"
+}
+$multiPresetDslPath = Join-Path $outputDirectory "multi-preset-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $multiPresetNames `
+    -OutputPath $multiPresetDslPath 6>$null | Out-Null
+Assert-MultiPresetPlanAndDsl -Plan $multiPresetPlan -ExpectedPresets $multiPresetNames -DslPath $multiPresetDslPath
 
 $customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
@@ -388,6 +436,7 @@ Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
 Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
+Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output "Validated unsafe Job DSL root segments fail closed."
