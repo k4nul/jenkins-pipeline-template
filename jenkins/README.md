@@ -60,6 +60,8 @@ Pipeline DSL, service catalog, and controller/JCasC ownership, see
 - The default sample applications use public images, so per-service image build jobs are not required.
 - Service-level jobs appear only if a service actually has its own Jenkinsfile and the catalog marks it as such.
 - `job-seed.Jenkinsfile` leaves the preset list blank by default, which means "use every preset currently found in `config/environments`".
+- `job-seed.Jenkinsfile` treats `SEED_SELECTION_NAME` without
+  `SEED_ENVIRONMENT_PRESETS` as one custom selection using public-safe defaults.
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - `job-seed.Jenkinsfile` requires `SEED_CONFIRM_REMOVED_JOB_DELETE=true` before `SEED_APPLY_JOB_DSL=true` can run with `SEED_REMOVED_JOB_ACTION=DELETE`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
@@ -82,7 +84,7 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 | Parameter | Purpose |
 | --- | --- |
 | `SEED_ENVIRONMENT_PRESETS` | Optional comma-separated preset list. Leave blank to generate every preset from `config/environments`. |
-| `SEED_SELECTION_NAME`, `SEED_PROFILE`, `SEED_APPLICATIONS`, `SEED_DATA_SERVICES` | Custom selection inputs used when you are not generating from named presets. |
+| `SEED_SELECTION_NAME`, `SEED_PROFILE`, `SEED_APPLICATIONS`, `SEED_DATA_SERVICES` | Custom selection inputs used when you are not generating from named presets. `SEED_SELECTION_NAME` alone creates one custom selection with default profile, applications, data services, values file, and output paths. |
 | `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, `SEED_SCM_CREDENTIALS_ID` | SCM inputs consumed by generated pipeline jobs. URL and branch spec are required before `SEED_APPLY_JOB_DSL=true`; credentials ID stays optional and parameterized. |
 | `SEED_JOB_ROOT`, `SEED_SERVICE_JOB_ROOT` | Jenkins folder roots for bundle jobs and service image jobs. |
 | `SEED_SKIP_SERVICE_JOBS` | Generate only the validation, delivery, and promotion bundle chain. |
@@ -102,6 +104,8 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
   multiple selected presets, including nested service roots
 - verifies `SEED_SKIP_SERVICE_JOBS`/`-SkipServiceJobs` suppresses generated
   service jobs even when selected services are Jenkinsfile-backed
+- verifies `SEED_SELECTION_NAME`/`-SelectionName` alone creates one custom
+  selection instead of falling back to every preset
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies embedded SCM credentials, unsupported or local repository paths, and control-character inputs fail before Job DSL generation

@@ -369,6 +369,7 @@ $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
 $serviceCatalogIndex = Get-ServicePipelineCatalogIndex -Services @(Get-ServicePipelineCatalogServices -Catalog $servicePipelineCatalog)
 
 $hasDirectSelection =
+    $PSBoundParameters.ContainsKey("SelectionName") -or
     $PSBoundParameters.ContainsKey("Profile") -or
     $PSBoundParameters.ContainsKey("Applications") -or
     $PSBoundParameters.ContainsKey("DataServices") -or

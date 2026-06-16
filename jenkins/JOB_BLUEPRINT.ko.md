@@ -30,6 +30,7 @@ platform/
 ## 시드 기본값
 
 - `job-seed.Jenkinsfile` 에서 `SEED_ENVIRONMENT_PRESETS` 를 비워두면 현재 `config/environments` 에 있는 모든 프리셋에 대해 잡이 생성됩니다.
+- 환경 프리셋 없이 `SEED_SELECTION_NAME` 만 제공하면 공개용 기본값을 사용하는 커스텀 selection 하나를 생성합니다.
 - `job-seed.Jenkinsfile` 에서 `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 기본값은 비어 있습니다.
 - `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하지 않으면 생성된 DSL 은 공개용 SCM placeholder 를 사용합니다.
 - Jenkins 에서 생성된 DSL 을 적용한다면, 먼저 `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, 필요 시 `SEED_SCM_CREDENTIALS_ID` 를 설정해 SCM 기반 잡이 의도한 저장소를 바라보게 하세요.
@@ -47,7 +48,7 @@ pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev 
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
-`run-phase-validation.sh` 는 전환 gate 이며, `dev` 기본 경로 검증 뒤에 전체 공개 프리셋 Job DSL 하네스를 실행합니다. `validate-jenkins-job-dsl.ps1` 는 `dev`, `staging`, `prod` 프리셋, SCM placeholder, 명시적 SCM 값 escaping, 삭제 보호, 서비스 카탈로그 메타데이터를 컨트롤러 없이 검증합니다.
+`run-phase-validation.sh` 는 전환 gate 이며, `dev` 기본 경로 검증 뒤에 전체 공개 프리셋 Job DSL 하네스를 실행합니다. `validate-jenkins-job-dsl.ps1` 는 `dev`, `staging`, `prod` 프리셋, `SelectionName` 단독 커스텀 selection, SCM placeholder, 명시적 SCM 값 escaping, 삭제 보호, 서비스 카탈로그 메타데이터를 컨트롤러 없이 검증합니다.
 
 ## 선택형 서비스 잡
 

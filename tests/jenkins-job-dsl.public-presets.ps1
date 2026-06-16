@@ -138,6 +138,44 @@ function Assert-CustomDirectSelectionDsl {
     }
 }
 
+function Assert-SelectionNameOnlyPlanAndDsl {
+    param(
+        [object]$Plan,
+        [string]$DslPath
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "SelectionName-only plan should produce one custom selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "SelectionName-only plan should not create public service jobs by default"
+
+    $selection = $Plan.Selections | Select-Object -First 1
+    Assert-Equal -Actual ([string]$selection.Name) -Expected "release-candidate" -Message "SelectionName-only plan should sanitize the custom selection name"
+    Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "SelectionName-only plan should not be marked as preset-backed"
+    Assert-Equal -Actual ([string]$selection.Profile) -Expected "web-platform" -Message "SelectionName-only plan should use the default profile"
+    Assert-Equal -Actual ([string]$selection.ValuesFile) -Expected "config\platform-values.env.example" -Message "SelectionName-only plan should use the public-safe default values file"
+    Assert-Equal -Actual ([string]$selection.Version) -Expected "0.0.0-ci" -Message "SelectionName-only plan should use the CI default version"
+    Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "platform/release-candidate" -Message "SelectionName-only bundle folder path"
+    Assert-Equal -Actual ([string]$selection.ValidationJobPath) -Expected "platform/release-candidate/repository-validation" -Message "SelectionName-only validation job path"
+    Assert-Equal -Actual ([string]$selection.DeliveryJobPath) -Expected "platform/release-candidate/bundle-delivery" -Message "SelectionName-only delivery job path"
+    Assert-Equal -Actual ([string]$selection.PromotionJobPath) -Expected "platform/release-candidate/bundle-promotion" -Message "SelectionName-only promotion job path"
+
+    $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+    Assert-Condition `
+        -Condition (-not (@($validationJob.KeyParameters) -contains "VALIDATION_ENVIRONMENT_PRESET=release-candidate")) `
+        -Message "SelectionName-only validation job should not invent an environment preset parameter"
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated SelectionName-only DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "// Selection count: 1" -Message "SelectionName-only DSL should record one custom selection"
+    Assert-TextContains -Text $dsl -Expected "folder('platform/release-candidate')" -Message "SelectionName-only DSL should create the custom selection folder"
+    Assert-TextContains -Text $dsl -Expected "pipelineJob('platform/release-candidate/repository-validation')" -Message "SelectionName-only DSL should include the custom validation job"
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Message "SelectionName-only DSL should keep the SCM URL parameterized"
+    Assert-TextNotMatch -Text $dsl -Pattern "VALIDATION_ENVIRONMENT_PRESET=" -Message "SelectionName-only DSL should not emit preset-backed validation parameters"
+    Assert-TextNotMatch -Text $dsl -Pattern "BUNDLE_ENVIRONMENT_PRESET=" -Message "SelectionName-only DSL should not emit preset-backed delivery parameters"
+    Assert-TextNotMatch -Text $dsl -Pattern "PROMOTION_ENVIRONMENT_PRESET=" -Message "SelectionName-only DSL should not emit preset-backed promotion parameters"
+    Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('platform/(dev|staging|prod)/" -Message "SelectionName-only DSL should not fall back to the full preset matrix"
+}
+
 function Invoke-ScriptExpectingFailure {
     param(
         [string]$ScriptPath,
@@ -386,6 +424,18 @@ $customDirectSelectionDslPath = Join-Path $outputDirectory "custom-direct-select
     -OutputPath $customDirectSelectionDslPath 6>$null | Out-Null
 Assert-CustomDirectSelectionDsl -DslPath $customDirectSelectionDslPath -Plan $customDirectSelectionPlan
 
+$selectionNameOnlyPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    SelectionName = "release/candidate"
+    Format = "json"
+}
+$selectionNameOnlyDslPath = Join-Path $outputDirectory "selection-name-only-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -SelectionName "release/candidate" `
+    -OutputPath $selectionNameOnlyDslPath 6>$null | Out-Null
+Assert-SelectionNameOnlyPlanAndDsl -Plan $selectionNameOnlyPlan -DslPath $selectionNameOnlyDslPath
+
 $nestedRootPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
     SelectionName = "qa/blue canary"
@@ -527,6 +577,7 @@ Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslP
 Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
 Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
+Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionNameOnlyDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output "Validated unsafe Job DSL root segments fail closed."
 Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)

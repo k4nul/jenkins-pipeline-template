@@ -27,6 +27,8 @@ validation-delivery-promotion dependency chain, verifies service-job projection
 with synthetic Jenkinsfile-backed service fixtures, verifies shared service-job
 de-duplication across multiple selected presets and nested service roots,
 verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
+`-SelectionName` by itself creates one custom selection with public-safe
+defaults instead of falling back to the full preset matrix, verifies
 destructive removed-job deletion requires explicit seed confirmation, verifies
 Job DSL apply still requires concrete SCM URL and branch inputs, verifies
 the seed job passes typed exporter boolean arguments, verifies Jenkins artifact

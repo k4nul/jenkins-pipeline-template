@@ -28,6 +28,8 @@ platform/
 ## Seeding Defaults
 
 - Leaving `SEED_ENVIRONMENT_PRESETS` blank in `job-seed.Jenkinsfile` will generate jobs for every preset currently present in `config/environments`.
+- Providing `SEED_SELECTION_NAME` without environment presets generates one
+  custom selection with public-safe defaults instead of the full preset matrix.
 - `SEED_REPO_URL` and `SEED_BRANCH_SPEC` default to blank in `job-seed.Jenkinsfile`.
 - Generated DSL uses public-safe SCM placeholders unless `SEED_REPO_URL` and `SEED_BRANCH_SPEC` are provided.
 - If you apply the generated DSL in Jenkins, set `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and any required `SEED_SCM_CREDENTIALS_ID` first so SCM-backed jobs point at your intended repository.
@@ -74,8 +76,8 @@ verifies the seed job passes typed exporter boolean arguments,
 checks that Jenkinsfile-backed service entries fail closed when
 `services/<name>/Jenkinsfile` is missing, validates service catalog metadata, and
 runs service pipeline validation. The public preset test suite adds custom
-selection, nested job-root, unsafe root rejection, and runtime argument
-splatting coverage.
+selection, `SEED_SELECTION_NAME`-only defaults, nested job-root, unsafe root
+rejection, and runtime argument splatting coverage.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test
 lane for generated command arguments, public-safe SCM placeholders, service

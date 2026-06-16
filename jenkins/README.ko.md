@@ -51,13 +51,14 @@ Jenkins agent 에는 다음이 준비되어 있으면 좋습니다.
 - 기본 샘플 애플리케이션은 공개 이미지를 사용하므로 서비스별 이미지 빌드 잡이 필수가 아닙니다.
 - 서비스 단위 잡은 해당 서비스에 실제 Jenkinsfile 이 있고, 카탈로그에서도 활성화되어 있을 때만 나타납니다.
 - `job-seed.Jenkinsfile` 의 프리셋 목록은 기본 공란이며, 이는 `config/environments` 에 있는 프리셋을 모두 사용하겠다는 의미입니다.
+- `SEED_ENVIRONMENT_PRESETS` 없이 `SEED_SELECTION_NAME` 만 제공하면 공개용 기본값을 사용하는 커스텀 selection 하나를 생성합니다.
 - `job-seed.Jenkinsfile` 의 SCM URL 과 브랜치 스펙 기본값은 비어 있습니다. `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하기 전까지 생성된 DSL 은 공개용 placeholder 를 사용합니다.
 - `SEED_APPLY_JOB_DSL=true` 에서 `SEED_REMOVED_JOB_ACTION=DELETE` 를 사용하려면 `SEED_CONFIRM_REMOVED_JOB_DELETE=true` 확인 값도 필요합니다.
 - dry-run 이 아닌 delivery 와 promotion 배포는 Jenkins 승인 프롬프트와 bootstrap secret/status 검증이 필요합니다.
 
 ## Job DSL 커버리지
 
-`scripts/validate-jenkins-job-dsl.ps1` 는 기본적으로 `dev`, `staging`, `prod` 공개 프리셋 전체를 검증합니다. 각 프리셋에 대해 잡 계획 렌더링, ignored `out/jenkins/validation` 아래 Job DSL fixture 생성, `pipelineJob` 항목, SCM URL/브랜치/credentials parameterization, 명시적 SCM 값 Groovy escaping, embedded SCM credential 과 control character 입력의 fail-closed 동작, 삭제 보호, 서비스 카탈로그 메타데이터와 서비스 파이프라인 validator 를 확인합니다.
+`scripts/validate-jenkins-job-dsl.ps1` 는 기본적으로 `dev`, `staging`, `prod` 공개 프리셋 전체를 검증합니다. 각 프리셋에 대해 잡 계획 렌더링, ignored `out/jenkins/validation` 아래 Job DSL fixture 생성, `pipelineJob` 항목, SCM URL/브랜치/credentials parameterization, 명시적 SCM 값 Groovy escaping, `SelectionName` 단독 커스텀 selection 기본값, embedded SCM credential 과 control character 입력의 fail-closed 동작, 삭제 보호, 서비스 카탈로그 메타데이터와 서비스 파이프라인 validator 를 확인합니다.
 
 Phase 전환 wrapper 인 `scripts/run-phase-validation.sh` 는 `dev` dashboard 명령을 먼저 실행한 뒤 이 aggregate 하네스를 실행하므로, 공개 기본 경로와 전체 공개 프리셋 matrix 를 함께 검증합니다.
 
