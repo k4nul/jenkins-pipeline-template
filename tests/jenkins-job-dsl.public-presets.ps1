@@ -19,34 +19,96 @@ function Assert-CustomDirectSelectionPlan {
     $selection = $Plan.Selections | Select-Object -First 1
     Assert-Equal -Actual ([string]$selection.Name) -Expected "feature-blue-green" -Message "Custom selection name should be path-safe"
     Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "Custom direct selection should not be marked as preset-backed"
-    Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "team/bundles/feature-blue-green" -Message "Custom selection should use the requested bundle root"
-    Assert-Equal -Actual ([string]$selection.ValidationJobPath) -Expected "team/bundles/feature-blue-green/repository-validation" -Message "Custom validation job path"
-    Assert-Equal -Actual ([string]$selection.DeliveryJobPath) -Expected "team/bundles/feature-blue-green/bundle-delivery" -Message "Custom delivery job path"
-    Assert-Equal -Actual ([string]$selection.PromotionJobPath) -Expected "team/bundles/feature-blue-green/bundle-promotion" -Message "Custom promotion job path"
-    Assert-Equal -Actual ([string]$selection.ValuesFile) -Expected "config/custom-values.env" -Message "Custom values file should be preserved"
-    Assert-Equal -Actual ([string]$selection.DockerRegistry) -Expected "registry.example.invalid/team" -Message "Custom Docker registry should be preserved"
+    Assert-Equal `
+        -Actual ([string]$selection.BundleFolderPath) `
+        -Expected "team/bundles/feature-blue-green" `
+        -Message "Custom selection should use the requested bundle root"
+    Assert-Equal `
+        -Actual ([string]$selection.ValidationJobPath) `
+        -Expected "team/bundles/feature-blue-green/repository-validation" `
+        -Message "Custom validation job path"
+    Assert-Equal `
+        -Actual ([string]$selection.DeliveryJobPath) `
+        -Expected "team/bundles/feature-blue-green/bundle-delivery" `
+        -Message "Custom delivery job path"
+    Assert-Equal `
+        -Actual ([string]$selection.PromotionJobPath) `
+        -Expected "team/bundles/feature-blue-green/bundle-promotion" `
+        -Message "Custom promotion job path"
+    Assert-Equal `
+        -Actual ([string]$selection.ValuesFile) `
+        -Expected "config/custom-values.env" `
+        -Message "Custom values file should be preserved"
+    Assert-Equal `
+        -Actual ([string]$selection.DockerRegistry) `
+        -Expected "registry.example.invalid/team" `
+        -Message "Custom Docker registry should be preserved"
     Assert-Equal -Actual ([string]$selection.Version) -Expected "1.2.3" -Message "Custom version should be preserved"
-    Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected "out/delivery/custom" -Message "Custom bundle output path should be preserved"
-    Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out/delivery/custom.zip" -Message "Custom archive path should be preserved"
-    Assert-Equal -Actual ([string]$selection.PromotionExtractPath) -Expected "out/promotion/custom" -Message "Custom promotion extract path should be preserved"
+    Assert-Equal `
+        -Actual ([string]$selection.BundleOutputPath) `
+        -Expected "out/delivery/custom" `
+        -Message "Custom bundle output path should be preserved"
+    Assert-Equal `
+        -Actual ([string]$selection.ArchivePath) `
+        -Expected "out/delivery/custom.zip" `
+        -Message "Custom archive path should be preserved"
+    Assert-Equal `
+        -Actual ([string]$selection.PromotionExtractPath) `
+        -Expected "out/promotion/custom" `
+        -Message "Custom promotion extract path should be preserved"
 
     $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
     $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
     $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
 
-    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_PROFILE=web-platform" -Message "Custom validation job should expose the profile parameter"
-    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_APPLICATIONS=nginx-web, whoami" -Message "Custom validation job should expose application parameters"
-    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_DATA_SERVICES=redis" -Message "Custom validation job should expose data service parameters"
-    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom validation job should expose the Docker registry parameter"
-    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_OUTPUT_PATH=out/delivery/custom" -Message "Custom delivery job should expose the bundle output path"
-    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom delivery job should expose the archive path"
-    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom delivery job should expose the Docker registry parameter"
-    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom promotion job should expose the archive path"
-    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_EXTRACT_PATH=out/promotion/custom" -Message "Custom promotion job should expose the extract path"
+    Assert-ContainsItem `
+        -Values @($validationJob.KeyParameters) `
+        -Expected "VALIDATION_PROFILE=web-platform" `
+        -Message "Custom validation job should expose the profile parameter"
+    Assert-ContainsItem `
+        -Values @($validationJob.KeyParameters) `
+        -Expected "VALIDATION_APPLICATIONS=nginx-web, whoami" `
+        -Message "Custom validation job should expose application parameters"
+    Assert-ContainsItem `
+        -Values @($validationJob.KeyParameters) `
+        -Expected "VALIDATION_DATA_SERVICES=redis" `
+        -Message "Custom validation job should expose data service parameters"
+    Assert-ContainsItem `
+        -Values @($validationJob.KeyParameters) `
+        -Expected "VALIDATION_DOCKER_REGISTRY=registry.example.invalid/team" `
+        -Message "Custom validation job should expose the Docker registry parameter"
+    Assert-ContainsItem `
+        -Values @($deliveryJob.KeyParameters) `
+        -Expected "BUNDLE_OUTPUT_PATH=out/delivery/custom" `
+        -Message "Custom delivery job should expose the bundle output path"
+    Assert-ContainsItem `
+        -Values @($deliveryJob.KeyParameters) `
+        -Expected "BUNDLE_ARCHIVE_PATH=out/delivery/custom.zip" `
+        -Message "Custom delivery job should expose the archive path"
+    Assert-ContainsItem `
+        -Values @($deliveryJob.KeyParameters) `
+        -Expected "BUNDLE_DOCKER_REGISTRY=registry.example.invalid/team" `
+        -Message "Custom delivery job should expose the Docker registry parameter"
+    Assert-ContainsItem `
+        -Values @($promotionJob.KeyParameters) `
+        -Expected "PROMOTION_ARCHIVE_PATH=out/delivery/custom.zip" `
+        -Message "Custom promotion job should expose the archive path"
+    Assert-ContainsItem `
+        -Values @($promotionJob.KeyParameters) `
+        -Expected "PROMOTION_EXTRACT_PATH=out/promotion/custom" `
+        -Message "Custom promotion job should expose the extract path"
 
-    Assert-Condition -Condition (-not (@($validationJob.KeyParameters) -contains "VALIDATION_ENVIRONMENT_PRESET=feature-blue-green")) -Message "Custom validation job should not invent a preset parameter"
-    Assert-ContainsItem -Values @($deliveryJob.UpstreamDependencies) -Expected ([string]$validationJob.Path) -Message "Custom delivery should depend on validation"
-    Assert-ContainsItem -Values @($promotionJob.UpstreamDependencies) -Expected ([string]$deliveryJob.Path) -Message "Custom promotion should depend on delivery"
+    Assert-Condition `
+        -Condition (-not (@($validationJob.KeyParameters) -contains "VALIDATION_ENVIRONMENT_PRESET=feature-blue-green")) `
+        -Message "Custom validation job should not invent a preset parameter"
+    Assert-ContainsItem `
+        -Values @($deliveryJob.UpstreamDependencies) `
+        -Expected ([string]$validationJob.Path) `
+        -Message "Custom delivery should depend on validation"
+    Assert-ContainsItem `
+        -Values @($promotionJob.UpstreamDependencies) `
+        -Expected ([string]$deliveryJob.Path) `
+        -Message "Custom promotion should depend on delivery"
 }
 
 function Assert-CustomDirectSelectionDsl {
