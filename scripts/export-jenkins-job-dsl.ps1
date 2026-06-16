@@ -277,6 +277,43 @@ function Get-GeneratedPipelineJobDslLines {
     )
 }
 
+function Add-JobPlanListArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Arguments,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [object[]]$Value
+    )
+
+    $normalized = @(Get-NormalizedList -Values $Value)
+    if ($normalized.Count -gt 0) {
+        $Arguments[$Name] = @($normalized)
+    }
+}
+
+function Add-JobPlanBoundArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Arguments,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$BoundParameters,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    if ($BoundParameters.ContainsKey($Name)) {
+        $value = Get-Variable -Name $Name -ValueOnly
+        if ($value) {
+            $Arguments[$Name] = $value
+        }
+    }
+}
+
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
 Assert-RepoUrlSafety -Value $RepoUrl
@@ -293,30 +330,21 @@ $jobPlanArguments = @{
     Format = "json"
 }
 
-if (@(Get-NormalizedList -Values $EnvironmentPreset).Count -gt 0) {
-    $jobPlanArguments["EnvironmentPreset"] = @(Get-NormalizedList -Values $EnvironmentPreset)
-}
+Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "EnvironmentPreset" -Value $EnvironmentPreset
+Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "Applications" -Value $Applications
+Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "DataServices" -Value $DataServices
 
-if ($PSBoundParameters.ContainsKey("SelectionName") -and $SelectionName) {
-    $jobPlanArguments["SelectionName"] = $SelectionName
-}
-
-if ($PSBoundParameters.ContainsKey("Profile") -and $Profile) {
-    $jobPlanArguments["Profile"] = $Profile
-}
-
-if (@(Get-NormalizedList -Values $Applications).Count -gt 0) {
-    $jobPlanArguments["Applications"] = @(Get-NormalizedList -Values $Applications)
-}
-
-if (@(Get-NormalizedList -Values $DataServices).Count -gt 0) {
-    $jobPlanArguments["DataServices"] = @(Get-NormalizedList -Values $DataServices)
-}
-
-foreach ($optionalName in @("ValuesFile", "DockerRegistry", "Version", "BundleOutputPath", "ArchivePath", "PromotionExtractPath")) {
-    if ($PSBoundParameters.ContainsKey($optionalName) -and (Get-Variable -Name $optionalName -ValueOnly)) {
-        $jobPlanArguments[$optionalName] = Get-Variable -Name $optionalName -ValueOnly
-    }
+foreach ($boundName in @(
+    "SelectionName",
+    "Profile",
+    "ValuesFile",
+    "DockerRegistry",
+    "Version",
+    "BundleOutputPath",
+    "ArchivePath",
+    "PromotionExtractPath"
+)) {
+    Add-JobPlanBoundArgument -Arguments $jobPlanArguments -BoundParameters $PSBoundParameters -Name $boundName
 }
 
 if ($IncludeJenkins) {

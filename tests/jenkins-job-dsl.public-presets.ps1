@@ -24,6 +24,7 @@ function Assert-CustomDirectSelectionPlan {
     Assert-Equal -Actual ([string]$selection.DeliveryJobPath) -Expected "team/bundles/feature-blue-green/bundle-delivery" -Message "Custom delivery job path"
     Assert-Equal -Actual ([string]$selection.PromotionJobPath) -Expected "team/bundles/feature-blue-green/bundle-promotion" -Message "Custom promotion job path"
     Assert-Equal -Actual ([string]$selection.ValuesFile) -Expected "config/custom-values.env" -Message "Custom values file should be preserved"
+    Assert-Equal -Actual ([string]$selection.DockerRegistry) -Expected "registry.example.invalid/team" -Message "Custom Docker registry should be preserved"
     Assert-Equal -Actual ([string]$selection.Version) -Expected "1.2.3" -Message "Custom version should be preserved"
     Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected "out/delivery/custom" -Message "Custom bundle output path should be preserved"
     Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out/delivery/custom.zip" -Message "Custom archive path should be preserved"
@@ -36,8 +37,10 @@ function Assert-CustomDirectSelectionPlan {
     Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_PROFILE=web-platform" -Message "Custom validation job should expose the profile parameter"
     Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_APPLICATIONS=nginx-web, whoami" -Message "Custom validation job should expose application parameters"
     Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_DATA_SERVICES=redis" -Message "Custom validation job should expose data service parameters"
+    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom validation job should expose the Docker registry parameter"
     Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_OUTPUT_PATH=out/delivery/custom" -Message "Custom delivery job should expose the bundle output path"
     Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom delivery job should expose the archive path"
+    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom delivery job should expose the Docker registry parameter"
     Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_ARCHIVE_PATH=out/delivery/custom.zip" -Message "Custom promotion job should expose the archive path"
     Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_EXTRACT_PATH=out/promotion/custom" -Message "Custom promotion job should expose the extract path"
 
@@ -62,6 +65,8 @@ function Assert-CustomDirectSelectionDsl {
     Assert-TextContains -Text $dsl -Expected "folder('team/bundles/feature-blue-green')" -Message "Custom direct-selection DSL should create the sanitized selection folder"
     Assert-TextContains -Text $dsl -Expected "folder('team/services')" -Message "Custom direct-selection DSL should create the requested service root folder"
     Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('team/services/" -Message "Custom direct-selection DSL should not generate service jobs when service jobs are skipped"
+    Assert-TextContains -Text $dsl -Expected "VALIDATION_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom direct-selection DSL should preserve the validation Docker registry parameter"
+    Assert-TextContains -Text $dsl -Expected "BUNDLE_DOCKER_REGISTRY=registry.example.invalid/team" -Message "Custom direct-selection DSL should preserve the delivery Docker registry parameter"
 
     foreach ($selection in @($Plan.Selections)) {
         foreach ($job in @($selection.PipelineJobs)) {
@@ -219,6 +224,7 @@ $customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Argum
     Applications = @("nginx-web", "whoami")
     DataServices = @("redis")
     ValuesFile = "config/custom-values.env"
+    DockerRegistry = "registry.example.invalid/team"
     Version = "1.2.3"
     BundleOutputPath = "out/delivery/custom"
     ArchivePath = "out/delivery/custom.zip"
@@ -238,6 +244,7 @@ $customDirectSelectionDslPath = Join-Path $outputDirectory "custom-direct-select
     -Applications @("nginx-web", "whoami") `
     -DataServices @("redis") `
     -ValuesFile "config/custom-values.env" `
+    -DockerRegistry "registry.example.invalid/team" `
     -Version "1.2.3" `
     -BundleOutputPath "out/delivery/custom" `
     -ArchivePath "out/delivery/custom.zip" `
