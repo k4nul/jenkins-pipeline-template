@@ -150,6 +150,7 @@ Assert-JenkinsServiceJobsSkippedPlan -Plan $skippedServiceJobFixturePlan
 
 & $serviceJobFixtureValidationScript -RepoRoot $serviceJobFixtureRoot 6>$null | Out-Null
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $resolvedOutputDirectory
+Assert-UnsafeServiceCatalogNamesFail -Root $root -OutputDirectory $resolvedOutputDirectory
 
 $summary = [PSCustomObject]@{
     Status = "passed"
@@ -180,6 +181,7 @@ else {
     Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
     Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
     Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."
+    Write-Output "Validated unsafe and duplicate service catalog names fail closed."
     Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
     Write-Output ("Generated ignored Job DSL fixtures under: {0}" -f $resolvedOutputDirectory)
 }

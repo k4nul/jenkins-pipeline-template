@@ -690,6 +690,123 @@ function Assert-MissingServiceJenkinsfileValidationFails {
     Assert-TextContains -Text $message -Expected "expects a Jenkinsfile-backed service" -Message "Missing Jenkinsfile failure should explain the catalog/service mismatch."
 }
 
+function Assert-UnsafeServiceCatalogNamesFail {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "unsafe-service-catalog-fixture-repo"
+    $catalogPath = Join-Path $fixtureRoot "config/service-pipelines.psd1"
+    $validationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+
+    $catalogTemplate = @'
+@{
+    Services = @(
+        @{
+            Name = "__SERVICE_NAME__"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @(
+                "CACHE"
+            )
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "Synthetic service catalog name safety fixture."
+        }
+    )
+}
+'@
+
+    $cases = @(
+        @{
+            Catalog = $catalogTemplate.Replace("__SERVICE_NAME__", "..\outside")
+            ExpectedMessage = "Service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject service names with parent-directory path segments."
+        },
+        @{
+            Catalog = $catalogTemplate.Replace("__SERVICE_NAME__", "team/nginx-web")
+            ExpectedMessage = "Service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject nested service path names."
+        },
+        @{
+            Catalog = @'
+@{
+    Services = @(
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @()
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "First duplicate fixture."
+        }
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @()
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "Second duplicate fixture."
+        }
+    )
+}
+'@
+            ExpectedMessage = "Duplicate service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject duplicate service catalog names."
+        }
+    )
+
+    foreach ($case in $cases) {
+        Set-Content -Path $catalogPath -Value ([string]$case.Catalog) -Encoding utf8NoBOM
+
+        $failed = $false
+        $message = ""
+        try {
+            & $validationScript -RepoRoot $fixtureRoot 6>$null | Out-Null
+        }
+        catch {
+            $failed = $true
+            $message = [string]$_
+        }
+
+        Assert-Condition -Condition $failed -Message ([string]$case.Message)
+        Assert-TextContains -Text $message -Expected ([string]$case.ExpectedMessage) -Message ([string]$case.Message)
+    }
+}
+
 function Assert-GeneratedDsl {
     param(
         [string]$DslPath,

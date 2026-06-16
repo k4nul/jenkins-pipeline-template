@@ -68,7 +68,19 @@ function Get-ServicePipelineCatalogServices {
         [hashtable]$Catalog
     )
 
-    return @($Catalog.Services | Sort-Object { $_.Name })
+    $seenNames = @{}
+    $services = @()
+    foreach ($service in @($Catalog.Services)) {
+        $serviceName = Assert-ServiceCatalogNameSafety -Name ([string]$service.Name)
+        if ($seenNames.ContainsKey($serviceName)) {
+            throw ("Duplicate service catalog entry name is not allowed: {0}" -f $serviceName)
+        }
+
+        $seenNames[$serviceName] = $true
+        $services += $service
+    }
+
+    return @($services | Sort-Object { $_.Name })
 }
 
 function Get-ServicePipelineCatalogIndex {
@@ -79,10 +91,39 @@ function Get-ServicePipelineCatalogIndex {
 
     $index = [ordered]@{}
     foreach ($service in @($Services)) {
-        $index[[string]$service.Name] = $service
+        $serviceName = Assert-ServiceCatalogNameSafety -Name ([string]$service.Name)
+        if ($index.Contains($serviceName)) {
+            throw ("Duplicate service catalog entry name is not allowed: {0}" -f $serviceName)
+        }
+
+        $index[$serviceName] = $service
     }
 
     return $index
+}
+
+function Assert-ServiceCatalogNameSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Name
+    )
+
+    $nameText = ([string]$Name).Trim()
+    if (-not $nameText) {
+        throw "Service catalog entry name must not be empty."
+    }
+
+    if (
+        $nameText -ne [string]$Name -or
+        $nameText -in @(".", "..") -or
+        $nameText -match "[/\\]" -or
+        $nameText -match "[\x00-\x1F\x7F]" -or
+        $nameText -notmatch "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    ) {
+        throw ("Service catalog entry name is not allowed: {0}" -f $Name)
+    }
+
+    return $nameText
 }
 
 function Get-ServicePipelineCommonEnvironmentVariables {
