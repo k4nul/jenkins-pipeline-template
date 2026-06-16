@@ -100,9 +100,19 @@ $scriptPath = Join-Path $env:WORKSPACE 'scripts\\validate-workstation.ps1'
         stage('Generate Job DSL') {
             steps {
                 pwsh '''
+function Set-ArgumentValue {
+    param(
+        [hashtable]$Arguments,
+        [string]$Name,
+        [object]$Value
+    )
+
+    $Arguments[$Name.TrimStart([char]'-')] = $Value
+}
+
 function Add-OptionalListArgument {
     param(
-        [System.Collections.Generic.List[string]]$Arguments,
+        [hashtable]$Arguments,
         [string]$Name,
         [string]$Value
     )
@@ -116,15 +126,12 @@ function Add-OptionalListArgument {
         return
     }
 
-    $Arguments.Add($Name) | Out-Null
-    foreach ($entry in $entries) {
-        $Arguments.Add($entry) | Out-Null
-    }
+    Set-ArgumentValue -Arguments $Arguments -Name $Name -Value @($entries)
 }
 
 function Add-OptionalStringArgument {
     param(
-        [System.Collections.Generic.List[string]]$Arguments,
+        [hashtable]$Arguments,
         [string]$Name,
         [string]$Value
     )
@@ -133,19 +140,18 @@ function Add-OptionalStringArgument {
         return
     }
 
-    $Arguments.Add($Name) | Out-Null
-    $Arguments.Add($Value) | Out-Null
+    Set-ArgumentValue -Arguments $Arguments -Name $Name -Value $Value
 }
 
 function Add-OptionalSwitch {
     param(
-        [System.Collections.Generic.List[string]]$Arguments,
+        [hashtable]$Arguments,
         [string]$Name,
         [string]$Value
     )
 
     if ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase)) {
-        $Arguments.Add($Name) | Out-Null
+        Set-ArgumentValue -Arguments $Arguments -Name $Name -Value $true
     }
 }
 
@@ -156,6 +162,23 @@ function Test-TrueValue {
     )
 
     return ($Value -and $Value.Equals('true', [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+function Add-BooleanArgument {
+    param(
+        [hashtable]$Arguments,
+        [string]$Name,
+        [AllowEmptyString()]
+        [string]$Value,
+        [bool]$Default
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        Set-ArgumentValue -Arguments $Arguments -Name $Name -Value $Default
+        return
+    }
+
+    Set-ArgumentValue -Arguments $Arguments -Name $Name -Value (Test-TrueValue -Value $Value)
 }
 
 function Assert-ConcreteScmParameter {
@@ -185,17 +208,12 @@ if (Test-TrueValue -Value $env:SEED_APPLY_JOB_DSL) {
 }
 
 $scriptPath = Join-Path $env:WORKSPACE 'scripts\\export-jenkins-job-dsl.ps1'
-$arguments = [System.Collections.Generic.List[string]]::new()
-$arguments.Add('-RepoRoot') | Out-Null
-$arguments.Add($env:WORKSPACE) | Out-Null
-$arguments.Add('-OutputPath') | Out-Null
-$arguments.Add($env:SEED_OUTPUT_PATH) | Out-Null
-$arguments.Add('-JobRoot') | Out-Null
-$arguments.Add($env:SEED_JOB_ROOT) | Out-Null
-$arguments.Add('-ServiceJobRoot') | Out-Null
-$arguments.Add($env:SEED_SERVICE_JOB_ROOT) | Out-Null
-$arguments.Add('-UseLightweightCheckout') | Out-Null
-$arguments.Add($env:SEED_USE_LIGHTWEIGHT_CHECKOUT) | Out-Null
+$arguments = @{}
+Set-ArgumentValue -Arguments $arguments -Name '-RepoRoot' -Value $env:WORKSPACE
+Set-ArgumentValue -Arguments $arguments -Name '-OutputPath' -Value $env:SEED_OUTPUT_PATH
+Set-ArgumentValue -Arguments $arguments -Name '-JobRoot' -Value $env:SEED_JOB_ROOT
+Set-ArgumentValue -Arguments $arguments -Name '-ServiceJobRoot' -Value $env:SEED_SERVICE_JOB_ROOT
+Add-BooleanArgument -Arguments $arguments -Name '-UseLightweightCheckout' -Value $env:SEED_USE_LIGHTWEIGHT_CHECKOUT -Default $true
 
 Add-OptionalListArgument -Arguments $arguments -Name '-EnvironmentPreset' -Value $env:SEED_ENVIRONMENT_PRESETS
 Add-OptionalListArgument -Arguments $arguments -Name '-Applications' -Value $env:SEED_APPLICATIONS
@@ -214,7 +232,7 @@ Add-OptionalStringArgument -Arguments $arguments -Name '-ScmCredentialsId' -Valu
 Add-OptionalSwitch -Arguments $arguments -Name '-IncludeJenkins' -Value $env:SEED_INCLUDE_JENKINS
 Add-OptionalSwitch -Arguments $arguments -Name '-SkipServiceJobs' -Value $env:SEED_SKIP_SERVICE_JOBS
 
-$argumentArray = @($arguments.ToArray())
+$argumentArray = $arguments
 & $scriptPath @argumentArray
 '''
             }

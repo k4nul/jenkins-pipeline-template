@@ -461,6 +461,7 @@ function New-JenkinsServiceJobFixtureRoot {
 
     foreach ($relativeDirectory in @(
         "config",
+        "config/environments",
         "config/profiles",
         "scripts",
         "services/nginx-web",
@@ -481,6 +482,7 @@ function New-JenkinsServiceJobFixtureRoot {
     }
 
     Copy-Item -Path (Join-Path $Root "config/profiles/*.psd1") -Destination (Join-Path $fixtureRoot "config/profiles")
+    Set-Content -Path (Join-Path $fixtureRoot "config/fixture-values.env.example") -Value "FIXTURE_VALUE=true" -Encoding utf8NoBOM
 
     $catalog = @'
 @{
@@ -517,6 +519,42 @@ function New-JenkinsServiceJobFixtureRoot {
 }
 '@
     Set-Content -Path (Join-Path $fixtureRoot "config/service-pipelines.psd1") -Value $catalog -Encoding utf8NoBOM
+
+    $fixturePresetAlpha = @'
+@{
+    Description = "Fixture alpha preset selecting a shared Jenkinsfile-backed service."
+    ValuesFile = "config\fixture-values.env.example"
+    Version = "0.1.0-alpha"
+    Profile = "web-platform"
+    Applications = @(
+        "nginx-web"
+    )
+    DataServices = @()
+    IncludeJenkins = $false
+    OutputPath = "out\delivery\fixture-alpha"
+    ArchivePath = "out\delivery\fixture-alpha.zip"
+    PromotionExtractPath = "out\promotion\fixture-alpha"
+}
+'@
+    Set-Content -Path (Join-Path $fixtureRoot "config/environments/fixture-alpha.psd1") -Value $fixturePresetAlpha -Encoding utf8NoBOM
+
+    $fixturePresetBeta = @'
+@{
+    Description = "Fixture beta preset selecting the same shared Jenkinsfile-backed service."
+    ValuesFile = "config\fixture-values.env.example"
+    Version = "0.1.0-beta"
+    Profile = "web-platform"
+    Applications = @(
+        "nginx-web"
+    )
+    DataServices = @()
+    IncludeJenkins = $false
+    OutputPath = "out\delivery\fixture-beta"
+    ArchivePath = "out\delivery\fixture-beta.zip"
+    PromotionExtractPath = "out\promotion\fixture-beta"
+}
+'@
+    Set-Content -Path (Join-Path $fixtureRoot "config/environments/fixture-beta.psd1") -Value $fixturePresetBeta -Encoding utf8NoBOM
 
     Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/README.md") -Value "# NGINX fixture service" -Encoding utf8NoBOM
     Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/docker-compose.yaml") -Value "services: {}" -Encoding utf8NoBOM
@@ -571,6 +609,62 @@ function Assert-JenkinsServiceJobFixturePlan {
     Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "service-job-fixture" -Message "Service job fixture should record selection usage"
 }
 
+function Assert-JenkinsServiceJobSharedPresetPlan {
+    param(
+        [object]$Plan,
+        [string]$ExpectedServiceJobRoot = "services"
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 2 -Message "Shared service job fixture should produce two bundle selections"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 1 -Message "Shared service job fixture should de-duplicate one Jenkinsfile-backed service job"
+
+    $selectionNames = @($Plan.Selections | ForEach-Object { [string]$_.Name } | Sort-Object)
+    Assert-ContainsItem -Values $selectionNames -Expected "fixture-alpha" -Message "Shared service fixture should include fixture-alpha"
+    Assert-ContainsItem -Values $selectionNames -Expected "fixture-beta" -Message "Shared service fixture should include fixture-beta"
+
+    foreach ($selection in @($Plan.Selections)) {
+        Assert-ContainsItem -Values @($selection.ServiceDirectories) -Expected "nginx-web" -Message ("Selection {0} should select nginx-web" -f $selection.Name)
+
+        $expectedRoot = "platform/{0}" -f $selection.Name
+        Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected $expectedRoot -Message ("Selection {0} bundle folder path" -f $selection.Name)
+
+        $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+        $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
+        $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
+
+        Assert-Equal -Actual ([string]$validationJob.Path) -Expected ("{0}/repository-validation" -f $expectedRoot) -Message ("Selection {0} validation job path" -f $selection.Name)
+        Assert-Equal -Actual ([string]$deliveryJob.Path) -Expected ("{0}/bundle-delivery" -f $expectedRoot) -Message ("Selection {0} delivery job path" -f $selection.Name)
+        Assert-Equal -Actual ([string]$promotionJob.Path) -Expected ("{0}/bundle-promotion" -f $expectedRoot) -Message ("Selection {0} promotion job path" -f $selection.Name)
+        Assert-ContainsItem -Values @($deliveryJob.UpstreamDependencies) -Expected ([string]$validationJob.Path) -Message ("Selection {0} delivery should depend on validation" -f $selection.Name)
+        Assert-ContainsItem -Values @($promotionJob.UpstreamDependencies) -Expected ([string]$deliveryJob.Path) -Message ("Selection {0} promotion should depend on delivery" -f $selection.Name)
+    }
+
+    $serviceJobs = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq "nginx-web" })
+    Assert-Equal -Actual $serviceJobs.Count -Expected 1 -Message "Shared service job fixture should include exactly one nginx-web service job"
+
+    $serviceJob = $serviceJobs[0]
+    Assert-Equal -Actual ([string]$serviceJob.Path) -Expected ("{0}/nginx-web" -f $ExpectedServiceJobRoot) -Message "Shared service job fixture path"
+    Assert-Equal -Actual ([string]$serviceJob.Jenkinsfile) -Expected "services\nginx-web\Jenkinsfile" -Message "Shared service job fixture Jenkinsfile path"
+    Assert-ContainsItem -Values @($serviceJob.RequiredEnvironmentVariables) -Expected "DOCKER_REGISTRY" -Message "Shared service job fixture should expose registry requirement"
+    Assert-ContainsItem -Values @($serviceJob.OptionalEnvironmentVariables) -Expected "CACHE" -Message "Shared service job fixture should expose optional service variables"
+    Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "fixture-alpha" -Message "Shared service job should record fixture-alpha usage"
+    Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "fixture-beta" -Message "Shared service job should record fixture-beta usage"
+}
+
+function Assert-JenkinsServiceJobsSkippedPlan {
+    param(
+        [object]$Plan
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 2 -Message "Skip-service fixture should still produce two bundle selections"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "SkipServiceJobs should suppress Jenkinsfile-backed service jobs"
+    Assert-Equal -Actual (@($Plan.ServiceJobs).Count) -Expected 0 -Message "SkipServiceJobs should leave the service job list empty"
+
+    foreach ($selection in @($Plan.Selections)) {
+        Assert-ContainsItem -Values @($selection.ServiceDirectories) -Expected "nginx-web" -Message ("Selection {0} should still record selected service directories" -f $selection.Name)
+    }
+}
+
 function Assert-MissingServiceJenkinsfileValidationFails {
     param(
         [string]$Root,
@@ -611,11 +705,13 @@ function Assert-GeneratedDsl {
     Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Message ("Preset {0} DSL should keep the SCM URL parameterized" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "String branchSpec = 'REPLACE_WITH_BRANCH_SPEC'" -Message ("Preset {0} DSL should keep the branch spec parameterized" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = ''" -Message ("Preset {0} DSL should keep credentials unset by default" -f $Preset)
+    Assert-TextContains -Text $dsl -Expected "url(repoUrl)" -Message ("Preset {0} DSL should use the repository URL parameter" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message ("Preset {0} DSL should use the credentials parameter" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message ("Preset {0} DSL should use the branch parameter" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "lightweight(useLightweightCheckout)" -Message ("Preset {0} DSL should expose lightweight checkout as a parameter" -f $Preset)
 
     Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message ("Generated Job DSL for {0} contains a concrete SCM URL." -f $Preset)
+    Assert-TextNotMatch -Text $dsl -Pattern "url\(['""]" -Message ("Generated Job DSL for {0} contains an inline SCM URL instead of the repoUrl parameter." -f $Preset)
     Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message ("Generated Job DSL for {0} contains an inline credentials ID instead of the scmCredentialsId parameter." -f $Preset)
     Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message ("Generated Job DSL for {0} contains an inline branch spec instead of the branchSpec parameter." -f $Preset)
 
@@ -643,14 +739,54 @@ function Assert-ExplicitScmDsl {
     Assert-TextContains -Text $dsl -Expected "String repoUrl = 'git@example.invalid:org/repo.git'" -Message "Explicit SCM URL should be emitted as a Git scp-like repository path."
     Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote\'safe'" -Message "Explicit branch spec should be escaped in the generated DSL."
     Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm\'credentials'" -Message "Explicit credentials ID should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "url(repoUrl)" -Message "Explicit SCM DSL should keep the repository URL parameterized."
     Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message "Explicit SCM DSL should keep credentials parameterized."
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message "Explicit SCM DSL should keep branch selection parameterized."
 
     Assert-Condition -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) -Message "Explicit SCM URL should not be written from an unsafe local-style path fixture."
     Assert-Condition -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) -Message "Explicit branch spec should not be written without Groovy escaping."
     Assert-Condition -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) -Message "Explicit credentials ID should not be written without Groovy escaping."
+    Assert-TextNotMatch -Text $dsl -Pattern "url\(['""]" -Message "Explicit SCM DSL should not inline repository URL calls."
     Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message "Explicit SCM DSL should not inline credentials calls."
     Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message "Explicit SCM DSL should not inline branch calls."
+}
+
+function Assert-ServiceJobSharedPresetDsl {
+    param(
+        [object]$Plan,
+        [string]$DslPath,
+        [string]$ExpectedServiceJobRoot = "services"
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated shared service-job fixture DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "// Selection count: 2" -Message "Shared service-job fixture DSL should record both bundle selections"
+    Assert-TextContains -Text $dsl -Expected "// Service job count: 1" -Message "Shared service-job fixture DSL should record one de-duplicated service job"
+
+    foreach ($selection in @($Plan.Selections)) {
+        Assert-TextContains -Text $dsl -Expected ("folder('platform/{0}')" -f $selection.Name) -Message ("Shared service-job fixture DSL should include folder for {0}" -f $selection.Name)
+        foreach ($job in @($selection.PipelineJobs)) {
+            Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $job.Path) -Message ("Shared service-job fixture DSL should include bundle job {0}" -f $job.Path)
+        }
+    }
+
+    $serviceJobs = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq "nginx-web" })
+    Assert-Equal -Actual $serviceJobs.Count -Expected 1 -Message "Shared service-job DSL assertions require one nginx-web service job"
+    $serviceJob = $serviceJobs[0]
+
+    $serviceRootSegments = @($ExpectedServiceJobRoot -split "[/\\]+" | Where-Object { $_ })
+    for ($index = 0; $index -lt $serviceRootSegments.Count; $index++) {
+        $folderPath = ($serviceRootSegments[0..$index] -join "/")
+        Assert-TextContains -Text $dsl -Expected ("folder('{0}')" -f $folderPath) -Message ("Shared service-job fixture DSL should include service root folder {0}" -f $folderPath)
+    }
+
+    $serviceJobDeclaration = "pipelineJob('$($serviceJob.Path)')"
+    Assert-TextContains -Text $dsl -Expected $serviceJobDeclaration -Message "Shared service-job fixture DSL should include the Jenkinsfile-backed service job once"
+    Assert-Equal -Actual ([regex]::Matches($dsl, [regex]::Escape($serviceJobDeclaration)).Count) -Expected 1 -Message "Shared service-job fixture DSL should not duplicate the shared service job"
+    Assert-TextContains -Text $dsl -Expected "Used by selections: fixture-alpha, fixture-beta" -Message "Shared service-job fixture DSL should preserve every preset using the service"
+    Assert-TextContains -Text $dsl -Expected ([string]$serviceJob.Jenkinsfile).Replace("\", "/") -Message "Shared service-job fixture DSL should include the service Jenkinsfile path"
+    Assert-TextNotMatch -Text $dsl -Pattern ("pipelineJob\('{0}/.+'\)" -f ([regex]::Escape([string]$serviceJob.Path))) -Message "Shared service-job fixture DSL should keep one service job at the service root"
 }
 
 function Assert-JobDslScmInputValidation {
@@ -769,6 +905,11 @@ function Assert-SeedJobSafety {
     Assert-TextContains -Text $seedJob -Expected "DisallowedValues @('REPLACE_WITH_BRANCH_SPEC')" -Message "Seed job should reject the public-safe branch spec placeholder before applying Job DSL."
     Assert-TextContains -Text $seedJob -Expected "must be set before SEED_APPLY_JOB_DSL=true." -Message "Seed job should fail closed when required SCM fields are blank."
     Assert-TextContains -Text $seedJob -Expected "must be changed from its public-safe placeholder before SEED_APPLY_JOB_DSL=true." -Message "Seed job should fail closed when SCM placeholders are still present."
+    Assert-TextContains -Text $seedJob -Expected "function Set-ArgumentValue" -Message "Seed job should build named exporter arguments through a helper."
+    Assert-TextContains -Text $seedJob -Expected "function Add-BooleanArgument" -Message "Seed job should convert Jenkins boolean parameter strings before splatting exporter arguments."
+    Assert-TextContains -Text $seedJob -Expected '$arguments = @{}' -Message "Seed job should use hashtable splatting for typed exporter arguments."
+    Assert-TextContains -Text $seedJob -Expected 'Add-BooleanArgument -Arguments $arguments -Name ''-UseLightweightCheckout''' -Message "Seed job should pass UseLightweightCheckout as a typed Boolean."
+    Assert-TextNotMatch -Text $seedJob -Pattern '\$arguments\.Add\(''-UseLightweightCheckout''\)' -Message "Seed job should not pass UseLightweightCheckout as a raw string argument."
 }
 
 function Assert-JenkinsfileArtifactPathSafety {

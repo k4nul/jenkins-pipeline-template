@@ -24,9 +24,12 @@ fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
 spec, and credentials handling stay parameterized, verifies explicit seed SCM
 inputs are escaped in generated Groovy strings, verifies the generated
 validation-delivery-promotion dependency chain, verifies service-job projection
-with a synthetic Jenkinsfile-backed service fixture, verifies destructive
-removed-job deletion requires explicit seed confirmation, verifies Job DSL apply
-still requires concrete SCM URL and branch inputs, verifies Jenkins artifact
+with synthetic Jenkinsfile-backed service fixtures, verifies shared service-job
+de-duplication across multiple selected presets and nested service roots,
+verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
+destructive removed-job deletion requires explicit seed confirmation, verifies
+Job DSL apply still requires concrete SCM URL and branch inputs, verifies
+the seed job passes typed exporter boolean arguments, verifies Jenkins artifact
 archiving uses literal paths under `out/`, verifies non-dry-run delivery and
 promotion stay behind approval plus bootstrap readiness/status checks, verifies
 the committed runtime helper scripts and tracked public-safe values defaults
@@ -140,8 +143,12 @@ gate to pass.
 - Service catalog required-file paths are relative service-local paths, not
   absolute paths, parent traversal, or glob patterns.
 - Service catalog entries remain public-safe and internally consistent.
-- Jenkinsfile-backed catalog services selected by a preset or fixture are
-  projected into generated service jobs with service-local Jenkinsfile paths.
+- Jenkinsfile-backed catalog services selected by presets or fixtures are
+  projected into generated service jobs with service-local Jenkinsfile paths,
+  de-duplicated across multiple selections, and associated with every selection
+  that uses them.
+- `-SkipServiceJobs` suppresses generated service jobs even when selected
+  services are Jenkinsfile-backed.
 - Jenkinsfile-backed catalog entries fail validation when the service directory
   exists but `services/<name>/Jenkinsfile` is missing.
 

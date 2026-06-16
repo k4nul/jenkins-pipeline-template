@@ -98,10 +98,15 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 - verifies the validation, delivery, and promotion `pipelineJob` entries
 - verifies validation-to-delivery-to-promotion upstream dependencies
 - verifies Jenkinsfile-backed selected services are projected into service jobs
+- verifies shared Jenkinsfile-backed service jobs are de-duplicated across
+  multiple selected presets, including nested service roots
+- verifies `SEED_SKIP_SERVICE_JOBS`/`-SkipServiceJobs` suppresses generated
+  service jobs even when selected services are Jenkinsfile-backed
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies embedded SCM credentials, unsupported or local repository paths, and control-character inputs fail before Job DSL generation
 - verifies destructive removed-job deletion requires explicit seed confirmation
+- verifies the seed job passes typed exporter boolean arguments such as lightweight checkout
 - validates service catalog metadata and runs the service pipeline validator
 - verifies committed runtime helper scripts and public-safe values defaults
 

@@ -67,6 +67,10 @@ values remain parameterized, exercises explicit SCM value escaping in generated
 Groovy, verifies destructive removed-job deletion requires explicit seed
 confirmation, validates validation-to-delivery-to-promotion dependencies,
 verifies Jenkinsfile-backed service job projection with a synthetic fixture,
+verifies shared Jenkinsfile-backed service jobs are de-duplicated across
+multiple selected presets and nested service roots, verifies `-SkipServiceJobs`
+suppresses those generated service jobs when requested,
+verifies the seed job passes typed exporter boolean arguments,
 checks that Jenkinsfile-backed service entries fail closed when
 `services/<name>/Jenkinsfile` is missing, validates service catalog metadata, and
 runs service pipeline validation. The public preset test suite adds custom
