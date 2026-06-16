@@ -248,6 +248,121 @@ function Get-KeyParameterList {
     return @()
 }
 
+function New-BundlePipelineJobs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Selection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ValidationCommand,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DeliveryCommand,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PromotionCommand
+    )
+
+    return @(
+        [PSCustomObject]@{
+            Name = "repository-validation"
+            Path = $Selection.ValidationJobPath
+            Jenkinsfile = "jenkins\repository-validation.Jenkinsfile"
+            Purpose = "Validate repository structure, workstation readiness, and rendered bundle safety."
+            RecommendedTrigger = "Pull request validation, protected branch changes, or scheduled drift checks."
+            UpstreamDependencies = @()
+            ArtifactOutputs = @(
+                "Validation logs and optional existing bundle re-validation results."
+            )
+            KeyParameters = @(Get-KeyParameterList -Phase "validation" -Selection $Selection)
+            LocalCommand = $ValidationCommand
+        },
+        [PSCustomObject]@{
+            Name = "bundle-delivery"
+            Path = $Selection.DeliveryJobPath
+            Jenkinsfile = "jenkins\bundle-delivery.Jenkinsfile"
+            Purpose = "Render a bundle, validate it, archive it, and optionally run a dry-run deployment."
+            RecommendedTrigger = "Manual release packaging, protected branch release flow, or downstream after validation."
+            UpstreamDependencies = @($Selection.ValidationJobPath)
+            ArtifactOutputs = @(
+                ("Bundle archive: {0}" -f $Selection.ArchivePath),
+                ("Rendered bundle directory: {0}" -f $Selection.BundleOutputPath)
+            )
+            KeyParameters = @(Get-KeyParameterList -Phase "delivery" -Selection $Selection)
+            LocalCommand = $DeliveryCommand
+        },
+        [PSCustomObject]@{
+            Name = "bundle-promotion"
+            Path = $Selection.PromotionJobPath
+            Jenkinsfile = "jenkins\bundle-promotion.Jenkinsfile"
+            Purpose = "Unpack a published bundle, validate it again, and optionally deploy it after approval."
+            RecommendedTrigger = "Manual approval gate or downstream from delivery only after artifact publication is confirmed."
+            UpstreamDependencies = @($Selection.DeliveryJobPath)
+            ArtifactOutputs = @(
+                ("Promoted extraction path: {0}" -f $Selection.PromotionExtractPath)
+            )
+            KeyParameters = @(Get-KeyParameterList -Phase "promotion" -Selection $Selection)
+            LocalCommand = $PromotionCommand
+        }
+    )
+}
+
+function New-SelectionJobPlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Selection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ValidationCommand,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DeliveryCommand,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PromotionCommand
+    )
+
+    $pipelineJobs = @(
+        New-BundlePipelineJobs `
+            -Selection $Selection `
+            -ValidationCommand $ValidationCommand `
+            -DeliveryCommand $DeliveryCommand `
+            -PromotionCommand $PromotionCommand
+    )
+
+    return [PSCustomObject]@{
+        Name = $Selection.Name
+        Description = $Selection.Description
+        UsesPreset = $Selection.UsesPreset
+        Profile = $Selection.Profile
+        Applications = @($Selection.Applications)
+        DataServices = @($Selection.DataServices)
+        ValuesFile = $Selection.ValuesFile
+        DockerRegistry = $Selection.DockerRegistry
+        Version = $Selection.Version
+        BundleOutputPath = $Selection.BundleOutputPath
+        ServiceDirectories = @($Selection.ServiceDirectories)
+        IncludeJenkins = [bool]$Selection.IncludeJenkins
+        ArchivePath = $Selection.ArchivePath
+        PromotionExtractPath = $Selection.PromotionExtractPath
+        BundleFolderPath = $Selection.BundleFolderPath
+        ValidationJobPath = $Selection.ValidationJobPath
+        DeliveryJobPath = $Selection.DeliveryJobPath
+        PromotionJobPath = $Selection.PromotionJobPath
+        ValidationCommand = $ValidationCommand
+        DeliveryCommand = $DeliveryCommand
+        PromotionCommand = $PromotionCommand
+        PipelineJobs = @($pipelineJobs)
+        RecommendedFlow = @(
+            "Run any optional service-specific automation you keep locally before or alongside bundle validation.",
+            ("Validate selection in {0}." -f $Selection.ValidationJobPath),
+            ("Render and archive the bundle in {0}." -f $Selection.DeliveryJobPath),
+            "Insert manual approval or change-management review before promotion deployment.",
+            ("Promote and optionally deploy from {0}." -f $Selection.PromotionJobPath)
+        )
+    }
+}
+
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $presetDirectory = Join-Path $root "config\environments"
 $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
@@ -390,80 +505,11 @@ foreach ($presetName in @($selectedPresetNames)) {
     $deliveryCommand = Get-SelectionCommand -ScriptName "invoke-bundle-delivery.ps1" -Selection $selection
     $promotionCommand = Get-SelectionCommand -ScriptName "invoke-bundle-promotion.ps1" -Selection $selection
 
-    $pipelineJobs = @(
-        [PSCustomObject]@{
-            Name = "repository-validation"
-            Path = $selection.ValidationJobPath
-            Jenkinsfile = "jenkins\repository-validation.Jenkinsfile"
-            Purpose = "Validate repository structure, workstation readiness, and rendered bundle safety."
-            RecommendedTrigger = "Pull request validation, protected branch changes, or scheduled drift checks."
-            UpstreamDependencies = @()
-            ArtifactOutputs = @(
-                "Validation logs and optional existing bundle re-validation results."
-            )
-            KeyParameters = @(Get-KeyParameterList -Phase "validation" -Selection $selection)
-            LocalCommand = $validationCommand
-        },
-        [PSCustomObject]@{
-            Name = "bundle-delivery"
-            Path = $selection.DeliveryJobPath
-            Jenkinsfile = "jenkins\bundle-delivery.Jenkinsfile"
-            Purpose = "Render a bundle, validate it, archive it, and optionally run a dry-run deployment."
-            RecommendedTrigger = "Manual release packaging, protected branch release flow, or downstream after validation."
-            UpstreamDependencies = @($selection.ValidationJobPath)
-            ArtifactOutputs = @(
-                ("Bundle archive: {0}" -f $selection.ArchivePath),
-                ("Rendered bundle directory: {0}" -f $selection.BundleOutputPath)
-            )
-            KeyParameters = @(Get-KeyParameterList -Phase "delivery" -Selection $selection)
-            LocalCommand = $deliveryCommand
-        },
-        [PSCustomObject]@{
-            Name = "bundle-promotion"
-            Path = $selection.PromotionJobPath
-            Jenkinsfile = "jenkins\bundle-promotion.Jenkinsfile"
-            Purpose = "Unpack a published bundle, validate it again, and optionally deploy it after approval."
-            RecommendedTrigger = "Manual approval gate or downstream from delivery only after artifact publication is confirmed."
-            UpstreamDependencies = @($selection.DeliveryJobPath)
-            ArtifactOutputs = @(
-                ("Promoted extraction path: {0}" -f $selection.PromotionExtractPath)
-            )
-            KeyParameters = @(Get-KeyParameterList -Phase "promotion" -Selection $selection)
-            LocalCommand = $promotionCommand
-        }
-    )
-
-    $selectionPlans.Add([PSCustomObject]@{
-        Name = $selection.Name
-        Description = $selection.Description
-        UsesPreset = $selection.UsesPreset
-        Profile = $selection.Profile
-        Applications = @($selection.Applications)
-        DataServices = @($selection.DataServices)
-        ValuesFile = $selection.ValuesFile
-        DockerRegistry = $selection.DockerRegistry
-        Version = $selection.Version
-        BundleOutputPath = $selection.BundleOutputPath
-        ServiceDirectories = @($selection.ServiceDirectories)
-        IncludeJenkins = [bool]$selection.IncludeJenkins
-        ArchivePath = $selection.ArchivePath
-        PromotionExtractPath = $selection.PromotionExtractPath
-        BundleFolderPath = $selection.BundleFolderPath
-        ValidationJobPath = $selection.ValidationJobPath
-        DeliveryJobPath = $selection.DeliveryJobPath
-        PromotionJobPath = $selection.PromotionJobPath
-        ValidationCommand = $validationCommand
-        DeliveryCommand = $deliveryCommand
-        PromotionCommand = $promotionCommand
-        PipelineJobs = @($pipelineJobs)
-        RecommendedFlow = @(
-            "Run any optional service-specific automation you keep locally before or alongside bundle validation.",
-            ("Validate selection in {0}." -f $selection.ValidationJobPath),
-            ("Render and archive the bundle in {0}." -f $selection.DeliveryJobPath),
-            "Insert manual approval or change-management review before promotion deployment.",
-            ("Promote and optionally deploy from {0}." -f $selection.PromotionJobPath)
-        )
-    }) | Out-Null
+    $selectionPlans.Add((New-SelectionJobPlan `
+        -Selection $selection `
+        -ValidationCommand $validationCommand `
+        -DeliveryCommand $deliveryCommand `
+        -PromotionCommand $promotionCommand)) | Out-Null
 }
 
 $serviceJobs = @()
