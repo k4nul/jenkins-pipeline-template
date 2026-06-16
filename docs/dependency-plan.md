@@ -1,132 +1,247 @@
 # Dependency And Toolchain Plan
 
 This repository does not use a package-manager manifest or lockfile. The
-dependency surface is the Jenkins controller example, public sample service
-images, Jenkins agent tools, and the PowerShell validation runtime.
+dependency surface is catalog and runtime-contract driven:
 
-The current safe dependency posture is therefore "plan and validate before
-version changes." Do not refresh image tags, Jenkins plugin assumptions, or
-agent tool baselines from this repository alone. First collect upstream release
-notes externally, choose a coherent batch, then update the source file and run
-the validation lane listed below.
+- public service image tags in `config/service-pipelines.psd1`
+- the public-safe Jenkins controller example in `k8s/jenkins-controller/`
+- Jenkins Pipeline and Job DSL behavior in `jenkins/` and `scripts/`
+- PowerShell 7+ as the local validation runtime
+- Jenkins agent tools used by non-dry-run repository validation, delivery, and
+  promotion paths
 
-## Inventory
+The safe dependency posture is therefore "plan and validate before version
+changes." Do not refresh image tags, controller images, Jenkins plugin
+assumptions, or agent tool baselines from repository-local evidence alone.
+First collect upstream release notes externally, choose one coherent batch, then
+update the owning files and run the validation lane for that batch.
 
-| Area | Files | Current constraint | Validation lane |
+## Executive Summary
+
+No dependency versions are changed by this plan. The current repository-local
+health signal is that dependencies are explicit where the public template owns
+them, generated dependency artifacts stay under ignored `out/` paths, and the
+controller-free validation lane can prove Job DSL and service catalog shape
+without contacting a Jenkins controller.
+
+The main maintenance risk is provenance, not a directly proven vulnerability:
+public image freshness, Jenkins LTS image drift, live controller plugins,
+Jenkins agent images, and cluster tooling cannot be verified from committed
+files alone. Treat each of those as an upgrade candidate that needs external
+release-note review plus the local validation commands below.
+
+## Dependency Inventory
+
+| Area | Owning files | Repository-local dependency data | Validation lane |
 | --- | --- | --- | --- |
-| PowerShell runtime | `scripts/*.ps1`, `scripts/run-phase-validation.sh` | PowerShell 7 or newer through `pwsh`, `POWERSHELL_BIN`, or `PWSH` | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
-| Jenkins controller example | `k8s/jenkins-controller/jenkins.yaml` | `jenkins/jenkins:lts` example image | Review manifest plus controller/JCasC validation when a JCasC package exists |
-| Public sample services | `config/service-pipelines.psd1` | `adminer:5.3.0-standalone`, `mccutchen/go-httpbin:v2.15.0`, `nginx:1.28-alpine`, `traefik/whoami:v1.10.4` | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
-| Generated Job DSL | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Job DSL plugin availability is a live-controller concern, not committed here | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
-| Jenkins agent tools | `jenkins/*.Jenkinsfile`, `jenkins/README.md` | `kubectl` and `helm` are required for non-dry-run cluster workflows; `git`, `docker`, and `python` are optional preflight checks | Jenkins agent readiness preflight plus controller-free harness |
+| PowerShell runtime | `scripts/*.ps1`, `scripts/run-phase-validation.sh` | PowerShell 7 or newer through `pwsh`, `POWERSHELL_BIN`, `PWSH`, or common install paths | `sh scripts/run-phase-validation.sh` |
+| Public service images | `config/service-pipelines.psd1` | `adminer:5.3.0-standalone`, `mccutchen/go-httpbin:v2.15.0`, `nginx:1.28-alpine`, `traefik/whoami:v1.10.4` | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json`; `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
+| Environment presets and profiles | `config/environments/*.psd1`, `config/profiles/*.psd1` | Preset/profile selections, values-file paths, version defaults, selected applications/data services | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
+| Generated Job DSL | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Job folder and `pipelineJob` generation, parameterized SCM URL, branch spec, and credentials ID handling | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy`; `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
+| Jenkins controller example | `k8s/jenkins-controller/jenkins.yaml`, `k8s/jenkins-controller/README.md` | `jenkins/jenkins:lts` and ephemeral `emptyDir` storage for a public-safe example only | Manifest review plus future controller/JCasC validation when those files exist |
+| Jenkins Pipeline runtime | `jenkins/*.Jenkinsfile` | Runtime calls into repository-owned scripts, artifact paths under `out/`, dry-run defaults, manual approval gates | `sh scripts/run-phase-validation.sh`, plus live Jenkins review before rollout |
+| Jenkins agent tools | `jenkins/*.Jenkinsfile`, `scripts/validate-workstation.ps1`, docs under `docs/` | `kubectl` and `helm` for strict cluster workflows; `git`, `docker`, and `python` as optional or context-dependent checks | Local workstation validation, then live agent readiness review before non-dry-run use |
 
-## Dependency Ownership Rules
+There are no committed `package.json`, lockfile, `requirements*.txt`,
+`pyproject.toml`, `go.mod`, `Cargo.toml`, `.csproj`, or similar language package
+manifests in this repository.
 
-- Keep public sample image tags in `config/service-pipelines.psd1`; do not
-  duplicate them in generated Job DSL, Jenkinsfiles, or controller examples.
-- Keep the Jenkins controller image, plugin installation, credentials providers,
-  security realm, and agent images in controller or future JCasC scope. The
-  checked-in Kubernetes manifest is only a public-safe example.
+## Toolchain And Runtime Constraints
+
 - Keep PowerShell compatibility at PowerShell 7+ unless a repository-local
   validation change proves a newer minimum is required.
-- Keep generated dependency artifacts under `out/`. The directory is ignored and
-  must not become the source of committed Job DSL or controller state.
+- Keep repository URLs, branch specs, credentials IDs, Docker registry values,
+  and production approval behavior parameterized in generated jobs and checked-in
+  Jenkinsfiles.
+- Keep public sample image tags in `config/service-pipelines.psd1`; do not
+  duplicate image ownership in generated Job DSL, Jenkinsfiles, or controller
+  examples.
+- Keep generated dependency and Job DSL artifacts under `out/`. The directory is
+  ignored and must not become the source of committed controller state.
+- Treat the Kubernetes controller manifest as a public-safe example, not as a
+  production dependency baseline. Plugin installation, controller credentials,
+  security realm, durable storage, and agent image selection belong to a future
+  controller/JCasC package.
 
-## Upgrade Stages
+## Staged Upgrade Plan
 
-1. Public image catalog refresh
+### Stage 1: Public Image Catalog Refresh
 
-   Update only `config/service-pipelines.psd1` after choosing the new public
-   image tags from upstream release notes. Record the chosen tags in the same
-   catalog entries that currently own the image names. Keep `HasJenkinsfile =
-   $false` for catalog-only examples unless a matching
-   `services/<name>/Jenkinsfile` and required files are added in the same change.
+Update only `config/service-pipelines.psd1` after choosing new public image tags
+from upstream release notes. Keep the current catalog-only behavior unless the
+same change adds a matching `services/<name>/Jenkinsfile`, required files, and
+validation expectations.
 
-   Validate with:
+Files likely to change together:
 
-   ```powershell
-   pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
-   pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
-   pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
-   ```
+- `config/service-pipelines.psd1`
+- `docs/dependency-plan.md`
+- `docs/maintenance.md` or `docs/testing.md` if validation guidance changes
 
-   Investigate image-specific changes to exposed ports, default users, health
-   endpoints, filesystem paths, startup timing, and environment variables before
-   promoting the update to downstream templates.
+Validation:
 
-2. Controller image and plugin baseline
+```powershell
+pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
+pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+```
 
-   Treat `k8s/jenkins-controller/jenkins.yaml` as an example, not the source of a
-   production controller. Keep controller plugin installation, credentials,
-   agents, and security realm in a future JCasC package. Do not change generated
-   Job DSL defaults to require a controller plugin until that package documents
-   and validates the plugin set.
+### Stage 2: Controller Image And Plugin Baseline
 
-   If the floating `jenkins/jenkins:lts` example is replaced with a pinned image,
-   update `k8s/jenkins-controller/README.md` in the same change so the manifest,
-   controller scope, persistence expectations, and validation limits stay aligned.
+Keep `k8s/jenkins-controller/jenkins.yaml` as an example until a controller or
+JCasC package owns plugin and agent decisions. If the floating
+`jenkins/jenkins:lts` image is replaced with a pinned image, update
+`k8s/jenkins-controller/README.md` in the same change so image pinning, durable
+storage expectations, plugin ownership, and validation limits remain explicit.
 
-   Validate the existing controller-free contract with:
+Files likely to change together:
 
-   ```powershell
-   pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
-   ```
+- `k8s/jenkins-controller/jenkins.yaml`
+- `k8s/jenkins-controller/README.md`
+- future JCasC or controller validation files, when introduced
 
-   Add live-controller or JCasC validation only when the JCasC files exist.
+Validation:
 
-3. PowerShell and agent-tool baseline
+```powershell
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+```
 
-   Keep PowerShell compatibility at 7+ until there is a concrete need for a
-   newer runtime. If Jenkins agent images are standardized later, update
-   `jenkins/README.md`, the Jenkinsfile preflight expectations, and the testing
-   docs together.
+Add live-controller or JCasC validation only when the controller/JCasC files
+exist.
 
-   Validate with:
+### Stage 3: PowerShell And Jenkins Agent Tool Baseline
 
-   ```powershell
-   pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
-   sh scripts/run-phase-validation.sh
-   ```
+Keep PowerShell 7+ as the minimum local runtime. If Jenkins agent images are
+standardized later, update the Jenkinsfile preflight expectations and reader
+documentation together so `kubectl`, `helm`, registry, Docker, and cluster
+assumptions stay visible.
 
-4. Jenkinsfile behavior dependencies
+Files likely to change together:
 
-   Add JenkinsPipelineUnit or equivalent local tests only when scripted
-   Jenkinsfile logic grows beyond the current declarative wrappers. Keep
-   non-dry-run delivery and promotion behind explicit approval and bootstrap
-   checks.
+- `scripts/run-phase-validation.sh`
+- `scripts/validate-workstation.ps1`
+- `jenkins/*.Jenkinsfile`
+- `docs/testing.md`
+- `docs/maintenance.md`
 
-## Validation Matrix
+Validation:
 
-| Change package | Minimum validation |
-| --- | --- |
-| Public image catalog tag refresh | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json`; `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1`; `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
-| Controller example or JCasC boundary documentation | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1`; live controller or JCasC validation only when those files exist |
-| Jenkins agent tool baseline | `sh scripts/run-phase-validation.sh`; live Jenkins agent readiness review before rollout |
-| Job DSL or Jenkinsfile behavior dependency | `sh scripts/run-phase-validation.sh` |
+```sh
+sh scripts/run-phase-validation.sh
+```
 
-## Breaking Changes To Investigate
+### Stage 4: Jenkinsfile Behavior Dependencies
 
-- Sample image tag updates can change exposed ports, startup timing, default
-  users, filesystem paths, or health endpoints. Verify downstream examples
-  before changing the catalog.
-- Moving from the floating Jenkins LTS image to a pinned controller image or a
-  JCasC-owned plugin set can reveal plugin compatibility gaps. Keep that change
-  separate from public sample service image updates.
-- Raising the minimum PowerShell version can break older Jenkins agents even
-  when local validation passes on a newer workstation.
+Add Jenkins Pipeline unit tests or an equivalent local test harness only when
+scripted Jenkinsfile logic grows beyond the current declarative wrappers and
+repository-owned PowerShell entrypoints. Keep non-dry-run delivery and promotion
+behind explicit approval and bootstrap readiness/status checks.
+
+Files likely to change together:
+
+- `jenkins/*.Jenkinsfile`
+- `jenkins/JOB_BLUEPRINT.md`
+- `docs/testing.md`
+- future Jenkinsfile test fixtures
+
+Validation:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+## Likely Breaking Changes To Investigate
+
+- Public image tag updates can change exposed ports, startup timing, default
+  users, filesystem paths, health endpoints, and environment variables.
+- Moving from floating Jenkins LTS to a pinned controller image can reveal plugin
+  and Java runtime compatibility gaps that local Job DSL export does not prove.
+- Introducing a JCasC plugin baseline can move responsibility from documentation
+  into controller validation; keep that separate from public service image
+  refreshes.
+- Raising the PowerShell minimum can break older Jenkins agents even when local
+  validation passes on a newer workstation.
 - Adding Jenkinsfile-backed services changes `ServiceJobCount` and must update
   service fixtures, required-file checks, generated Job DSL expectations, and
   documentation in the same stage.
+- Standardizing Jenkins agent images can make optional tools mandatory. Keep
+  strict/non-strict workstation validation behavior explicit before rollout.
 
-## Maintenance Risk Indicators
+## Test Areas To Run After Each Stage
 
-- `k8s/jenkins-controller/jenkins.yaml` uses `jenkins/jenkins:lts`, which is
-  intentionally floating and should be reviewed before production use.
-- There is no lockfile or generated dependency snapshot for Jenkins plugins,
-  because controller plugins are outside the current template scope.
-- Public image tag freshness cannot be determined from repository-local files
-  alone. Check image release notes externally before changing tags, then record
-  the chosen tags in `config/service-pipelines.psd1`.
+| Change package | Minimum validation | Extra review before rollout |
+| --- | --- | --- |
+| Public service image tag refresh | `show-service-pipeline-plan.ps1`; `validate-service-pipelines.ps1`; `validate-jenkins-job-dsl.ps1 -Format json` | Image release notes, health endpoints, exposed ports, compose examples |
+| Controller image or future JCasC baseline | `validate-jenkins-job-dsl.ps1 -Format json` until controller files exist | Live controller plugin install, JCasC load, durable storage, credentials providers, security realm |
+| PowerShell runtime or validation wrapper | `sh scripts/run-phase-validation.sh` | Jenkins agent PowerShell version, shell path resolution, non-interactive execution |
+| Jenkins agent tool baseline | `sh scripts/run-phase-validation.sh` plus `validate-workstation.ps1` in the target agent context | `kubectl`, `helm`, registry access, Docker availability, cluster permissions |
+| Jenkinsfile behavior dependency | `sh scripts/run-phase-validation.sh` | Live Jenkins dry-run, approval prompts, artifact archiving under `out/` |
+
+## Security Or Maintenance Risk Indicators
+
+- `k8s/jenkins-controller/jenkins.yaml` uses floating `jenkins/jenkins:lts`.
+  That is acceptable for a public-safe example but should be reviewed before
+  production use.
+- There is no Jenkins plugin lockfile or generated dependency snapshot, because
+  controller plugins are outside the current template scope.
+- Public image freshness cannot be determined from repository-local files alone.
+  Check image release notes externally before changing tags.
 - Controller-free validation proves generated Job DSL shape and public-safe
   defaults; it does not prove live Jenkins plugin installation, credential
-  providers, agent image contents, or cluster access.
+  providers, agent image contents, registry access, or cluster permissions.
+- Generated artifacts under `out/` are intentionally ignored. A change that
+  commits generated Job DSL or controller output would blur the source of truth.
+- The repository has no language package lockfile to audit because it has no
+  language package manifest; vulnerability status would require external checks
+  and must not be inferred from this file alone.
+
+## Suggested Larger Upgrade Or Hygiene Packages
+
+1. Public image catalog refresh package
+
+   Review upstream release notes for the four public service images, update
+   `config/service-pipelines.psd1` as one catalog batch, and record any changed
+   runtime assumptions in service catalog documentation.
+
+2. Controller/JCasC baseline package
+
+   Decide whether the public example should remain floating or become pinned.
+   If pinned, add documentation for plugin ownership, durable storage, agent
+   image expectations, and live-controller validation.
+
+3. Agent tool baseline package
+
+   Define the Jenkins agent image/tool contract for non-dry-run delivery and
+   promotion, then align `validate-workstation.ps1`, Jenkinsfile preflights, and
+   testing docs.
+
+4. Jenkinsfile unit strategy package
+
+   If conditional Pipeline DSL grows, add a focused unit-test strategy for
+   Jenkinsfile behavior instead of expanding controller-free PowerShell checks
+   beyond their ownership boundary.
+
+## Changes Made And Validation
+
+This document is the dependency-plan hygiene package. It makes no dependency
+version changes and does not add runtime dependencies.
+
+Validate documentation-only changes with:
+
+```sh
+git diff --check
+```
+
+When this file is updated alongside dependency, catalog, Jenkinsfile, Job DSL, or
+phase-readiness behavior, also run:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+## Suggested Next Automated Task
+
+Run `phase-transition` next. The current phase validation command is the
+repository-owned transition gate, and a passing `sh scripts/run-phase-validation.sh`
+result means the dependency-plan lane has no repository-local blocker to the
+`pipeline-boundary-hardening` handoff.
