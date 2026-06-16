@@ -250,12 +250,8 @@ function Get-KeyParameterList {
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $presetDirectory = Join-Path $root "config\environments"
-$servicePipelineCatalogPath = Join-Path $root "config\service-pipelines.psd1"
-$servicePipelineCatalog = Import-PowerShellDataFile -Path $servicePipelineCatalogPath
-$serviceCatalogIndex = @{}
-foreach ($service in @($servicePipelineCatalog.Services)) {
-    $serviceCatalogIndex[[string]$service.Name] = $service
-}
+$servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
+$serviceCatalogIndex = Get-ServicePipelineCatalogIndex -Services @(Get-ServicePipelineCatalogServices -Catalog $servicePipelineCatalog)
 
 $hasDirectSelection =
     $PSBoundParameters.ContainsKey("Profile") -or
@@ -487,7 +483,7 @@ if (-not $SkipServiceJobs) {
 
     foreach ($serviceName in @($serviceUsage.Keys | Sort-Object)) {
         $serviceDefinition = $null
-        if ($serviceCatalogIndex.ContainsKey($serviceName)) {
+        if ($serviceCatalogIndex.Contains($serviceName)) {
             $serviceDefinition = $serviceCatalogIndex[$serviceName]
         }
 

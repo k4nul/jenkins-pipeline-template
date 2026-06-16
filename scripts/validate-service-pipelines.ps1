@@ -5,19 +5,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if (-not $PSBoundParameters.ContainsKey("RepoRoot") -or -not $RepoRoot) {
-    $RepoRoot = Join-Path $PSScriptRoot ".."
-}
+. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
 
-$root = (Resolve-Path -Path $RepoRoot).Path
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $servicesRoot = Join-Path $root "services"
-$catalogPath = Join-Path $root "config\service-pipelines.psd1"
-$catalog = Import-PowerShellDataFile -Path $catalogPath
-
-$catalogMap = [ordered]@{}
-foreach ($service in @($catalog.Services | Sort-Object { $_.Name })) {
-    $catalogMap[$service.Name] = $service
-}
+$catalog = Import-ServicePipelineCatalog -RepoRoot $root
+$catalogMap = Get-ServicePipelineCatalogIndex -Services @(Get-ServicePipelineCatalogServices -Catalog $catalog)
 
 $errors = New-Object System.Collections.Generic.List[string]
 

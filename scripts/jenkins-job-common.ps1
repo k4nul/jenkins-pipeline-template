@@ -44,6 +44,60 @@ function Resolve-RepoRoot {
     return (Resolve-Path -Path $RepoRoot).Path
 }
 
+function Get-ServicePipelineCatalogPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    return (Join-Path $RepoRoot "config\service-pipelines.psd1")
+}
+
+function Import-ServicePipelineCatalog {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    return (Import-PowerShellDataFile -Path (Get-ServicePipelineCatalogPath -RepoRoot $RepoRoot))
+}
+
+function Get-ServicePipelineCatalogServices {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Catalog
+    )
+
+    return @($Catalog.Services | Sort-Object { $_.Name })
+}
+
+function Get-ServicePipelineCatalogIndex {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$Services
+    )
+
+    $index = [ordered]@{}
+    foreach ($service in @($Services)) {
+        $index[[string]$service.Name] = $service
+    }
+
+    return $index
+}
+
+function Get-ServicePipelineCommonEnvironmentVariables {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$Services
+    )
+
+    return @(
+        $Services |
+            ForEach-Object { @($_.OptionalEnvVars) } |
+            Sort-Object -Unique
+    )
+}
+
 function Resolve-RepoOutputPath {
     param(
         [Parameter(Mandatory = $true)]

@@ -11,15 +11,9 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
-$catalogPath = Join-Path $root "config\service-pipelines.psd1"
-$catalog = Import-PowerShellDataFile -Path $catalogPath
-$services = @($catalog.Services | Sort-Object { $_.Name })
-
-$commonEnvVars = @(
-    $services |
-        ForEach-Object { @($_.OptionalEnvVars) } |
-        Sort-Object -Unique
-)
+$catalog = Import-ServicePipelineCatalog -RepoRoot $root
+$services = @(Get-ServicePipelineCatalogServices -Catalog $catalog)
+$commonEnvVars = @(Get-ServicePipelineCommonEnvironmentVariables -Services $services)
 
 switch ($Format) {
     "json" {
