@@ -15,6 +15,52 @@ that a live Jenkins controller is ready.
 | Service catalog | Public image service metadata, required service-local file expectations, and whether selected services have Jenkinsfile-backed jobs | Service jobs for catalog entries that do not provide `services/<name>/Jenkinsfile` and matching required files | `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
 | Controller/JCasC | Public-safe examples and documentation for plugin, agent, credential-provider, and security-realm expectations | Treating local Job DSL export as proof that a live controller has plugins, agents, credentials, registry access, or cluster access | Separate controller or JCasC validation when those files exist |
 
+## Script Ownership Boundaries
+
+The controller-free validation lane depends on one direction of data flow:
+
+1. `config/environments/*.psd1`, `config/profiles/*.psd1`, and
+   `config/service-pipelines.psd1` define public-safe catalog data.
+2. `scripts/show-jenkins-job-plan.ps1` resolves that catalog data into the
+   canonical job plan model.
+3. `scripts/export-jenkins-job-dsl.ps1` consumes the job plan model and writes
+   Job DSL; it should not reimplement preset, profile, or service selection
+   decisions that belong to the plan model.
+4. `jenkins/*.Jenkinsfile` execute the checked-in validation, delivery,
+   promotion, and seed entrypoints; they should keep runtime argument handling
+   separate from plan-model decisions.
+5. `scripts/jenkins-validation-assertions.ps1` and
+   `tests/jenkins-job-dsl.public-presets.ps1` verify the public contract across
+   the plan model, generated DSL, service catalog, and Jenkinsfile runtime
+   guardrails.
+
+Keep helper ownership narrow. Put helpers in `scripts/jenkins-job-common.ps1`
+only when multiple entrypoints share the same rule, such as job path
+normalization, repository output safety, service catalog loading, or generated
+folder path derivation. Keep command-rendering helpers, Groovy formatting
+helpers, and fixture-specific assertions close to the entrypoint that owns the
+format. This avoids making the shared helper file a second policy layer.
+
+## Refactor Guardrails
+
+When reducing script size or duplication, preserve these dependency rules:
+
+- the plan script may read presets, profiles, and service catalog metadata;
+- the exporter should call the plan script and transform its JSON into Job DSL;
+- validators may call plan and export entrypoints but should not become a
+  required runtime dependency for Jenkins jobs;
+- Jenkinsfiles should call repository-owned scripts through named parameters
+  and keep deployment side effects behind existing dry-run, approval, and
+  bootstrap readiness gates; and
+- future Controller/JCasC files should get their own validation lane instead of
+  broadening the local Job DSL export contract.
+
+The highest-value cleanup after the current phase is to extract cohesive
+plan-model assembly functions from `scripts/show-jenkins-job-plan.ps1` only
+when the existing public preset matrix and service-job fixtures remain the
+acceptance tests. Avoid moving behavior between Job DSL, Pipeline DSL, service
+catalog, and Controller/JCasC boundaries in the same change.
+
 ## Job DSL Boundary
 
 Job DSL generation belongs in `scripts/show-jenkins-job-plan.ps1`,
