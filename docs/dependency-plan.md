@@ -10,6 +10,12 @@ dependency surface is catalog and runtime-contract driven:
 - Jenkins agent tools used by non-dry-run repository validation, delivery, and
   promotion paths
 
+Use the repository-local inventory command before planning a dependency batch:
+
+```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
+```
+
 The safe dependency posture is therefore "plan and validate before version
 changes." Do not refresh image tags, controller images, Jenkins plugin
 assumptions, or agent tool baselines from repository-local evidence alone.
@@ -27,8 +33,10 @@ without contacting a Jenkins controller.
 The main maintenance risk is provenance, not a directly proven vulnerability:
 public image freshness, Jenkins LTS image drift, live controller plugins,
 Jenkins agent images, and cluster tooling cannot be verified from committed
-files alone. Treat each of those as an upgrade candidate that needs external
-release-note review plus the local validation commands below.
+files alone. `scripts/show-dependency-inventory.ps1` now gives dependency runs a
+controller-free inventory of the current catalog and controller image references,
+but treat each upgrade candidate as requiring external release-note review plus
+the local validation commands below.
 
 ## Dependency Inventory
 
@@ -36,6 +44,7 @@ release-note review plus the local validation commands below.
 | --- | --- | --- | --- |
 | PowerShell runtime | `scripts/*.ps1`, `scripts/run-phase-validation.sh` | PowerShell 7 or newer through `pwsh`, `POWERSHELL_BIN`, `PWSH`, or common install paths | `sh scripts/run-phase-validation.sh` |
 | Public service images | `config/service-pipelines.psd1` | `adminer:5.3.0-standalone`, `mccutchen/go-httpbin:v2.15.0`, `nginx:1.28-alpine`, `traefik/whoami:v1.10.4` | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json`; `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
+| Dependency inventory | `scripts/show-dependency-inventory.ps1`, `config/service-pipelines.psd1`, `k8s/**/*.yaml` | package-manager manifest absence, public service image tags, controller image references, PowerShell validation contract | `pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json` |
 | Environment presets and profiles | `config/environments/*.psd1`, `config/profiles/*.psd1` | Preset/profile selections, values-file paths, version defaults, selected applications/data services | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
 | Generated Job DSL | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Job folder and `pipelineJob` generation, parameterized SCM URL, branch spec, and credentials ID handling | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy`; `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
 | Jenkins controller example | `k8s/jenkins-controller/jenkins.yaml`, `k8s/jenkins-controller/README.md` | `jenkins/jenkins:lts` and ephemeral `emptyDir` storage for a public-safe example only | Manifest review plus future controller/JCasC validation when those files exist |
@@ -230,6 +239,13 @@ Validate documentation-only changes with:
 
 ```sh
 git diff --check
+```
+
+This run adds the repository-local dependency inventory command and wires it into
+the public preset test lane. Validate dependency planning changes with:
+
+```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 ```
 
 When this file is updated alongside dependency, catalog, Jenkinsfile, Job DSL, or

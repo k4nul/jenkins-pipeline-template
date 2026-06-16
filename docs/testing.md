@@ -52,6 +52,7 @@ The wrapper runs the phase-gate commands first, then the full public preset
 matrix harness and the extended public preset test suite:
 
 ```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
@@ -119,6 +120,8 @@ gate to pass.
 ## What These Checks Prove
 
 - The `dev`, `staging`, and `prod` presets can render Jenkins job plans.
+- The dependency inventory can report manifest-free package posture, public
+  service image tags, and controller image risk indicators from committed files.
 - Job DSL export can produce folder and `pipelineJob` definitions.
 - The phase gate exercises both the focused `dev` transition commands and the
   all-preset public Job DSL harness.

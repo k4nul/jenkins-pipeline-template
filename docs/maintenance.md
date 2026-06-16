@@ -108,6 +108,13 @@ Use `docs/dependency-plan.md` before changing public image tags, Jenkins
 controller images, plugin assumptions, Jenkins agent tool baselines, or the
 PowerShell runtime expectation.
 
+Start with the controller-free inventory so the change package is based on
+committed catalog and manifest evidence:
+
+```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
+```
+
 ## Phase Handoff
 
 The current machine-managed phase is `job-dsl-coverage`. Its transition gate is:

@@ -98,6 +98,7 @@ function Get-JenkinsValidationPaths {
     return [PSCustomObject]@{
         JobPlanScript = Join-Path $Root "scripts/show-jenkins-job-plan.ps1"
         ServicePlanScript = Join-Path $Root "scripts/show-service-pipeline-plan.ps1"
+        DependencyInventoryScript = Join-Path $Root "scripts/show-dependency-inventory.ps1"
         JobDslScript = Join-Path $Root "scripts/export-jenkins-job-dsl.ps1"
         ServiceValidationScript = Join-Path $Root "scripts/validate-service-pipelines.ps1"
         WorkstationValidationScript = Join-Path $Root "scripts/validate-workstation.ps1"
@@ -154,6 +155,7 @@ function Assert-JenkinsRuntimeContract {
 
     foreach ($scriptPath in @(
         $Paths.WorkstationValidationScript,
+        $Paths.DependencyInventoryScript,
         $Paths.RepositoryValidationScript,
         $Paths.BundleDeliveryScript,
         $Paths.BundlePromotionScript,

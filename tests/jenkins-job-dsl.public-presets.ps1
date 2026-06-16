@@ -268,6 +268,25 @@ function Assert-MultiPresetPlanAndDsl {
     }
 }
 
+function Assert-DependencyInventory {
+    param(
+        [object]$Inventory
+    )
+
+    Assert-Equal -Actual ([string]$Inventory.Status) -Expected "passed" -Message "Dependency inventory should pass"
+    Assert-Equal -Actual ([int]@($Inventory.PackageManagerManifests).Count) -Expected 0 -Message "Template should not currently report package-manager manifests"
+    Assert-Equal -Actual ([int]@($Inventory.ServiceImages).Count) -Expected 4 -Message "Dependency inventory should include the public service images"
+    Assert-Equal -Actual ([int]@($Inventory.ControllerImages).Count) -Expected 1 -Message "Dependency inventory should include the Jenkins controller example image"
+
+    $controllerImage = @($Inventory.ControllerImages | Select-Object -First 1)[0]
+    Assert-Equal -Actual ([string]$controllerImage.ImageReference) -Expected "jenkins/jenkins:lts" -Message "Dependency inventory should report the public controller example image"
+    Assert-Condition -Condition ([bool]$controllerImage.UsesFloatingTag) -Message "Dependency inventory should flag the floating Jenkins LTS example tag"
+    Assert-TextContains `
+        -Text (@($Inventory.RiskIndicators) -join [Environment]::NewLine) `
+        -Expected "No package-manager manifests or lockfiles were found" `
+        -Message "Dependency inventory should explain manifest-free dependency posture"
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -276,6 +295,7 @@ $context = Initialize-JenkinsValidationContext `
 $root = $context.Root
 $jobPlanScript = $context.Paths.JobPlanScript
 $jobDslScript = $context.Paths.JobDslScript
+$dependencyInventoryScript = $context.Paths.DependencyInventoryScript
 $seedJobPath = $context.Paths.SeedJobPath
 $deliveryJobPath = $context.Paths.DeliveryJobPath
 $promotionJobPath = $context.Paths.PromotionJobPath
@@ -470,6 +490,12 @@ Assert-JenkinsServiceJobsSkippedPlan -Plan $skippedServiceJobFixturePlan
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $outputDirectory
 Assert-UnsafeServiceCatalogNamesFail -Root $root -OutputDirectory $outputDirectory
 
+$dependencyInventory = Invoke-JsonScript -ScriptPath $dependencyInventoryScript -Arguments @{
+    RepoRoot = $root
+    Format = "json"
+}
+Assert-DependencyInventory -Inventory $dependencyInventory
+
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
 Assert-JenkinsfileArtifactPathSafety `
@@ -507,6 +533,7 @@ Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $servic
 Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
 Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."
 Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
+Write-Output "Validated dependency inventory risk indicators."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
