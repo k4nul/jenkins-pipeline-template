@@ -125,6 +125,8 @@ gate to pass.
 - Explicit seed SCM URL, branch spec, and credentials ID values are emitted as
   escaped Groovy strings while generated jobs still call `credentials(scmCredentialsId)`
   and `branch(branchSpec)`.
+- Seed SCM URLs must be HTTPS/SSH absolute URIs or Git scp-like paths; local
+  file URLs and relative repository paths fail before Job DSL generation.
 - Applying generated Job DSL with `SEED_REMOVED_JOB_ACTION=DELETE` requires the
   separate `SEED_CONFIRM_REMOVED_JOB_DELETE` guard.
 - Applying generated Job DSL requires concrete repository URL and branch inputs,

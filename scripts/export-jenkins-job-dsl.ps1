@@ -121,10 +121,29 @@ function Assert-RepoUrlSafety {
             throw "RepoUrl must be an absolute URI or a Git scp-like repository path."
         }
 
-        if (-not [string]::IsNullOrEmpty($parsedUri.UserInfo)) {
+        $allowedSchemes = @("https", "ssh", "git+ssh")
+        if ($allowedSchemes -notcontains $parsedUri.Scheme.ToLowerInvariant()) {
+            throw "RepoUrl scheme must be one of https, ssh, or git+ssh."
+        }
+
+        if ([string]::IsNullOrWhiteSpace($parsedUri.Host)) {
+            throw "RepoUrl absolute URIs must include a host."
+        }
+
+        $hasEmbeddedCredential = -not [string]::IsNullOrEmpty($parsedUri.UserInfo)
+        $hasSshUser = $parsedUri.Scheme -in @("ssh", "git+ssh") -and $parsedUri.UserInfo -match "^[A-Za-z0-9._-]+$"
+        if ($hasEmbeddedCredential -and -not $hasSshUser) {
             throw "RepoUrl must not include embedded credentials; configure repository access with -ScmCredentialsId."
         }
+
+        return
     }
+
+    if ($trimmed -match "^[A-Za-z0-9._-]+@[^@\s:/\\]+:[^/\\\s].+$") {
+        return
+    }
+
+    throw "RepoUrl must be an HTTPS/SSH absolute URI or a Git scp-like repository path."
 }
 
 function Assert-BranchSpecSafety {

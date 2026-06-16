@@ -201,7 +201,7 @@ $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl
 & $jobDslScript `
     -RepoRoot $root `
     -EnvironmentPreset $explicitScmPreset `
-    -RepoUrl "example.invalid/org/repo'with-quote.git" `
+    -RepoUrl "git@example.invalid:org/repo.git" `
     -BranchSpec "*/feature/quote'safe" `
     -ScmCredentialsId "jenkins-scm'credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null

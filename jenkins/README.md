@@ -75,6 +75,7 @@ Before applying generated DSL in Jenkins, set:
 - optional folder roots such as `SEED_JOB_ROOT`
 
 The template intentionally does not assume `main`, `master`, or a fixed protected-branch policy. Keep the branch spec explicit for the repository that will own the generated jobs.
+Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.invalid:org/repo.git`; local file URLs and relative repository paths are rejected before generated DSL is applied.
 
 ## Seed Parameters
 
@@ -99,7 +100,7 @@ The template intentionally does not assume `main`, `master`, or a fixed protecte
 - verifies Jenkinsfile-backed selected services are projected into service jobs
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
-- verifies embedded SCM credentials and control-character inputs fail before Job DSL generation
+- verifies embedded SCM credentials, unsupported or local repository paths, and control-character inputs fail before Job DSL generation
 - verifies destructive removed-job deletion requires explicit seed confirmation
 - validates service catalog metadata and runs the service pipeline validator
 - verifies committed runtime helper scripts and public-safe values defaults

@@ -640,13 +640,13 @@ function Assert-ExplicitScmDsl {
     Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated explicit-SCM DSL should exist: {0}" -f $DslPath)
     $dsl = Get-Content -Path $DslPath -Raw
 
-    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'example.invalid/org/repo\'with-quote.git'" -Message "Explicit SCM URL should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'git@example.invalid:org/repo.git'" -Message "Explicit SCM URL should be emitted as a Git scp-like repository path."
     Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote\'safe'" -Message "Explicit branch spec should be escaped in the generated DSL."
     Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm\'credentials'" -Message "Explicit credentials ID should be escaped in the generated DSL."
     Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message "Explicit SCM DSL should keep credentials parameterized."
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message "Explicit SCM DSL should keep branch selection parameterized."
 
-    Assert-Condition -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) -Message "Explicit SCM URL should not be written without Groovy escaping."
+    Assert-Condition -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) -Message "Explicit SCM URL should not be written from an unsafe local-style path fixture."
     Assert-Condition -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) -Message "Explicit branch spec should not be written without Groovy escaping."
     Assert-Condition -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) -Message "Explicit credentials ID should not be written without Groovy escaping."
     Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message "Explicit SCM DSL should not inline credentials calls."
@@ -671,6 +671,36 @@ function Assert-JobDslScmInputValidation {
             }
             ExpectedMessage = "RepoUrl must not include embedded credentials"
             Message = "Job DSL export should reject repository URLs with embedded credentials."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                RepoUrl = "file:///tmp/private-repo.git"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-local-scm-uri.groovy")
+            }
+            ExpectedMessage = "RepoUrl scheme must be one of https, ssh, or git+ssh."
+            Message = "Job DSL export should reject local file repository URLs."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                RepoUrl = "ssh:///org/repo.git"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-missing-scm-host.groovy")
+            }
+            ExpectedMessage = "RepoUrl absolute URIs must include a host."
+            Message = "Job DSL export should reject repository URLs without a host."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                RepoUrl = "example.invalid/org/repo.git"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-relative-scm-path.groovy")
+            }
+            ExpectedMessage = "RepoUrl must be an HTTPS/SSH absolute URI or a Git scp-like repository path."
+            Message = "Job DSL export should reject relative or local-style repository paths."
         },
         @{
             Arguments = @{

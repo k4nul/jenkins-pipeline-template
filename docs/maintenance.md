@@ -60,7 +60,9 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 Before applying generated DSL in Jenkins, set `SEED_REPO_URL`,
 `SEED_BRANCH_SPEC`, and `SEED_SCM_CREDENTIALS_ID` as seed parameters. Keep the
 generated jobs calling `credentials(scmCredentialsId)` and `branch(branchSpec)`
-instead of inlining real values.
+instead of inlining real values. `SEED_REPO_URL` must be an HTTPS/SSH
+repository URI or a Git scp-like path; local file URLs and relative paths are
+rejected before DSL generation.
 
 ### Service Pipeline Catalog
 
