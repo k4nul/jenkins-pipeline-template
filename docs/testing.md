@@ -96,9 +96,10 @@ Use this evidence as a boundary, not as live-controller approval. The wrapper
 does not install Jenkins plugins, verify JCasC, create credentials, check agent
 tool images, or run delivery/promotion against a cluster. Those are
 `pipeline-boundary-hardening` and controller rollout concerns. See
-[pipeline-boundaries.md](pipeline-boundaries.md) for the ownership map across
-Job DSL generation, Pipeline DSL execution, service catalog metadata, and
-controller/JCasC rollout.
+[phase-handoff.md](phase-handoff.md) for the evidence checklist to record
+before phase metadata changes, and see [pipeline-boundaries.md](pipeline-boundaries.md)
+for the ownership map across Job DSL generation, Pipeline DSL execution, service
+catalog metadata, and controller/JCasC rollout.
 
 When a documentation-only change explains these boundaries, rerun the wrapper if
 the wording describes command behavior, generated job topology, or phase
@@ -166,5 +167,6 @@ the Job DSL, Pipeline DSL, JCasC, or preset responsibility boundaries.
 Use [maintenance.md](maintenance.md) for the change-lane checklist that maps
 presets, profiles, service catalog entries, Job DSL export, Jenkinsfiles, and
 controller/JCasC scope to their validation commands. Use
-[pipeline-boundaries.md](pipeline-boundaries.md) when the change moves behavior
-between those ownership areas.
+[phase-handoff.md](phase-handoff.md) when the wrapper passes and the next action
+is a phase decision. Use [pipeline-boundaries.md](pipeline-boundaries.md) when
+the change moves behavior between those ownership areas.

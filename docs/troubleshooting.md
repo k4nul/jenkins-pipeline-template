@@ -72,7 +72,9 @@ outside the local fixture, separately verify:
 
 If the local phase gate passes but Jenkins fails while applying DSL or running a
 job, troubleshoot that as a controller, plugin, agent, credential, or target
-repository rollout issue rather than weakening the public-safe defaults.
+repository rollout issue rather than weakening the public-safe defaults. Use
+[phase-handoff.md](phase-handoff.md) to record the local evidence before a
+phase-transition task updates phase metadata.
 
 ## Service Jobs Do Not Appear
 

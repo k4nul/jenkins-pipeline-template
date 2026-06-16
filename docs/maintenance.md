@@ -125,6 +125,11 @@ Pipeline DSL, and future JCasC responsibilities explicit. Documentation updates
 may improve those explanations, but only a `phase-transition` task should edit
 `docs/instructions/phase-gates.json` or other phase metadata.
 
+Before a phase-transition task changes phase metadata, record the current
+controller-free evidence with [phase-handoff.md](phase-handoff.md). That handoff
+checklist keeps the passing Job DSL gate separate from live-controller rollout
+readiness.
+
 The reader-facing boundary package for that phase is
 [pipeline-boundaries.md](pipeline-boundaries.md). Keep it aligned with
 `jenkins/JOB_BLUEPRINT.md`, `jenkins/README.md`, and the validation commands in

@@ -68,6 +68,8 @@ Use the narrowest guide for the work you are about to do:
   does not prove.
 - [maintenance.md](maintenance.md): change lanes for presets, profiles, service
   catalog entries, Job DSL export, Jenkinsfiles, and tooling.
+- [phase-handoff.md](phase-handoff.md): evidence to capture after the
+  `job-dsl-coverage` wrapper passes and before phase metadata changes.
 - [pipeline-boundaries.md](pipeline-boundaries.md): ownership map for Job DSL,
   Pipeline DSL, service catalog metadata, and controller/JCasC rollout.
 - [troubleshooting.md](troubleshooting.md): common local failures and live
