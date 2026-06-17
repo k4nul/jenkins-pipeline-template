@@ -176,6 +176,32 @@ function Assert-SelectionNameOnlyPlanAndDsl {
     Assert-TextNotMatch -Text $dsl -Pattern "pipelineJob\('platform/(dev|staging|prod)/" -Message "SelectionName-only DSL should not fall back to the full preset matrix"
 }
 
+function Assert-EscapedMetadataDsl {
+    param(
+        [string]$DslPath
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated escaped-metadata DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "folder('platform/quote-safe')" -Message "Escaped metadata DSL should sanitize the custom selection name"
+    Assert-TextContains -Text $dsl -Expected "description('Generated bundle job folder for selection \'quote-safe\' using profile \'web-platform\'.')" -Message "Escaped metadata DSL should escape quoted folder descriptions"
+    Assert-TextContains -Text $dsl -Expected "Generated bundle pipeline job.\nSelection: quote-safe\nProfile: web-platform" -Message "Escaped metadata DSL should encode description newlines as Groovy string escapes"
+    Assert-TextContains -Text $dsl -Expected 'VALIDATION_VALUES_FILE=config\\quoted\''value.env' -Message "Escaped metadata DSL should preserve and escape quoted validation values paths"
+    Assert-TextContains -Text $dsl -Expected 'VALIDATION_DOCKER_REGISTRY=registry.example.invalid/team\\release\''s' -Message "Escaped metadata DSL should preserve and escape quoted registry values"
+    Assert-TextContains -Text $dsl -Expected 'BUNDLE_OUTPUT_PATH=out\\delivery\\quoted value' -Message "Escaped metadata DSL should preserve delivery output paths with spaces"
+    Assert-TextContains -Text $dsl -Expected 'BUNDLE_ARCHIVE_PATH=out\\delivery\\quoted bundle\''s.zip' -Message "Escaped metadata DSL should preserve and escape quoted bundle archive paths"
+    Assert-TextContains -Text $dsl -Expected 'PROMOTION_ARCHIVE_PATH=out\\delivery\\quoted bundle\''s.zip' -Message "Escaped metadata DSL should preserve and escape quoted promotion archive paths"
+    Assert-TextContains -Text $dsl -Expected 'PROMOTION_EXTRACT_PATH=out\\promotion\\quoted folder' -Message "Escaped metadata DSL should preserve promotion extract paths with spaces"
+    Assert-TextContains -Text $dsl -Expected '-ValuesFile \''config\\quoted\''\''value.env\''' -Message "Escaped metadata DSL should double quotes inside embedded PowerShell values file arguments"
+    Assert-TextContains -Text $dsl -Expected '-DockerRegistry \''registry.example.invalid/team\\release\''\''s\''' -Message "Escaped metadata DSL should double quotes inside embedded PowerShell registry arguments"
+    Assert-TextContains -Text $dsl -Expected '-Version \''2.0.0-beta\''\''1\''' -Message "Escaped metadata DSL should double quotes inside embedded PowerShell version arguments"
+    Assert-TextContains -Text $dsl -Expected '-ArchivePath \''out\\delivery\\quoted bundle\''\''s.zip\''' -Message "Escaped metadata DSL should double quotes inside embedded PowerShell archive arguments"
+
+    Assert-Condition -Condition (-not $dsl.Contains("VALIDATION_VALUES_FILE=config\quoted'value.env")) -Message "Escaped metadata DSL should not emit raw quoted validation values paths"
+    Assert-Condition -Condition (-not $dsl.Contains("BUNDLE_ARCHIVE_PATH=out\delivery\quoted bundle's.zip")) -Message "Escaped metadata DSL should not emit raw quoted archive paths"
+}
+
 function Invoke-ScriptExpectingFailure {
     param(
         [string]$ScriptPath,
@@ -436,6 +462,23 @@ $selectionNameOnlyDslPath = Join-Path $outputDirectory "selection-name-only-seed
     -OutputPath $selectionNameOnlyDslPath 6>$null | Out-Null
 Assert-SelectionNameOnlyPlanAndDsl -Plan $selectionNameOnlyPlan -DslPath $selectionNameOnlyDslPath
 
+$escapedMetadataDslPath = Join-Path $outputDirectory "escaped-metadata-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -SelectionName "quote safe" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web") `
+    -DataServices @("redis") `
+    -ValuesFile "config\quoted'value.env" `
+    -DockerRegistry "registry.example.invalid/team\release's" `
+    -Version "2.0.0-beta'1" `
+    -BundleOutputPath "out\delivery\quoted value" `
+    -ArchivePath "out\delivery\quoted bundle's.zip" `
+    -PromotionExtractPath "out\promotion\quoted folder" `
+    -SkipServiceJobs `
+    -OutputPath $escapedMetadataDslPath 6>$null | Out-Null
+Assert-EscapedMetadataDsl -DslPath $escapedMetadataDslPath
+
 $nestedRootPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
     SelectionName = "qa/blue canary"
@@ -578,6 +621,7 @@ Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation.
 Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionNameOnlyDslPath)
+Write-Output ("Validated escaped metadata Job DSL fixture: {0}" -f $escapedMetadataDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output "Validated unsafe Job DSL root segments fail closed."
 Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
