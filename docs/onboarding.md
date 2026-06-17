@@ -19,6 +19,7 @@ The wrapper resolves PowerShell from `POWERSHELL_BIN`, `PWSH`, `PATH`, and
 common local install paths. It runs the current public-safe validation lane:
 
 ```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
@@ -35,6 +36,9 @@ generated controller output or generated DSL from a real environment.
 A passing wrapper run is evidence that the public template can render and
 validate its controller-free contract:
 
+- the dependency inventory can report package-manager manifest absence, public
+  service image tags, controller image references, and the PowerShell validation
+  contract from committed files;
 - the `dev` job plan renders the validation, delivery, and promotion bundle
   jobs under the `platform/dev` folder;
 - the service catalog can be planned and validated in its current public-image

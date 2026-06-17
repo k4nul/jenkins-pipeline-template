@@ -51,6 +51,7 @@ generated pipeline topology:
 
 ```text
 sh scripts/run-phase-validation.sh
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
@@ -60,7 +61,8 @@ pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
 `run-phase-validation.sh` is the transition gate and calls the focused `dev`
-commands, the aggregate harness, and the public preset test suite.
+commands, dependency inventory, the aggregate harness, and the public preset
+test suite.
 `validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By
 default it validates every built-in
 environment preset, exports ignored DSL fixtures under `out/jenkins/validation`,

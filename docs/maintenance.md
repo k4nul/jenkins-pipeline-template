@@ -125,7 +125,8 @@ sh scripts/run-phase-validation.sh
 
 That wrapper proves the focused `dev` job plan, service plan, Job DSL export,
 service pipeline validation, full public preset matrix harness, public preset
-test suite, and committed runtime contract.
+test suite, committed runtime contract, and dependency inventory evidence from
+the public service catalog and controller manifests.
 
 The next phase, `pipeline-boundary-hardening`, is for keeping the Job DSL,
 Pipeline DSL, and future JCasC responsibilities explicit. Documentation updates

@@ -27,6 +27,7 @@ sh scripts/run-phase-validation.sh
 ```
 
 ```powershell
+.\scripts\show-dependency-inventory.ps1 -Format json
 .\scripts\validate-jenkins-job-dsl.ps1
 .\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
 .\scripts\show-service-pipeline-plan.ps1 -Format json
@@ -35,6 +36,9 @@ sh scripts/run-phase-validation.sh
 ```
 
 Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export, environment presets, profiles, or service pipeline catalog data. It validates the built-in public-safe preset matrix and writes generated fixtures only under ignored `out/` paths.
+Use `show-dependency-inventory.ps1` before image, controller, or toolchain
+planning so the dependency posture is based on committed catalog and Kubernetes
+manifest evidence.
 
 Keep repository URLs, credentials IDs, branch specs, and approval behavior parameterized before applying the template to a real project.
 

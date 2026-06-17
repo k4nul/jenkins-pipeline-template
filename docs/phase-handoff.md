@@ -15,6 +15,7 @@ That wrapper resolves PowerShell, runs the focused public `dev` lane, then runs
 the broader controller-free harness:
 
 ```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
@@ -31,6 +32,9 @@ generated DSL from a live controller or a real environment.
 Before changing phase metadata, capture the latest local validation result and
 confirm these public-safe expectations:
 
+- the dependency inventory reports the manifest-free package posture, public
+  service image tags, controller image references, and PowerShell validation
+  contract from committed files;
 - the `dev` job plan renders validation, delivery, and promotion jobs under the
   configured platform folder;
 - the service pipeline plan renders the public catalog without requiring a
