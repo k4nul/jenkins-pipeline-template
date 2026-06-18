@@ -299,7 +299,7 @@ function Assert-JenkinsPresetJobPlan {
         -Expected 1 `
         -Message ("Preset {0} should produce exactly one bundle selection" -f $Preset)
 
-    $selection = $Plan.Selections | Select-Object -First 1
+    $selection = @($Plan.Selections)[0]
     Assert-Equal `
         -Actual ([string]$selection.Name) `
         -Expected $Preset `
@@ -391,7 +391,7 @@ function Assert-JenkinsPresetJobPlan {
     }
 
     foreach ($serviceName in $expectedServiceJobNames) {
-        $serviceJob = $Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName } | Select-Object -First 1
+        $serviceJob = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName })[0]
         Assert-Condition `
             -Condition ($null -ne $serviceJob) `
             -Message ("Preset {0} should include a service job for {1}." -f $Preset, $serviceName)
@@ -596,7 +596,7 @@ function Assert-JenkinsServiceJobFixturePlan {
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Service job fixture should produce one bundle selection"
     Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 1 -Message "Service job fixture should produce one Jenkinsfile-backed service job"
 
-    $selection = $Plan.Selections | Select-Object -First 1
+    $selection = @($Plan.Selections)[0]
     Assert-Equal -Actual ([string]$selection.Name) -Expected "service-job-fixture" -Message "Service job fixture selection name"
     Assert-ContainsItem -Values @($selection.ServiceDirectories) -Expected "nginx-web" -Message "Service job fixture should select nginx-web"
 

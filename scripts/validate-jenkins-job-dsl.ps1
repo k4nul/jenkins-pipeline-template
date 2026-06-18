@@ -55,7 +55,7 @@ foreach ($preset in $presets) {
     }) | Out-Null
 }
 
-$explicitScmPreset = [string]($presets | Select-Object -First 1)
+$explicitScmPreset = [string]$presets[0]
 $explicitScmDslPath = Join-Path $resolvedOutputDirectory ("{0}-explicit-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
 & $jobDslScript `
     -RepoRoot $root `

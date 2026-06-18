@@ -16,7 +16,7 @@ function Assert-CustomDirectSelectionPlan {
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Custom direct selection should produce one selection"
     Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Custom direct selection should skip service jobs when requested"
 
-    $selection = $Plan.Selections | Select-Object -First 1
+    $selection = @($Plan.Selections)[0]
     Assert-Equal -Actual ([string]$selection.Name) -Expected "feature-blue-green" -Message "Custom selection name should be path-safe"
     Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "Custom direct selection should not be marked as preset-backed"
     Assert-Equal `
@@ -147,7 +147,7 @@ function Assert-SelectionNameOnlyPlanAndDsl {
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "SelectionName-only plan should produce one custom selection"
     Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "SelectionName-only plan should not create public service jobs by default"
 
-    $selection = $Plan.Selections | Select-Object -First 1
+    $selection = @($Plan.Selections)[0]
     Assert-Equal -Actual ([string]$selection.Name) -Expected "release-candidate" -Message "SelectionName-only plan should sanitize the custom selection name"
     Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "SelectionName-only plan should not be marked as preset-backed"
     Assert-Equal -Actual ([string]$selection.Profile) -Expected "web-platform" -Message "SelectionName-only plan should use the default profile"
@@ -234,7 +234,7 @@ function Assert-NestedRootPlanAndDsl {
     Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "Nested-root selection should produce one selection"
     Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Nested-root selection should skip service jobs"
 
-    $selection = $Plan.Selections | Select-Object -First 1
+    $selection = @($Plan.Selections)[0]
     Assert-Equal -Actual ([string]$selection.Name) -Expected "qa-blue-canary" -Message "Nested-root selection name should be path-safe"
     Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "team/platform/bundles/qa-blue-canary" -Message "Nested bundle folder path"
     Assert-Equal -Actual ([string]$selection.ValidationJobPath) -Expected "team/platform/bundles/qa-blue-canary/repository-validation" -Message "Nested validation job path"
@@ -342,7 +342,7 @@ function Assert-DependencyInventory {
     Assert-Equal -Actual ([int]@($Inventory.ServiceImages).Count) -Expected 4 -Message "Dependency inventory should include the public service images"
     Assert-Equal -Actual ([int]@($Inventory.ControllerImages).Count) -Expected 1 -Message "Dependency inventory should include the Jenkins controller example image"
 
-    $controllerImage = @($Inventory.ControllerImages | Select-Object -First 1)[0]
+    $controllerImage = @($Inventory.ControllerImages)[0]
     Assert-Equal -Actual ([string]$controllerImage.ImageReference) -Expected "jenkins/jenkins:lts" -Message "Dependency inventory should report the public controller example image"
     Assert-Condition -Condition ([bool]$controllerImage.UsesFloatingTag) -Message "Dependency inventory should flag the floating Jenkins LTS example tag"
     Assert-TextContains `
@@ -382,7 +382,7 @@ foreach ($preset in $presets) {
     Assert-GeneratedDsl -DslPath $dslPath -Plan $plan -Preset $preset
 }
 
-$explicitScmPreset = [string]($presets | Select-Object -First 1)
+$explicitScmPreset = [string]$presets[0]
 $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
 & $jobDslScript `
     -RepoRoot $root `
