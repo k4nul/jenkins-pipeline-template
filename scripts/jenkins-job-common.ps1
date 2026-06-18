@@ -202,6 +202,107 @@ function Write-RepoDocument {
     Write-Information -MessageData ("Wrote {0} to {1}" -f $Description, $resolvedOutputPath) -InformationAction Continue
 }
 
+function Add-JobPlanListArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Arguments,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [object[]]$Value
+    )
+
+    $normalized = @(Get-NormalizedList -Values $Value)
+    if ($normalized.Count -gt 0) {
+        $Arguments[$Name] = @($normalized)
+    }
+}
+
+function Add-JobPlanBoundArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Arguments,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$BoundParameters,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    if ($BoundParameters.ContainsKey($Name)) {
+        $value = Get-Variable -Name $Name -ValueOnly
+        if ($value) {
+            $Arguments[$Name] = $value
+        }
+    }
+}
+
+function New-JenkinsJobPlanArguments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [string]$JobRoot,
+        [string]$ServiceJobRoot,
+        [string]$Format = "json",
+        [string[]]$EnvironmentPreset,
+        [string]$SelectionName,
+        [string]$Profile,
+        [string[]]$Applications,
+        [string[]]$DataServices,
+        [string]$ValuesFile,
+        [string]$DockerRegistry,
+        [string]$Version,
+        [string]$BundleOutputPath,
+        [string]$ArchivePath,
+        [string]$PromotionExtractPath,
+        [switch]$IncludeJenkins,
+        [switch]$SkipServiceJobs,
+        [hashtable]$BoundParameters = @{}
+    )
+
+    $arguments = @{
+        RepoRoot = $RepoRoot
+        Format = $Format
+    }
+
+    if ($JobRoot) {
+        $arguments["JobRoot"] = $JobRoot
+    }
+    if ($ServiceJobRoot) {
+        $arguments["ServiceJobRoot"] = $ServiceJobRoot
+    }
+
+    Add-JobPlanListArgument -Arguments $arguments -Name "EnvironmentPreset" -Value $EnvironmentPreset
+    Add-JobPlanListArgument -Arguments $arguments -Name "Applications" -Value $Applications
+    Add-JobPlanListArgument -Arguments $arguments -Name "DataServices" -Value $DataServices
+
+    foreach ($boundName in @(
+        "SelectionName",
+        "Profile",
+        "ValuesFile",
+        "DockerRegistry",
+        "Version",
+        "BundleOutputPath",
+        "ArchivePath",
+        "PromotionExtractPath"
+    )) {
+        Add-JobPlanBoundArgument -Arguments $arguments -BoundParameters $BoundParameters -Name $boundName
+    }
+
+    if ($IncludeJenkins) {
+        $arguments["IncludeJenkins"] = $true
+    }
+
+    if ($SkipServiceJobs) {
+        $arguments["SkipServiceJobs"] = $true
+    }
+
+    return $arguments
+}
+
 function Join-JobPath {
     param(
         [string[]]$Segments

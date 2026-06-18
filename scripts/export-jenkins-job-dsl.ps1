@@ -277,43 +277,6 @@ function Get-GeneratedPipelineJobDslLines {
     )
 }
 
-function Add-JobPlanListArgument {
-    param(
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Arguments,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Name,
-
-        [object[]]$Value
-    )
-
-    $normalized = @(Get-NormalizedList -Values $Value)
-    if ($normalized.Count -gt 0) {
-        $Arguments[$Name] = @($normalized)
-    }
-}
-
-function Add-JobPlanBoundArgument {
-    param(
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Arguments,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$BoundParameters,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Name
-    )
-
-    if ($BoundParameters.ContainsKey($Name)) {
-        $value = Get-Variable -Name $Name -ValueOnly
-        if ($value) {
-            $Arguments[$Name] = $value
-        }
-    }
-}
-
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
 Assert-RepoUrlSafety -Value $RepoUrl
@@ -323,37 +286,25 @@ $repoUrlForDsl = if ([string]::IsNullOrWhiteSpace($RepoUrl)) { "REPLACE_WITH_REP
 $branchSpecForDsl = if ([string]::IsNullOrWhiteSpace($BranchSpec)) { "REPLACE_WITH_BRANCH_SPEC" } else { $BranchSpec.Trim() }
 $scmCredentialsIdForDsl = if ([string]::IsNullOrWhiteSpace($ScmCredentialsId)) { "" } else { $ScmCredentialsId.Trim() }
 
-$jobPlanArguments = @{
-    RepoRoot = $root
-    JobRoot = $JobRoot
-    ServiceJobRoot = $ServiceJobRoot
-    Format = "json"
-}
-
-Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "EnvironmentPreset" -Value $EnvironmentPreset
-Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "Applications" -Value $Applications
-Add-JobPlanListArgument -Arguments $jobPlanArguments -Name "DataServices" -Value $DataServices
-
-foreach ($boundName in @(
-    "SelectionName",
-    "Profile",
-    "ValuesFile",
-    "DockerRegistry",
-    "Version",
-    "BundleOutputPath",
-    "ArchivePath",
-    "PromotionExtractPath"
-)) {
-    Add-JobPlanBoundArgument -Arguments $jobPlanArguments -BoundParameters $PSBoundParameters -Name $boundName
-}
-
-if ($IncludeJenkins) {
-    $jobPlanArguments["IncludeJenkins"] = $true
-}
-
-if ($SkipServiceJobs) {
-    $jobPlanArguments["SkipServiceJobs"] = $true
-}
+$jobPlanArguments = New-JenkinsJobPlanArguments `
+    -RepoRoot $root `
+    -JobRoot $JobRoot `
+    -ServiceJobRoot $ServiceJobRoot `
+    -Format "json" `
+    -EnvironmentPreset $EnvironmentPreset `
+    -SelectionName $SelectionName `
+    -Profile $Profile `
+    -Applications $Applications `
+    -DataServices $DataServices `
+    -ValuesFile $ValuesFile `
+    -DockerRegistry $DockerRegistry `
+    -Version $Version `
+    -BundleOutputPath $BundleOutputPath `
+    -ArchivePath $ArchivePath `
+    -PromotionExtractPath $PromotionExtractPath `
+    -IncludeJenkins:$IncludeJenkins `
+    -SkipServiceJobs:$SkipServiceJobs `
+    -BoundParameters $PSBoundParameters
 
 $jobPlanJson = (& $jobPlanScript @jobPlanArguments | Out-String).Trim()
 if (-not $jobPlanJson) {
