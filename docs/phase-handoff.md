@@ -1,7 +1,9 @@
 # Job DSL Phase Handoff
 
-Use this handoff when the `job-dsl-coverage` phase gate passes and the next
-work item is deciding whether to move into `pipeline-boundary-hardening`.
+Use this handoff to preserve the `job-dsl-coverage` phase evidence that moved
+the project into `pipeline-boundary-hardening`. Keep it current when the
+controller-free Job DSL gate changes or when boundary-hardening work needs to
+show why the previous phase is no longer the active blocker.
 
 ## Current Gate
 
@@ -26,6 +28,32 @@ pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 
 Generated Job DSL fixtures belong under ignored `out/` paths. Do not commit
 generated DSL from a live controller or a real environment.
+
+## Latest Handoff Evidence
+
+The `job-dsl-coverage` transition gate passed in this worktree on
+2026-06-19 with:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+The passing run produced this controller-free evidence:
+
+- dependency inventory reported the manifest-free package posture, four
+  public-image service catalog entries, the `jenkins/jenkins:lts` controller
+  image reference, and the PowerShell 7+ validation contract;
+- the `dev` job plan rendered validation, delivery, and promotion jobs under
+  `platform/dev`;
+- the service pipeline plan rendered the four public catalog services with
+  `HasJenkinsfile = false` and `ServiceJobCount = 0`;
+- Job DSL export wrote the seed fixture under ignored `out/jenkins/` while
+  keeping repository URL, branch spec, and credentials ID values parameterized;
+- service pipeline validation passed for the catalog-only public-image state;
+  and
+- the aggregate Job DSL harness plus public preset test suite passed for
+  `dev`, `staging`, `prod`, custom selections, nested roots, unsafe root
+  rejection, SCM escaping, service-job fixtures, and runtime argument handling.
 
 ## Evidence To Record
 

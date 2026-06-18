@@ -37,6 +37,11 @@ platform/
 
 ## Responsibility Boundaries
 
+This section is the reader-facing anchor for `pipeline-boundary-hardening`: keep
+Job DSL generation, Pipeline DSL execution, service catalog metadata, and live
+controller/JCasC rollout separate even when the same seed job connects them in a
+Jenkins controller.
+
 - Job DSL owns folder and job creation. Keep generated folder paths, SCM URL, branch spec, credentials ID, lightweight checkout, and artifact retention in `scripts/export-jenkins-job-dsl.ps1` and `jenkins/job-seed.Jenkinsfile`.
 - Pipeline DSL owns execution flow. Keep validation, delivery, promotion, approval, archive, and safety gate behavior in the Jenkinsfiles under `jenkins/`.
 - Jenkins Configuration as Code (JCasC) owns controller and plugin installation. Keep controller plugins, global credentials providers, agents, and security realm configuration outside this reusable template unless they are represented as public-safe examples.

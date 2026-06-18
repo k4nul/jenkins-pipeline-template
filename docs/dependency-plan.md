@@ -257,7 +257,9 @@ sh scripts/run-phase-validation.sh
 
 ## Suggested Next Automated Task
 
-Run `phase-transition` next. The current phase validation command is the
-repository-owned transition gate, and a passing `sh scripts/run-phase-validation.sh`
-result means the dependency-plan lane has no repository-local blocker to the
-`pipeline-boundary-hardening` handoff.
+Continue `pipeline-boundary-hardening` only when a change improves the
+Job DSL, Pipeline DSL, service catalog, or controller/JCasC responsibility
+boundaries. The current phase validation command is still the repository-owned
+transition gate, and a passing `sh scripts/run-phase-validation.sh` result means
+the dependency-plan lane has no repository-local blocker to a future
+`template-maintenance` handoff.

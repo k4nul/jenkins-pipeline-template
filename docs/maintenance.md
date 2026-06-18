@@ -118,7 +118,9 @@ pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 
 ## Phase Handoff
 
-The current machine-managed phase is `job-dsl-coverage`. Its transition gate is:
+The current machine-managed phase is `pipeline-boundary-hardening`. The previous
+`job-dsl-coverage` transition gate remains the public-safe validation wrapper
+for generated Job DSL, service pipeline catalog, and runtime contract changes:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -129,22 +131,23 @@ service pipeline validation, full public preset matrix harness, public preset
 test suite, committed runtime contract, and dependency inventory evidence from
 the public service catalog and controller manifests.
 
-The next phase, `pipeline-boundary-hardening`, is for keeping the Job DSL,
-Pipeline DSL, and future JCasC responsibilities explicit. Documentation updates
-may improve those explanations, but only a `phase-transition` task should edit
-`docs/instructions/phase-gates.json` or other phase metadata.
+The active `pipeline-boundary-hardening` phase is for keeping the Job DSL,
+Pipeline DSL, service catalog, and future JCasC responsibilities explicit.
+Documentation updates may improve those explanations, but only a
+`phase-transition` task should edit `docs/instructions/phase-gates.json` or
+other phase metadata.
 
-Before a phase-transition task changes phase metadata, record the current
+Before another phase-transition task changes phase metadata, record the current
 controller-free evidence with [phase-handoff.md](phase-handoff.md). That handoff
-checklist keeps the passing Job DSL gate separate from live-controller rollout
-readiness.
+keeps the passing Job DSL gate separate from live-controller rollout readiness.
 
 The reader-facing boundary package for that phase is
 [pipeline-boundaries.md](pipeline-boundaries.md). Keep it aligned with
 `jenkins/JOB_BLUEPRINT.md`, `jenkins/README.md`, and the validation commands in
 this runbook when future changes move responsibilities between template
 generation, Jenkinsfile execution, service catalog metadata, and controller
-rollout.
+rollout. When those boundaries and validation evidence are current, the next
+machine-managed phase is `template-maintenance`.
 
 ## Pipeline Boundary Hardening Checklist
 

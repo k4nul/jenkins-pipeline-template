@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "project": "devops/jenkins-pipeline-template",
-  "current_phase": "job-dsl-coverage",
-  "next_phase": "pipeline-boundary-hardening",
+  "current_phase": "pipeline-boundary-hardening",
+  "next_phase": "template-maintenance",
   "transition": {
-    "intent": "Move to pipeline-boundary-hardening only after public-safe job plan, service plan, Job DSL export, service pipeline validation, and the full public preset matrix harness pass.",
-    "mode": "machine-gated-template-readiness",
+    "intent": "Move to template-maintenance only after the public-safe Job DSL gate remains green and the Job DSL, Pipeline DSL, service catalog, and controller/JCasC boundaries are documented.",
+    "mode": "machine-gated-boundary-hardening",
     "validation_command": "sh scripts/run-phase-validation.sh",
     "transition_validation_command": "sh scripts/run-phase-validation.sh",
     "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
@@ -68,57 +68,56 @@
   ],
   "required_gates": [
     {
-      "id": "job-plan-dev-passes",
+      "id": "phase-validation-passes",
       "status": "machine-check",
       "required_for_transition": true,
-      "description": "The dev job plan command must pass.",
+      "description": "The repository-owned controller-free wrapper must pass before template-maintenance handoff.",
       "evidence": [
-        "sh scripts/run-phase-validation.sh",
-        "pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json"
+        "sh scripts/run-phase-validation.sh"
       ]
     },
     {
-      "id": "service-pipeline-plan-passes",
-      "status": "machine-check",
+      "id": "job-dsl-pipeline-jcasc-boundaries-documented",
+      "status": "passed",
       "required_for_transition": true,
-      "description": "The service pipeline plan command must pass.",
+      "description": "Job DSL, Pipeline DSL, service catalog, and controller/JCasC ownership boundaries are documented for public-safe users.",
       "evidence": [
-        "sh scripts/run-phase-validation.sh",
-        "pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json"
+        "docs/pipeline-boundaries.md",
+        "docs/maintenance.md",
+        "jenkins/JOB_BLUEPRINT.md"
       ]
     },
     {
-      "id": "job-dsl-export-passes",
-      "status": "machine-check",
+      "id": "pipeline-unit-strategy-documented",
+      "status": "passed",
       "required_for_transition": true,
-      "description": "The Job DSL export command must pass.",
+      "description": "The controller-free pipeline unit and regression fixture strategy is documented without requiring a live Jenkins controller.",
       "evidence": [
-        "sh scripts/run-phase-validation.sh",
-        "pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy"
-      ]
-    },
-    {
-      "id": "service-pipeline-validation-passes",
-      "status": "machine-check",
-      "required_for_transition": true,
-      "description": "Service pipeline validation is public-safe and controller-free. Catalog-only services without Jenkinsfiles pass when the catalog has no Jenkinsfile-backed service jobs.",
-      "evidence": [
-        "sh scripts/run-phase-validation.sh",
-        "pwsh -NoProfile -File scripts/validate-service-pipelines.ps1",
-        "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1"
+        "docs/testing.md",
+        "jenkins/JOB_BLUEPRINT.md"
       ],
-      "on_failure": "Stay in job-dsl-coverage and fix public-safe service pipeline validation."
+      "on_failure": "Stay in pipeline-boundary-hardening and keep live-controller checks separate from public defaults."
     },
     {
-      "id": "public-preset-matrix-validation-passes",
-      "status": "machine-check",
+      "id": "public-preset-matrix-documented",
+      "status": "passed",
       "required_for_transition": true,
-      "description": "The full public-safe preset matrix harness must pass so dev, staging, and prod Job DSL coverage stay validated together.",
+      "description": "The dev, staging, and prod public preset matrix is documented with validation commands and expected public-safe service job behavior.",
       "evidence": [
-        "sh scripts/run-phase-validation.sh",
-        "pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json"
+        "jenkins/JOB_BLUEPRINT.md",
+        "docs/testing.md"
       ],
-      "on_failure": "Stay in job-dsl-coverage and fix all-preset Job DSL validation before transitioning."
+      "on_failure": "Stay in pipeline-boundary-hardening and align the preset matrix docs before template-maintenance handoff."
+    },
+    {
+      "id": "job-dsl-coverage-handoff-recorded",
+      "status": "passed",
+      "required_for_transition": true,
+      "description": "The passed job-dsl-coverage gate evidence is recorded before moving boundary hardening forward.",
+      "evidence": [
+        "docs/phase-handoff.md"
+      ],
+      "on_failure": "Stay in pipeline-boundary-hardening until the latest controller-free validation evidence is recorded."
     }
   ]
 }
