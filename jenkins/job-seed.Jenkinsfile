@@ -198,6 +198,99 @@ function Assert-ConcreteScmParameter {
     }
 }
 
+function Assert-NoControlCharacters {
+    param(
+        [string]$Name,
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    if ($Value -match "[\x00-\x1F\x7F]") {
+        throw "$Name must not contain control characters."
+    }
+}
+
+function Assert-SeedRepoUrlSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    Assert-NoControlCharacters -Name 'SEED_REPO_URL' -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -eq 'REPLACE_WITH_REPOSITORY_URL') {
+        return
+    }
+
+    if ($trimmed -match '\s') {
+        throw 'SEED_REPO_URL must not contain whitespace.'
+    }
+
+    if ($trimmed -match '^[A-Za-z][A-Za-z0-9+.-]*://') {
+        [System.Uri]$parsedUri = $null
+        if (-not [System.Uri]::TryCreate($trimmed, [System.UriKind]::Absolute, [ref]$parsedUri)) {
+            throw 'SEED_REPO_URL must be an absolute URI or a Git scp-like repository path.'
+        }
+
+        $allowedSchemes = @('https', 'ssh', 'git+ssh')
+        if ($allowedSchemes -notcontains $parsedUri.Scheme.ToLowerInvariant()) {
+            throw 'SEED_REPO_URL scheme must be one of https, ssh, or git+ssh.'
+        }
+
+        if ([string]::IsNullOrWhiteSpace($parsedUri.Host)) {
+            throw 'SEED_REPO_URL absolute URIs must include a host.'
+        }
+
+        $hasEmbeddedCredential = -not [string]::IsNullOrEmpty($parsedUri.UserInfo)
+        $hasSshUser = $parsedUri.Scheme -in @('ssh', 'git+ssh') -and $parsedUri.UserInfo -match '^[A-Za-z0-9._-]+$'
+        if ($hasEmbeddedCredential -and -not $hasSshUser) {
+            throw 'SEED_REPO_URL must not include embedded credentials; configure repository access with SEED_SCM_CREDENTIALS_ID.'
+        }
+
+        return
+    }
+
+    if ($trimmed -match '^[A-Za-z0-9._-]+@[^@\s:/\\]+:[^/\\\s].+$') {
+        return
+    }
+
+    throw 'SEED_REPO_URL must be an HTTPS/SSH absolute URI or a Git scp-like repository path.'
+}
+
+function Assert-SeedBranchSpecSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    Assert-NoControlCharacters -Name 'SEED_BRANCH_SPEC' -Value $Value
+}
+
+function Assert-SeedScmCredentialsIdSafety {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    Assert-NoControlCharacters -Name 'SEED_SCM_CREDENTIALS_ID' -Value $Value
+}
+
+Assert-SeedRepoUrlSafety -Value $env:SEED_REPO_URL
+Assert-SeedBranchSpecSafety -Value $env:SEED_BRANCH_SPEC
+Assert-SeedScmCredentialsIdSafety -Value $env:SEED_SCM_CREDENTIALS_ID
+
 if (Test-TrueValue -Value $env:SEED_APPLY_JOB_DSL) {
     Assert-ConcreteScmParameter -Name 'SEED_REPO_URL' -Value $env:SEED_REPO_URL -DisallowedValues @('REPLACE_WITH_REPOSITORY_URL')
     Assert-ConcreteScmParameter -Name 'SEED_BRANCH_SPEC' -Value $env:SEED_BRANCH_SPEC -DisallowedValues @('REPLACE_WITH_BRANCH_SPEC')
@@ -262,7 +355,18 @@ $argumentArray = $arguments
 
     post {
         always {
-            archiveArtifacts artifacts: requireLiteralOutPath(params.SEED_OUTPUT_PATH, 'SEED_OUTPUT_PATH'), allowEmptyArchive: true, fingerprint: true
+            script {
+                def hasConcreteScmValues =
+                    (params.SEED_REPO_URL?.trim() && params.SEED_REPO_URL.trim() != 'REPLACE_WITH_REPOSITORY_URL') ||
+                    (params.SEED_BRANCH_SPEC?.trim() && params.SEED_BRANCH_SPEC.trim() != 'REPLACE_WITH_BRANCH_SPEC') ||
+                    params.SEED_SCM_CREDENTIALS_ID?.trim()
+
+                if (hasConcreteScmValues) {
+                    echo 'Skipping generated Job DSL artifact archive because concrete SCM values or credential IDs were supplied.'
+                } else {
+                    archiveArtifacts artifacts: requireLiteralOutPath(params.SEED_OUTPUT_PATH, 'SEED_OUTPUT_PATH'), allowEmptyArchive: true, fingerprint: true
+                }
+            }
         }
     }
 }
