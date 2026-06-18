@@ -23,7 +23,7 @@
 - `ArchivePath`: 번들 생성 또는 승격 워크플로우의 기본 ZIP 경로
 - `PromotionExtractPath`: 번들 승격 워크플로우의 기본 압축 해제 경로
 
-현재 포함된 프리셋은 공개 이미지를 사용하므로 `DockerRegistry` 를 설정하지 않습니다. 스크립트는 downstream 템플릿에서 사설 이미지를 도입할 때 레지스트리 override 를 계속 받을 수 있습니다. `ValuesFile` 항목은 런타임 검증과 번들 생성에서 참조할 기본값이며, 현재 컨트롤러 없는 Job DSL 검증 하네스는 해당 파일이 실제로 존재해야만 실행되는 구조는 아닙니다.
+현재 포함된 프리셋은 공개 이미지를 사용하므로 `DockerRegistry` 를 설정하지 않습니다. 스크립트는 downstream 템플릿에서 사설 이미지를 도입할 때 레지스트리 override 를 계속 받을 수 있습니다. `ValuesFile` 항목은 추적되는 `.env.example` 파일을 가리키므로 생성된 Jenkins 잡은 기본적으로 공개 안전 런타임 계약을 갖습니다. downstream 에서 비공개 환경별 값을 추가하기 전에는 이 예시 파일을 무시되는 `config/platform-values*.env` 파일로 복사하세요.
 
 ## 프리셋 사용 예시
 

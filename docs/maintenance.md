@@ -57,8 +57,9 @@ pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev 
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 ```
 
-Before applying generated DSL in Jenkins, set `SEED_REPO_URL`,
-`SEED_BRANCH_SPEC`, and `SEED_SCM_CREDENTIALS_ID` as seed parameters. Keep the
+Before applying generated DSL in Jenkins, set `SEED_REPO_URL` and
+`SEED_BRANCH_SPEC` as seed parameters, and set `SEED_SCM_CREDENTIALS_ID` only
+when the selected repository needs Jenkins-managed credentials. Keep the
 generated jobs calling `credentials(scmCredentialsId)` and `branch(branchSpec)`
 instead of inlining real values. `SEED_REPO_URL` must be an HTTPS/SSH
 repository URI or a Git scp-like path; local file URLs and relative paths are
