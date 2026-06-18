@@ -149,11 +149,28 @@ generation, Jenkinsfile execution, service catalog metadata, and controller
 rollout. When those boundaries and validation evidence are current, the next
 machine-managed phase is `template-maintenance`.
 
+The required transition gates are recorded in
+`docs/instructions/phase-gates.json`: the wrapper machine-check must pass, and
+the boundary documentation, pipeline unit strategy, public preset matrix, and
+handoff evidence gates must remain recorded as passed.
+
+If the phase controller reports that the transition command passed but the
+selected task is still a documentation update, keep the run in this runbook
+lane. Update reader-facing handoff or boundary guidance only, rerun the
+repository-owned wrapper when the wording describes command behavior or phase
+readiness, and leave phase metadata for a dedicated `phase-transition` task.
+
+In `template-maintenance`, use the same responsibility map to pick the narrowest
+safe validation command. Maintenance work may update docs, security notes, audit
+findings, dependency plans, or public-safe template behavior, but new Jenkins
+platform scope should first get an explicit phase or owner decision instead of
+silently expanding the reusable template.
+
 ## Pipeline Boundary Hardening Checklist
 
 Use this checklist when preparing documentation or implementation work for the
-next phase. It keeps responsibility boundaries explicit without adding
-controller-dependent requirements to the public defaults.
+`template-maintenance` handoff. It keeps responsibility boundaries explicit
+without adding controller-dependent requirements to the public defaults.
 
 | Boundary | Keep in this repository | Keep outside the public default |
 | --- | --- | --- |

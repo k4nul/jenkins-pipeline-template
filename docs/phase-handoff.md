@@ -55,6 +55,29 @@ The passing run produced this controller-free evidence:
   `dev`, `staging`, `prod`, custom selections, nested roots, unsafe root
   rejection, SCM escaping, service-job fixtures, and runtime argument handling.
 
+## Current Transition State
+
+The current machine-managed phase is `pipeline-boundary-hardening`, and the
+next phase is `template-maintenance`. The phase manifest treats the transition
+as eligible only when the repository-owned wrapper passes and the boundary,
+pipeline unit strategy, preset matrix, and handoff documentation gates remain
+recorded.
+
+When automation selects `docs-update` while the transition is eligible, keep the
+work documentation-only. A docs-update run may refresh this handoff, testing
+guidance, maintenance guidance, or troubleshooting language, but it should not
+edit `docs/instructions/phase-gates.json` or other phase metadata. Phase
+metadata belongs to a separate `phase-transition` run so the phase file update
+is reviewed against the same validation command that made the transition
+eligible.
+
+Before a phase-transition run moves the project to `template-maintenance`, the
+reader-facing handoff should show three things:
+
+- the exact wrapper command that passed;
+- the controller-free evidence produced by the wrapper; and
+- the live-controller rollout checks that remain outside the local gate.
+
 ## Evidence To Record
 
 Before changing phase metadata, capture the latest local validation result and
@@ -75,13 +98,15 @@ confirm these public-safe expectations:
 - the public preset test suite covers custom selection, nested roots, unsafe
   root rejection, and runtime argument handling.
 
-If any item fails, remain in `job-dsl-coverage` and fix the failing
-controller-free contract before updating phase metadata.
+If any item fails, remain in `pipeline-boundary-hardening` and fix the failing
+controller-free contract before updating phase metadata to
+`template-maintenance`.
 
-## What Moves To The Next Phase
+## Boundary Hardening Handoff
 
-`pipeline-boundary-hardening` should make ownership boundaries clearer without
-turning local validation into a live-controller requirement. Focus that phase on:
+`pipeline-boundary-hardening` makes ownership boundaries clearer without turning
+local validation into a live-controller requirement. Before handing off to
+`template-maintenance`, confirm the documentation still keeps focus on:
 
 - keeping Job DSL responsibilities in job planning, folder generation,
   `pipelineJob` generation, SCM parameter names, branch specs, credentials ID
@@ -97,6 +122,14 @@ turning local validation into a live-controller requirement. Focus that phase on
 
 Use [pipeline-boundaries.md](pipeline-boundaries.md) as the reader-facing map for
 those responsibilities.
+
+Once the project enters `template-maintenance`, normal maintenance work should
+preserve those boundaries rather than reopening the phase gate. Use the
+controller-free wrapper for changes that affect generated job topology,
+Jenkinsfile runtime contracts, service catalog behavior, dependency inventory
+evidence, or phase-readiness wording. Use narrower validation lanes for
+catalog-only, preset-only, or documentation-only changes when the broader
+wrapper is not needed.
 
 ## Live-Controller Work That Remains Outside The Gate
 

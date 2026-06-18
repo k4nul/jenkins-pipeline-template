@@ -70,17 +70,19 @@ deterministic and the writer skips unchanged files, so repeated validation runs
 do not rewrite ignored artifacts just because the command was re-run. Do not
 commit generated Job DSL from a real controller or environment.
 
-## Phase-Ready Job DSL Evidence
+## Template Maintenance Transition Evidence
 
-The `job-dsl-coverage` phase is ready to hand off only when the controller-free
-wrapper passes end to end:
+The current machine-managed transition is from `pipeline-boundary-hardening` to
+`template-maintenance`. The remaining machine-check gate is the controller-free
+wrapper:
 
 ```sh
 sh scripts/run-phase-validation.sh
 ```
 
 That passing result means the local harness has evidence for the focused `dev`
-dashboard lane and the full public-safe preset matrix:
+dashboard lane, the full public-safe preset matrix, and the boundary-hardening
+documentation package tracked by `docs/instructions/phase-gates.json`:
 
 - `dev` job planning renders one bundle selection with validation, delivery,
   and promotion jobs under the `platform/dev` folder.
@@ -97,12 +99,14 @@ dashboard lane and the full public-safe preset matrix:
 
 Use this evidence as a boundary, not as live-controller approval. The wrapper
 does not install Jenkins plugins, verify JCasC, create credentials, check agent
-tool images, or run delivery/promotion against a cluster. Those are
-`pipeline-boundary-hardening` and controller rollout concerns. See
-[phase-handoff.md](phase-handoff.md) for the evidence checklist to record
-before phase metadata changes, and see [pipeline-boundaries.md](pipeline-boundaries.md)
-for the ownership map across Job DSL generation, Pipeline DSL execution, service
-catalog metadata, and controller/JCasC rollout.
+tool images, or run delivery/promotion against a cluster. Boundary-hardening
+docs are the evidence package for template-maintenance eligibility; live
+controller rollout remains a separate controller, plugin, agent, credential, and
+target-environment concern. See [phase-handoff.md](phase-handoff.md) for the
+evidence checklist to record before phase metadata changes, and see
+[pipeline-boundaries.md](pipeline-boundaries.md) for the ownership map across
+Job DSL generation, Pipeline DSL execution, service catalog metadata, and
+controller/JCasC rollout.
 
 When a documentation-only change explains these boundaries, rerun the wrapper if
 the wording describes command behavior, generated job topology, or phase
