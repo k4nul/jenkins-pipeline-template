@@ -33,6 +33,7 @@ platform/
 - `SEED_REPO_URL` and `SEED_BRANCH_SPEC` default to blank in `job-seed.Jenkinsfile`.
 - Generated DSL uses public-safe SCM placeholders unless `SEED_REPO_URL` and `SEED_BRANCH_SPEC` are provided.
 - If you apply the generated DSL in Jenkins, set `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and any required `SEED_SCM_CREDENTIALS_ID` first so SCM-backed jobs point at your intended repository.
+- Service pipeline validation runs before service-job generation unless `SEED_SKIP_SERVICE_JOBS=true`.
 
 ## Responsibility Boundaries
 
@@ -64,22 +65,22 @@ pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 commands, dependency inventory, the aggregate harness, and the public preset
 test suite.
 `validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By
-default it validates every built-in
-environment preset, exports ignored DSL fixtures under `out/jenkins/validation`,
-checks generated `pipelineJob` entries, verifies SCM URL/branch/credentials
-values remain parameterized, exercises explicit SCM value escaping in generated
-Groovy, verifies destructive removed-job deletion requires explicit seed
-confirmation, validates validation-to-delivery-to-promotion dependencies,
-verifies Jenkinsfile-backed service job projection with a synthetic fixture,
-verifies shared Jenkinsfile-backed service jobs are de-duplicated across
-multiple selected presets and nested service roots, verifies `-SkipServiceJobs`
-suppresses those generated service jobs when requested,
-verifies the seed job passes typed exporter boolean arguments,
-checks that Jenkinsfile-backed service entries fail closed when
-`services/<name>/Jenkinsfile` is missing, validates service catalog metadata, and
-runs service pipeline validation. The public preset test suite adds custom
-selection, `SEED_SELECTION_NAME`-only defaults, nested job-root, unsafe root
-rejection, and runtime argument splatting coverage.
+default it validates every built-in environment preset, exports ignored DSL
+fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries,
+verifies SCM URL/branch/credentials values remain parameterized, exercises
+explicit SCM value escaping in generated Groovy, verifies destructive
+removed-job deletion requires explicit seed confirmation, validates
+validation-to-delivery-to-promotion dependencies, verifies Jenkinsfile-backed
+service job projection with a synthetic fixture, verifies shared
+Jenkinsfile-backed service jobs are de-duplicated across multiple selected
+presets and nested service roots, verifies `-SkipServiceJobs` suppresses those
+generated service jobs when requested, verifies the seed job preflights service
+pipeline validation before generating service jobs, verifies the seed job passes
+typed exporter boolean arguments, checks that Jenkinsfile-backed service entries
+fail closed when `services/<name>/Jenkinsfile` is missing, validates service
+catalog metadata, and runs service pipeline validation. The public preset test
+suite adds custom selection, `SEED_SELECTION_NAME`-only defaults, nested
+job-root, unsafe root rejection, and runtime argument splatting coverage.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test
 lane for generated command arguments, public-safe SCM placeholders, service

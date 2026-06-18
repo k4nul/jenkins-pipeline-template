@@ -363,6 +363,89 @@ function New-SelectionJobPlan {
     }
 }
 
+function Get-ServiceUsageBySelection {
+    param(
+        [object[]]$SelectionPlans
+    )
+
+    $serviceUsage = @{}
+    foreach ($selection in @($SelectionPlans)) {
+        foreach ($serviceDirectory in @($selection.ServiceDirectories)) {
+            $serviceName = [string]$serviceDirectory
+            if (-not $serviceUsage.ContainsKey($serviceName)) {
+                $serviceUsage[$serviceName] = New-Object System.Collections.Generic.List[string]
+            }
+
+            if (-not $serviceUsage[$serviceName].Contains($selection.Name)) {
+                $serviceUsage[$serviceName].Add($selection.Name) | Out-Null
+            }
+        }
+    }
+
+    return $serviceUsage
+}
+
+function Get-ServiceJobRequiredEnvironmentVariables {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$ServiceDefinition
+    )
+
+    $requiredEnvVars = @()
+    if ([bool]$ServiceDefinition.RequiresRegistry) {
+        $requiredEnvVars += "DOCKER_REGISTRY"
+    }
+    if ([bool]$ServiceDefinition.RequiresMode) {
+        $requiredEnvVars += "MODE"
+    }
+
+    return @($requiredEnvVars)
+}
+
+function New-ServicePipelineJobs {
+    param(
+        [object[]]$SelectionPlans,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IDictionary]$ServiceCatalogIndex,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceJobRoot
+    )
+
+    $serviceUsage = Get-ServiceUsageBySelection -SelectionPlans $SelectionPlans
+    $serviceJobs = [System.Collections.Generic.List[object]]::new()
+
+    foreach ($serviceName in @($serviceUsage.Keys | Sort-Object)) {
+        $serviceDefinition = $null
+        if ($ServiceCatalogIndex.Contains($serviceName)) {
+            $serviceDefinition = $ServiceCatalogIndex[$serviceName]
+        }
+
+        if ($null -eq $serviceDefinition -or -not [bool]$serviceDefinition.HasJenkinsfile) {
+            continue
+        }
+
+        $serviceJobs.Add([PSCustomObject]@{
+            Name = [string]$serviceDefinition.Name
+            Path = Join-JobPath -Segments @($ServiceJobRoot, $serviceDefinition.Name)
+            Jenkinsfile = ("services\{0}\Jenkinsfile" -f $serviceDefinition.Name)
+            Category = [string]$serviceDefinition.Category
+            ImageName = [string]$serviceDefinition.ImageName
+            BuildTagStrategy = [string]$serviceDefinition.BuildTagStrategy
+            ComposeUpdate = [string]$serviceDefinition.ComposeUpdate
+            RequiredEnvironmentVariables = @(Get-ServiceJobRequiredEnvironmentVariables -ServiceDefinition $serviceDefinition)
+            OptionalEnvironmentVariables = @(Get-NormalizedList -Values $serviceDefinition.OptionalEnvVars)
+            UpstreamArtifactInputs = @($serviceDefinition.ArtifactInputs)
+            UsedBySelections = @($serviceUsage[$serviceName].ToArray() | Sort-Object -Unique)
+            Notes = [string]$serviceDefinition.Notes
+            RecommendedTrigger = "Source changes in the service workspace or successful completion of the upstream artifact jobs described below."
+        }) | Out-Null
+    }
+
+    return @($serviceJobs.ToArray())
+}
+
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
 $presetDirectory = Join-Path $root "config\environments"
 $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
@@ -515,51 +598,12 @@ foreach ($presetName in @($selectedPresetNames)) {
 
 $serviceJobs = @()
 if (-not $SkipServiceJobs) {
-    $serviceUsage = @{}
-    foreach ($selection in @($selectionPlans.ToArray())) {
-        foreach ($serviceDirectory in @($selection.ServiceDirectories)) {
-            if (-not $serviceUsage.ContainsKey($serviceDirectory)) {
-                $serviceUsage[$serviceDirectory] = New-Object System.Collections.Generic.List[string]
-            }
-
-            if (-not $serviceUsage[$serviceDirectory].Contains($selection.Name)) {
-                $serviceUsage[$serviceDirectory].Add($selection.Name) | Out-Null
-            }
-        }
-    }
-
-    foreach ($serviceName in @($serviceUsage.Keys | Sort-Object)) {
-        $serviceDefinition = $null
-        if ($serviceCatalogIndex.Contains($serviceName)) {
-            $serviceDefinition = $serviceCatalogIndex[$serviceName]
-        }
-
-        if ($null -ne $serviceDefinition -and [bool]$serviceDefinition.HasJenkinsfile) {
-            $requiredEnvVars = @()
-            if ([bool]$serviceDefinition.RequiresRegistry) {
-                $requiredEnvVars += "DOCKER_REGISTRY"
-            }
-            if ([bool]$serviceDefinition.RequiresMode) {
-                $requiredEnvVars += "MODE"
-            }
-
-            $serviceJobs += [PSCustomObject]@{
-                Name = [string]$serviceDefinition.Name
-                Path = Join-JobPath -Segments @($ServiceJobRoot, $serviceDefinition.Name)
-                Jenkinsfile = ("services\{0}\Jenkinsfile" -f $serviceDefinition.Name)
-                Category = [string]$serviceDefinition.Category
-                ImageName = [string]$serviceDefinition.ImageName
-                BuildTagStrategy = [string]$serviceDefinition.BuildTagStrategy
-                ComposeUpdate = [string]$serviceDefinition.ComposeUpdate
-                RequiredEnvironmentVariables = @($requiredEnvVars)
-                OptionalEnvironmentVariables = @(Get-NormalizedList -Values $serviceDefinition.OptionalEnvVars)
-                UpstreamArtifactInputs = @($serviceDefinition.ArtifactInputs)
-                UsedBySelections = @($serviceUsage[$serviceName].ToArray() | Sort-Object -Unique)
-                Notes = [string]$serviceDefinition.Notes
-                RecommendedTrigger = "Source changes in the service workspace or successful completion of the upstream artifact jobs described below."
-            }
-        }
-    }
+    $serviceJobs = @(
+        New-ServicePipelineJobs `
+            -SelectionPlans @($selectionPlans.ToArray()) `
+            -ServiceCatalogIndex $serviceCatalogIndex `
+            -ServiceJobRoot $ServiceJobRoot
+    )
 }
 
 $mermaidLines = @(

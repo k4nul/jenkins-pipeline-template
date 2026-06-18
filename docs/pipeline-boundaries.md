@@ -55,11 +55,12 @@ When reducing script size or duplication, preserve these dependency rules:
 - future Controller/JCasC files should get their own validation lane instead of
   broadening the local Job DSL export contract.
 
-The highest-value cleanup after the current phase is to extract cohesive
-plan-model assembly functions from `scripts/show-jenkins-job-plan.ps1` only
-when the existing public preset matrix and service-job fixtures remain the
-acceptance tests. Avoid moving behavior between Job DSL, Pipeline DSL, service
-catalog, and Controller/JCasC boundaries in the same change.
+Continue extracting cohesive plan-model assembly functions from
+`scripts/show-jenkins-job-plan.ps1` only when the existing public preset matrix
+and service-job fixtures remain the acceptance tests. Keep service usage and
+Jenkinsfile-backed service job projection inside the plan model, and avoid
+moving behavior between Job DSL, Pipeline DSL, service catalog, and
+Controller/JCasC boundaries in the same change.
 
 ## Job DSL Boundary
 

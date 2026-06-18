@@ -64,6 +64,7 @@ Pipeline DSL, service catalog, and controller/JCasC ownership, see
   `SEED_ENVIRONMENT_PRESETS` as one custom selection using public-safe defaults.
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - `job-seed.Jenkinsfile` requires `SEED_CONFIRM_REMOVED_JOB_DELETE=true` before `SEED_APPLY_JOB_DSL=true` can run with `SEED_REMOVED_JOB_ACTION=DELETE`.
+- `job-seed.Jenkinsfile` runs service pipeline validation before generating service jobs unless `SEED_SKIP_SERVICE_JOBS=true`.
 - Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
 - `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, service catalog metadata, committed runtime helper scripts, and public-safe values defaults without contacting a Jenkins controller.
 - Generated local command fields describe the Pipeline DSL entrypoint contract; the checked-in runtime helpers can validate inputs and write or verify a controller-free contract bundle under `out/`.
@@ -110,6 +111,7 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies embedded SCM credentials, unsupported or local repository paths, and control-character inputs fail before Job DSL generation
 - verifies destructive removed-job deletion requires explicit seed confirmation
+- verifies seed generation preflights service pipeline validation before service-job projection
 - verifies the seed job passes typed exporter boolean arguments such as lightweight checkout
 - validates service catalog metadata and runs the service pipeline validator
 - verifies committed runtime helper scripts and public-safe values defaults

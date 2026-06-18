@@ -207,6 +207,11 @@ if (Test-TrueValue -Value $env:SEED_APPLY_JOB_DSL) {
     }
 }
 
+if (-not (Test-TrueValue -Value $env:SEED_SKIP_SERVICE_JOBS)) {
+    $serviceValidationScriptPath = Join-Path $env:WORKSPACE 'scripts\\validate-service-pipelines.ps1'
+    & $serviceValidationScriptPath -RepoRoot $env:WORKSPACE
+}
+
 $scriptPath = Join-Path $env:WORKSPACE 'scripts\\export-jenkins-job-dsl.ps1'
 $arguments = @{}
 Set-ArgumentValue -Arguments $arguments -Name '-RepoRoot' -Value $env:WORKSPACE
