@@ -2,7 +2,8 @@
 
 English | [한국어](README.ko.md)
 
-Profiles describe reusable bundle shapes. A profile decides the broad layout of the bundle before you add or remove specific applications and data services.
+Profiles describe reusable bundle shapes. A profile decides the broad layout of
+the bundle before you add or remove specific applications and data services.
 
 ## Included Profiles
 
@@ -33,9 +34,13 @@ Choose based on the question you are trying to answer:
 
 ## Important Note
 
-Profiles do not have to be the final word. You can still add or remove applications and data services with command arguments after choosing a profile.
+Profiles do not have to be the final word. You can still add or remove
+applications and data services with command arguments after choosing a profile.
 
-Profiles shape bundle content in generated Jenkins validation and delivery jobs. Service job coverage in Job DSL depends on `config/service-pipelines.psd1` marking a service as Jenkinsfile-backed; changing either profiles or service catalog metadata should be checked with:
+Profiles shape bundle content in generated Jenkins validation and delivery jobs.
+Service job coverage in Job DSL depends on `config/service-pipelines.psd1`
+marking a service as Jenkinsfile-backed; changing either profiles or service
+catalog metadata should be checked with:
 
 ```powershell
 .\scripts\validate-jenkins-job-dsl.ps1

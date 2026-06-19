@@ -2,7 +2,10 @@
 
 English | [한국어](README.ko.md)
 
-This directory contains reusable environment presets that reduce repeated arguments for validation, delivery, promotion, and values scaffold scripts. Presets also drive generated Jenkins folder names, job parameters, archive paths, and promotion paths in the Job DSL plan/export flow.
+This directory contains reusable environment presets that reduce repeated
+arguments for validation, delivery, promotion, and values scaffold scripts.
+Presets also drive generated Jenkins folder names, job parameters, archive
+paths, and promotion paths in the Job DSL plan/export flow.
 
 ## Included Presets
 
@@ -39,7 +42,8 @@ Example:
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
-Presets act as shared defaults, not hard locks. Explicit script arguments still override preset values.
+Presets act as shared defaults, not hard locks. Explicit script arguments still
+override preset values.
 
 Run the Jenkins Job DSL harness after changing a preset:
 
