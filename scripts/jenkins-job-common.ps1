@@ -219,7 +219,7 @@ function Add-JobPlanListArgument {
     }
 }
 
-function Add-JobPlanBoundArgument {
+function Add-JobPlanScalarArgument {
     param(
         [Parameter(Mandatory = $true)]
         [hashtable]$Arguments,
@@ -228,13 +228,14 @@ function Add-JobPlanBoundArgument {
         [hashtable]$BoundParameters,
 
         [Parameter(Mandatory = $true)]
-        [string]$Name
+        [string]$Name,
+
+        [object]$Value
     )
 
     if ($BoundParameters.ContainsKey($Name)) {
-        $value = Get-Variable -Name $Name -ValueOnly
-        if ($value) {
-            $Arguments[$Name] = $value
+        if ($Value) {
+            $Arguments[$Name] = $Value
         }
     }
 }
@@ -279,17 +280,23 @@ function New-JenkinsJobPlanArguments {
     Add-JobPlanListArgument -Arguments $arguments -Name "Applications" -Value $Applications
     Add-JobPlanListArgument -Arguments $arguments -Name "DataServices" -Value $DataServices
 
-    foreach ($boundName in @(
-        "SelectionName",
-        "Profile",
-        "ValuesFile",
-        "DockerRegistry",
-        "Version",
-        "BundleOutputPath",
-        "ArchivePath",
-        "PromotionExtractPath"
-    )) {
-        Add-JobPlanBoundArgument -Arguments $arguments -BoundParameters $BoundParameters -Name $boundName
+    $scalarArguments = @{
+        SelectionName = $SelectionName
+        Profile = $Profile
+        ValuesFile = $ValuesFile
+        DockerRegistry = $DockerRegistry
+        Version = $Version
+        BundleOutputPath = $BundleOutputPath
+        ArchivePath = $ArchivePath
+        PromotionExtractPath = $PromotionExtractPath
+    }
+
+    foreach ($boundName in @($scalarArguments.Keys)) {
+        Add-JobPlanScalarArgument `
+            -Arguments $arguments `
+            -BoundParameters $BoundParameters `
+            -Name $boundName `
+            -Value $scalarArguments[$boundName]
     }
 
     if ($IncludeJenkins) {
