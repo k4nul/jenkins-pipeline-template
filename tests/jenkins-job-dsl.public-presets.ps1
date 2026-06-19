@@ -387,13 +387,47 @@ function Assert-DependencyInventory {
     Assert-Equal -Actual ([int]@($Inventory.ServiceImages).Count) -Expected 4 -Message "Dependency inventory should include the public service images"
     Assert-Equal -Actual ([int]@($Inventory.ControllerImages).Count) -Expected 1 -Message "Dependency inventory should include the Jenkins controller example image"
 
+    $expectedServiceImages = @{
+        "adminer" = "adminer:5.3.0-standalone"
+        "httpbin" = "mccutchen/go-httpbin:v2.15.0"
+        "nginx-web" = "nginx:1.28-alpine"
+        "whoami" = "traefik/whoami:v1.10.4"
+    }
+    $serviceImagesByName = @{}
+    foreach ($serviceImage in @($Inventory.ServiceImages)) {
+        $serviceImagesByName[[string]$serviceImage.Name] = $serviceImage
+    }
+
+    foreach ($serviceName in @($expectedServiceImages.Keys)) {
+        Assert-Condition -Condition $serviceImagesByName.ContainsKey($serviceName) -Message ("Dependency inventory should include service image {0}" -f $serviceName)
+
+        $serviceImage = $serviceImagesByName[$serviceName]
+        Assert-Equal -Actual ([string]$serviceImage.Category) -Expected "public-image" -Message ("Dependency inventory should classify {0} as a public image" -f $serviceName)
+        Assert-Equal -Actual ([string]$serviceImage.ImageReference) -Expected ([string]$expectedServiceImages[$serviceName]) -Message ("Dependency inventory should report the expected image reference for {0}" -f $serviceName)
+        Assert-Condition -Condition (-not [bool]$serviceImage.IsDigestPinned) -Message ("Dependency inventory should report {0} as tag-based, not digest-pinned" -f $serviceName)
+        Assert-Condition -Condition (-not [bool]$serviceImage.UsesFloatingTag) -Message ("Dependency inventory should not mark versioned service tag for {0} as floating" -f $serviceName)
+        Assert-Condition -Condition (-not [bool]$serviceImage.HasJenkinsfile) -Message ("Dependency inventory should keep public service image {0} catalog-only" -f $serviceName)
+    }
+
     $controllerImage = @($Inventory.ControllerImages)[0]
     Assert-Equal -Actual ([string]$controllerImage.ImageReference) -Expected "jenkins/jenkins:lts" -Message "Dependency inventory should report the public controller example image"
+    Assert-Equal -Actual ([string]$controllerImage.Tag) -Expected "lts" -Message "Dependency inventory should report the Jenkins controller tag"
+    Assert-Condition -Condition (-not [bool]$controllerImage.IsDigestPinned) -Message "Dependency inventory should report the Jenkins LTS example as tag-based"
     Assert-Condition -Condition ([bool]$controllerImage.UsesFloatingTag) -Message "Dependency inventory should flag the floating Jenkins LTS example tag"
+
+    $riskText = @($Inventory.RiskIndicators) -join [Environment]::NewLine
     Assert-TextContains `
-        -Text (@($Inventory.RiskIndicators) -join [Environment]::NewLine) `
+        -Text $riskText `
         -Expected "No package-manager manifests or lockfiles were found" `
         -Message "Dependency inventory should explain manifest-free dependency posture"
+    Assert-TextContains `
+        -Text $riskText `
+        -Expected "One or more controller image references use a floating tag" `
+        -Message "Dependency inventory should explain floating controller image risk"
+    Assert-TextContains `
+        -Text $riskText `
+        -Expected "Public service image references are tag-based" `
+        -Message "Dependency inventory should explain tag-based public service image risk"
 }
 
 $context = Initialize-JenkinsValidationContext `
