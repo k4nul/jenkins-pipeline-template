@@ -8,9 +8,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
-$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $catalog = Import-ServicePipelineCatalog -RepoRoot $root
 $services = @(Get-ServicePipelineCatalogServices -Catalog $catalog)
 $commonEnvVars = @(Get-ServicePipelineCommonEnvironmentVariables -Services $services)

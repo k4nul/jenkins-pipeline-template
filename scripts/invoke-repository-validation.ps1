@@ -22,7 +22,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
 function Resolve-RepoInputFile {
     param(
@@ -64,12 +64,12 @@ function Resolve-RepoInputFile {
     return $resolvedPath
 }
 
-$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $valuesPath = Resolve-RepoInputFile -Root $root -Path $ValuesFile -Description "ValuesFile"
 $helmConfigPath = Resolve-RepoInputFile -Root $root -Path $HelmConfigFile -Description "HelmConfigFile"
-$jobPlanScript = Join-Path $root "scripts/show-jenkins-job-plan.ps1"
-$serviceValidationScript = Join-Path $root "scripts/validate-service-pipelines.ps1"
-$workstationScript = Join-Path $root "scripts/validate-workstation.ps1"
+$jobPlanScript = Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1"
+$serviceValidationScript = Join-Path -Path $root -ChildPath "scripts/validate-service-pipelines.ps1"
+$workstationScript = Join-Path -Path $root -ChildPath "scripts/validate-workstation.ps1"
 
 if (-not $SkipWorkstationValidation) {
     & $workstationScript -ProfileName "repository validation local runtime" -RequiredTools @() -OptionalTools @("git", "kubectl", "helm") -Strict:$Strict | Out-Null

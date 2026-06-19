@@ -29,9 +29,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
-$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
 $resolvedArchivePath = Resolve-RepoOutputPath -RepoRoot $root -Path $ArchivePath
 
@@ -85,7 +85,7 @@ if (-not $SkipRepositoryValidation) {
         $validationArguments["SkipWorkstationValidation"] = $true
     }
 
-    & (Join-Path $root "scripts/invoke-repository-validation.ps1") @validationArguments | Out-Null
+    & (Join-Path -Path $root -ChildPath "scripts/invoke-repository-validation.ps1") @validationArguments | Out-Null
 }
 
 if ((Test-Path -Path $resolvedOutputPath) -and $CleanOutput) {
@@ -127,7 +127,7 @@ else {
     }
 }
 
-$plan = ((& (Join-Path $root "scripts/show-jenkins-job-plan.ps1") @planArguments | Out-String).Trim()) | ConvertFrom-Json
+$plan = ((& (Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1") @planArguments | Out-String).Trim()) | ConvertFrom-Json
 
 $manifest = [PSCustomObject]@{
     SchemaVersion = "1.0.0"

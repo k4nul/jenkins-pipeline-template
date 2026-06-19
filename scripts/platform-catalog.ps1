@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 
 function Get-PlatformProfileDefinitions {
     param(
-        [string]$ProfileDirectory = (Join-Path $PSScriptRoot "..\config\profiles")
+        [string]$ProfileDirectory = (Join-Path -Path $PSScriptRoot -ChildPath "..\config\profiles")
     )
 
     $resolvedDirectory = (Resolve-Path -Path $ProfileDirectory).Path

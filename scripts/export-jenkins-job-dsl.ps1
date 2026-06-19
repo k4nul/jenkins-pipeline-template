@@ -25,7 +25,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
 function ConvertTo-GroovyString {
     param(
@@ -277,8 +277,8 @@ function Get-GeneratedPipelineJobDslLines {
     )
 }
 
-$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
-$jobPlanScript = Join-Path $root "scripts\show-jenkins-job-plan.ps1"
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
+$jobPlanScript = Join-Path -Path $root -ChildPath "scripts\show-jenkins-job-plan.ps1"
 Assert-RepoUrlSafety -Value $RepoUrl
 Assert-BranchSpecSafety -Value $BranchSpec
 Assert-ScmCredentialsIdSafety -Value $ScmCredentialsId

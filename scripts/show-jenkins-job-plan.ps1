@@ -23,9 +23,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "environment-preset.ps1")
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
-. (Join-Path $PSScriptRoot "platform-catalog.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "environment-preset.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "platform-catalog.ps1")
 
 function Get-SelectionSegment {
     param(
@@ -446,8 +446,8 @@ function New-ServicePipelineJobs {
     return @($serviceJobs.ToArray())
 }
 
-$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path $PSScriptRoot "..")
-$presetDirectory = Join-Path $root "config\environments"
+$root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
+$presetDirectory = Join-Path -Path $root -ChildPath "config\environments"
 $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
 $serviceCatalogIndex = Get-ServicePipelineCatalogIndex -Services @(Get-ServicePipelineCatalogServices -Catalog $servicePipelineCatalog)
 

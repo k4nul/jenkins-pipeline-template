@@ -9,12 +9,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "jenkins-job-common.ps1")
-. (Join-Path $PSScriptRoot "jenkins-validation-assertions.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
+. (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-validation-assertions.ps1")
 
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
-    -DefaultRoot (Join-Path $PSScriptRoot "..") `
+    -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..") `
     -RequestedPresets $EnvironmentPreset `
     -OutputDirectory $OutputDirectory `
     -MissingPresetMessage "No environment presets were found for Jenkins validation."
@@ -98,9 +98,9 @@ Assert-JenkinsfileDeploymentApprovalSafety `
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
 $serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $resolvedOutputDirectory
-$serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
-$serviceJobFixtureDslScript = Join-Path $serviceJobFixtureRoot "scripts/export-jenkins-job-dsl.ps1"
-$serviceJobFixtureValidationScript = Join-Path $serviceJobFixtureRoot "scripts/validate-service-pipelines.ps1"
+$serviceJobFixturePlanScript = Join-Path -Path $serviceJobFixtureRoot -ChildPath "scripts/show-jenkins-job-plan.ps1"
+$serviceJobFixtureDslScript = Join-Path -Path $serviceJobFixtureRoot -ChildPath "scripts/export-jenkins-job-dsl.ps1"
+$serviceJobFixtureValidationScript = Join-Path -Path $serviceJobFixtureRoot -ChildPath "scripts/validate-service-pipelines.ps1"
 $serviceJobFixtureDslOutputPath = "out/jenkins/validation/service-job-fixture-seed-job-dsl.groovy"
 $serviceJobFixtureDslPath = Join-Path $serviceJobFixtureRoot $serviceJobFixtureDslOutputPath
 $sharedServiceJobRoot = "team/services/images"
