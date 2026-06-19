@@ -24,9 +24,12 @@ fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
 spec, and credentials handling stay parameterized, verifies explicit seed SCM
 inputs are escaped in generated Groovy strings, verifies the generated
 validation-delivery-promotion dependency chain, verifies service-job projection
-with synthetic Jenkinsfile-backed service fixtures, verifies shared service-job
-de-duplication across multiple selected presets and nested service roots,
-verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
+with synthetic Jenkinsfile-backed service fixtures, verifies every public preset
+application is covered by service pipeline catalog metadata, verifies
+catalog-only public-image services do not produce Jenkins service jobs, verifies
+shared service-job de-duplication across multiple selected presets and nested
+service roots, verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service
+jobs, verifies
 `-SelectionName` by itself creates one custom selection with public-safe
 defaults instead of falling back to the full preset matrix, verifies
 empty or unsafe generated Job DSL roots fail closed before folder or job
@@ -137,6 +140,9 @@ gate to pass.
   all-preset public Job DSL harness.
 - Generated bundle jobs preserve the validation, delivery, manual approval, and
   promotion dependency order.
+- Every public preset application is represented in the service pipeline
+  catalog, and catalog-only public-image services stay documented without
+  generating Jenkins service jobs.
 - Generated SCM URL, branch spec, and credentials ID values remain placeholders
   or parameters until a Jenkins seed job receives explicit values.
 - Explicit seed SCM URL, branch spec, and credentials ID values are emitted as

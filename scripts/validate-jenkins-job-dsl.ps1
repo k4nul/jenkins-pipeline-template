@@ -175,6 +175,7 @@ else {
     Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
     Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
     Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
+    Write-Output "Validated public preset application service catalog coverage."
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."

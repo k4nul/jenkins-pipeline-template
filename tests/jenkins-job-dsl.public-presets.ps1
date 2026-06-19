@@ -786,6 +786,7 @@ Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $servic
 Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
 Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."
 Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
+Write-Output "Validated public preset application service catalog coverage."
 Write-Output "Validated dependency inventory risk indicators."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
