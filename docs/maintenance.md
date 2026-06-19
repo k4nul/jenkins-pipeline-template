@@ -16,7 +16,9 @@ service catalog metadata, and live controller/JCasC rollout, read
 - Keep generated Job DSL and validation fixtures under `out/`; do not commit
   generated controller output.
 - Keep non-dry-run delivery and promotion behind the existing manual Jenkins
-  approval prompts and bootstrap readiness checks.
+  approval prompts and public-safe helper guardrails. Live deployment, Helm
+  repository refresh, and bootstrap status checks require downstream controller
+  or cluster implementation outside this reusable template.
 - Treat live Jenkins controller plugin installation, agents, credentials, and
   security realm configuration as JCasC/controller concerns, not default Job DSL
   or Pipeline DSL behavior in this reusable template.
@@ -30,7 +32,7 @@ service catalog metadata, and live controller/JCasC rollout, read
 | Service pipeline catalog | `config/service-pipelines.psd1` | Public image service metadata and whether a service has its own Jenkinsfile-backed job | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
 | Job plan | `scripts/show-jenkins-job-plan.ps1` | Folder paths, generated bundle job plans, service job plans, and local command contracts | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` |
 | Job DSL export | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Jenkins folders, `pipelineJob` definitions, SCM placeholders, branch specs, credentials parameters, lightweight checkout, and seed apply guards | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy` |
-| Pipeline runtime | `jenkins/*.Jenkinsfile` | Validation, delivery, promotion, archive, dry-run, approval, and bootstrap readiness flow | `sh scripts/run-phase-validation.sh`, plus live Jenkins review before rollout |
+| Pipeline runtime | `jenkins/*.Jenkinsfile` | Validation, delivery, promotion, archive, dry-run defaults, approval prompts, and public-safe live-action guards | `sh scripts/run-phase-validation.sh`, plus live Jenkins review before rollout |
 | Controller/JCasC scope | `k8s/jenkins-controller/README.md`, future JCasC files | Example controller deployment, plugin baseline, agents, credentials providers, and controller security | Controller or JCasC validation when those files exist |
 
 ## Change Lanes
@@ -91,7 +93,9 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 
 Keep repository validation, delivery, and promotion responsibilities separate.
 Preserve dry-run defaults, explicit approval for non-dry-run deployment, and
-bootstrap readiness checks before production-facing actions.
+fail-closed behavior for live deployment, Helm repository refresh, and bootstrap
+status checks until a downstream controller or cluster rollout implements those
+actions.
 
 Run the phase wrapper after changing Jenkinsfiles or generated job topology:
 
@@ -175,7 +179,7 @@ without adding controller-dependent requirements to the public defaults.
 | Boundary | Keep in this repository | Keep outside the public default |
 | --- | --- | --- |
 | Job DSL | Folder paths, `pipelineJob` declarations, SCM parameter names, branch spec parameters, credentials ID parameters, lightweight checkout settings, and removed-job apply guards | Real SCM URLs, real credentials IDs, controller names, private folder policies, and organization-specific branch protections |
-| Pipeline DSL | Validation, delivery, promotion, archive, dry-run defaults, manual approval prompts, and bootstrap readiness checks in checked-in Jenkinsfiles | Unapproved production deployment behavior, private cluster assumptions, and controller-specific credential lookup logic |
+| Pipeline DSL | Validation, delivery, promotion, archive, dry-run defaults, manual approval prompts, and public-safe live-action guards in checked-in Jenkinsfiles | Unapproved production deployment behavior, private cluster assumptions, and controller-specific credential lookup logic |
 | JCasC/controller | Public-safe examples and documentation for plugin, agent, credential-provider, and security-realm expectations | Treating a live controller plugin set as proven by local Job DSL export, or embedding private controller configuration in generated jobs |
 | Service catalog | Public image metadata, required service-local file expectations, and whether a selected service has a Jenkinsfile-backed job | Generated service jobs for catalog entries that do not provide `services/<name>/Jenkinsfile` and matching required files |
 

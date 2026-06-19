@@ -144,7 +144,9 @@ sh scripts/run-phase-validation.sh
 Add Jenkins Pipeline unit tests or an equivalent local test harness only when
 scripted Jenkinsfile logic grows beyond the current declarative wrappers and
 repository-owned PowerShell entrypoints. Keep non-dry-run delivery and promotion
-behind explicit approval and bootstrap readiness/status checks.
+behind explicit approval and public-safe helper guardrails; live deployment,
+Helm repository refresh, and bootstrap status checks belong to downstream
+controller or cluster rollout work.
 
 Files likely to change together:
 
@@ -184,7 +186,7 @@ sh scripts/run-phase-validation.sh
 | Controller image or future JCasC baseline | `validate-jenkins-job-dsl.ps1 -Format json` until controller files exist | Live controller plugin install, JCasC load, durable storage, credentials providers, security realm |
 | PowerShell runtime or validation wrapper | `sh scripts/run-phase-validation.sh` | Jenkins agent PowerShell version, shell path resolution, non-interactive execution |
 | Jenkins agent tool baseline | `sh scripts/run-phase-validation.sh` plus `validate-workstation.ps1` in the target agent context | `kubectl`, `helm`, registry access, Docker availability, cluster permissions |
-| Jenkinsfile behavior dependency | `sh scripts/run-phase-validation.sh` | Live Jenkins dry-run, approval prompts, artifact archiving under `out/` |
+| Jenkinsfile behavior dependency | `sh scripts/run-phase-validation.sh` | Live Jenkins dry-run, approval prompts, artifact archiving under `out/`, and downstream live-action implementation review |
 
 ## Security Or Maintenance Risk Indicators
 

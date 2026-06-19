@@ -57,8 +57,10 @@ non-dry-run delivery and promotion are ready.
 - Keep SCM repository URLs, branch specs, and credentials IDs parameterized.
 - Keep company-specific values, private registry details, and real controller
   output out of committed files.
-- Keep non-dry-run delivery and promotion behind the manual Jenkins approval
-  prompts and bootstrap readiness/status checks.
+- Keep non-dry-run delivery and promotion behind manual Jenkins approval prompts
+  and public-safe script guardrails. Live deployment, Helm repository refresh,
+  and bootstrap status checks are downstream rollout responsibilities, not
+  behavior implemented by the checked-in public template helpers.
 - Keep generated fixtures under `out/`.
 - Treat public image catalog examples as catalog metadata unless a service
   explicitly sets `HasJenkinsfile = $true` and provides

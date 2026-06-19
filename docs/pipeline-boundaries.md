@@ -11,7 +11,7 @@ that a live Jenkins controller is ready.
 | Boundary | Repository-owned scope | Keep out of public defaults | First validation lane |
 | --- | --- | --- | --- |
 | Job DSL | Jenkins folders, `pipelineJob` entries, upstream relationships, SCM parameter names, branch specs, credentials ID parameters, lightweight checkout, and removed-job apply guards | Real SCM URLs, real credentials IDs, controller names, private folders, organization branch policies, and generated controller output | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
-| Pipeline DSL | Repository validation, bundle delivery, bundle promotion, archive paths, dry-run defaults, manual approval prompts, and bootstrap readiness/status checks in `jenkins/*.Jenkinsfile` | Unapproved production deployment behavior, private cluster assumptions, and controller-specific credential lookup logic | `sh scripts/run-phase-validation.sh` plus live rollout review |
+| Pipeline DSL | Repository validation, bundle delivery, bundle promotion, archive paths, dry-run defaults, manual approval prompts, and public-safe live-action guards in `jenkins/*.Jenkinsfile` | Unapproved production deployment behavior, private cluster assumptions, and controller-specific credential lookup logic | `sh scripts/run-phase-validation.sh` plus live rollout review |
 | Service catalog | Public image service metadata, required service-local file expectations, and whether selected services have Jenkinsfile-backed jobs | Service jobs for catalog entries that do not provide `services/<name>/Jenkinsfile` and matching required files | `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
 | Controller/JCasC | Public-safe examples and documentation for plugin, agent, credential-provider, and security-realm expectations | Treating local Job DSL export as proof that a live controller has plugins, agents, credentials, registry access, or cluster access | Separate controller or JCasC validation when those files exist |
 
@@ -50,8 +50,8 @@ When reducing script size or duplication, preserve these dependency rules:
 - validators may call plan and export entrypoints but should not become a
   required runtime dependency for Jenkins jobs;
 - Jenkinsfiles should call repository-owned scripts through named parameters
-  and keep deployment side effects behind existing dry-run, approval, and
-  bootstrap readiness gates; and
+  and keep deployment side effects behind existing dry-run defaults, manual
+  approvals, and fail-closed live-action guards; and
 - future Controller/JCasC files should get their own validation lane instead of
   broadening the local Job DSL export contract.
 
@@ -95,8 +95,8 @@ rules:
 - delivery and promotion default to dry-run style behavior until explicitly
   enabled;
 - non-dry-run delivery and promotion require manual Jenkins approval prompts;
-- bootstrap secret readiness and bootstrap status checks run before
-  production-facing actions;
+- public-safe helpers fail closed for live deployment, Helm repository refresh,
+  and bootstrap status checks until downstream rollout code implements them;
 - archive paths remain workspace-relative paths under `out/`.
 
 The local harness checks generated job topology and safety expectations. It does

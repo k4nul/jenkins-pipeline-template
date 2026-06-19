@@ -40,9 +40,9 @@ the seed job passes typed exporter boolean arguments, verifies seed-generated
 Job DSL artifacts are not archived when concrete SCM, registry, or credential
 metadata is supplied, verifies Jenkins artifact archiving uses literal paths
 under `out/`, verifies non-dry-run delivery and promotion stay behind approval
-plus bootstrap readiness/status checks, verifies the committed runtime helper
-scripts and tracked public-safe values defaults exist, validates service catalog
-metadata and required service file paths,
+and public-safe helper guardrails, verifies the committed runtime helper scripts
+and tracked public-safe values defaults exist, validates service catalog metadata
+and required service file paths,
 verifies Jenkinsfile-backed catalog entries fail closed when
 `services/<name>/Jenkinsfile` is missing, and runs service pipeline validation.
 
@@ -162,8 +162,10 @@ gate to pass.
   archival to avoid retaining environment-specific metadata in Jenkins artifacts.
 - Jenkins artifact archive paths are literal workspace-relative paths under
   `out/`, not caller-controlled absolute paths, parent traversal, or Ant globs.
-- Non-dry-run delivery and promotion stay manually approved and require bootstrap
-  secret readiness plus bootstrap status checks.
+- Non-dry-run delivery and promotion stay manually approved, and the public-safe
+  helper scripts fail closed for live deployment, Helm repository refresh, and
+  bootstrap status checks that require downstream controller or cluster
+  implementation.
 - Runtime entrypoint scripts and public-safe values defaults referenced by the
   checked-in Jenkinsfiles exist in the repository.
 - Service catalog required-file paths are relative service-local paths, not

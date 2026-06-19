@@ -48,6 +48,24 @@ extract and verify that archive. They intentionally do not perform non-dry-run
 cluster deployment, Helm repository updates, or live bootstrap status checks.
 Those actions require a downstream implementation or controller rollout lane.
 
+## Live Delivery Or Promotion Fails Closed
+
+The public-safe helper scripts intentionally stop before live actions that need
+a real controller, Helm configuration, registry access, or cluster context.
+These messages are expected until a downstream rollout lane implements the live
+behavior:
+
+- `Non-dry-run bundle deployment is not implemented...`
+- `Non-dry-run bundle promotion deployment is not implemented...`
+- `PrepareHelmRepos is a live Helm action...`
+- `RequireBootstrapStatus needs a live cluster...`
+
+Keep `DeploymentDryRun` enabled for the reusable template path. If a real
+environment needs non-dry-run deployment, Helm repository preparation, or
+bootstrap status checks, add that behavior in the downstream controller or
+cluster rollout package and validate it outside the controller-free template
+gate.
+
 ## Phase Validation Passes But Jenkins Rollout Is Not Ready
 
 `sh scripts/run-phase-validation.sh` is a local phase gate for public-safe Job

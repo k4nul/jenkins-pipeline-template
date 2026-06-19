@@ -65,7 +65,9 @@ Pipeline DSL, service catalog, and controller/JCasC ownership, see
 - `job-seed.Jenkinsfile` leaves the SCM URL and branch spec blank by default. Generated DSL uses public-safe placeholders until you provide `SEED_REPO_URL` and `SEED_BRANCH_SPEC`.
 - `job-seed.Jenkinsfile` requires `SEED_CONFIRM_REMOVED_JOB_DELETE=true` before `SEED_APPLY_JOB_DSL=true` can run with `SEED_REMOVED_JOB_ACTION=DELETE`.
 - `job-seed.Jenkinsfile` runs service pipeline validation before generating service jobs unless `SEED_SKIP_SERVICE_JOBS=true`.
-- Non-dry-run delivery and promotion deployments require a Jenkins approval prompt and bootstrap secret/status checks.
+- Non-dry-run delivery and promotion deployments require Jenkins approval
+  prompts and downstream live rollout implementation for cluster deployment,
+  Helm repository refresh, and bootstrap status checks.
 - `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, service catalog metadata, committed runtime helper scripts, and public-safe values defaults without contacting a Jenkins controller.
 - Generated local command fields describe the Pipeline DSL entrypoint contract; the checked-in runtime helpers can validate inputs and write or verify a controller-free contract bundle under `out/`.
 - Live validation, delivery, and promotion still require private values, credentials, registry access, cluster context, and any downstream non-dry-run deployment implementation outside this public template.

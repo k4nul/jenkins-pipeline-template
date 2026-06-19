@@ -113,7 +113,7 @@ local validation into a live-controller requirement. Before handing off to
   parameters, lightweight checkout, and removed-job apply guards;
 - keeping Pipeline DSL responsibilities in the Jenkinsfiles that own validation,
   delivery, promotion, archive paths, dry-run behavior, manual approval prompts,
-  and bootstrap readiness checks;
+  and public-safe live-action guards;
 - keeping service catalog responsibilities in public image metadata,
   service-local file expectations, and explicit Jenkinsfile-backed service
   flags; and
@@ -144,8 +144,10 @@ controller. Before live rollout, verify separately that:
   `SEED_SCM_CREDENTIALS_ID` are supplied as Jenkins seed parameters;
 - private values, registry access, cluster context, credentials, and downstream
   deploy implementation exist outside the public defaults; and
-- non-dry-run delivery and promotion still require manual approval prompts and
-  bootstrap readiness/status checks.
+- non-dry-run delivery and promotion still require manual approval prompts, and
+  any live deployment, Helm repository refresh, or bootstrap status checks are
+  supplied by downstream controller or cluster rollout code rather than by the
+  public-safe helper scripts.
 
 ## Documentation Consistency Checklist
 
