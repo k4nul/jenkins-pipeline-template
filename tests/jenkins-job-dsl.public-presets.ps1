@@ -430,6 +430,35 @@ function Assert-DependencyInventory {
         -Message "Dependency inventory should explain tag-based public service image risk"
 }
 
+function Assert-DependencyInventoryHumanReadableOutput {
+    param(
+        [string]$Markdown,
+        [string]$Text
+    )
+
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| Service | Category | Image | Tag | Floating tag | Digest pinned | Jenkinsfile-backed |" `
+        -Message "Markdown dependency inventory should expose service image floating-tag status"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| adminer | public-image | adminer:5.3.0-standalone | 5.3.0-standalone | False | False | False |" `
+        -Message "Markdown dependency inventory should report versioned service tags as non-floating"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| k8s/jenkins-controller/jenkins.yaml:17 | jenkins/jenkins:lts | lts | True | False |" `
+        -Message "Markdown dependency inventory should still flag the floating Jenkins controller image"
+
+    Assert-TextContains `
+        -Text $Text `
+        -Expected "adminer: adminer:5.3.0-standalone (tag: 5.3.0-standalone, floating: False, digest pinned: False, Jenkinsfile-backed: False)" `
+        -Message "Text dependency inventory should expose service image floating-tag status"
+    Assert-TextContains `
+        -Text $Text `
+        -Expected "k8s/jenkins-controller/jenkins.yaml:17: jenkins/jenkins:lts (tag: lts, floating: True, digest pinned: False)" `
+        -Message "Text dependency inventory should still flag the floating Jenkins controller image"
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -713,6 +742,9 @@ $dependencyInventory = Invoke-JsonScript -ScriptPath $dependencyInventoryScript 
     Format = "json"
 }
 Assert-DependencyInventory -Inventory $dependencyInventory
+$dependencyInventoryMarkdown = (& $dependencyInventoryScript -RepoRoot $root -Format markdown | Out-String).Trim()
+$dependencyInventoryText = (& $dependencyInventoryScript -RepoRoot $root -Format text | Out-String).Trim()
+Assert-DependencyInventoryHumanReadableOutput -Markdown $dependencyInventoryMarkdown -Text $dependencyInventoryText
 
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")

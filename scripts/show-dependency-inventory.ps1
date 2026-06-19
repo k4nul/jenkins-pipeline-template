@@ -204,12 +204,12 @@ switch ($Format) {
             "",
             "## Public Service Images",
             "",
-            "| Service | Category | Image | Tag | Digest pinned | Jenkinsfile-backed |",
-            "| --- | --- | --- | --- | --- | --- |"
+            "| Service | Category | Image | Tag | Floating tag | Digest pinned | Jenkinsfile-backed |",
+            "| --- | --- | --- | --- | --- | --- | --- |"
         )
 
         foreach ($image in @($inventory.ServiceImages)) {
-            $lines += ("| {0} | {1} | {2} | {3} | {4} | {5} |" -f $image.Name, $image.Category, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.IsDigestPinned, $image.HasJenkinsfile)
+            $lines += ("| {0} | {1} | {2} | {3} | {4} | {5} | {6} |" -f $image.Name, $image.Category, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.UsesFloatingTag, $image.IsDigestPinned, $image.HasJenkinsfile)
         }
 
         $lines += @(
@@ -249,7 +249,7 @@ switch ($Format) {
         )
 
         foreach ($image in @($inventory.ServiceImages)) {
-            $lines += ("  {0}: {1} (tag: {2}, digest pinned: {3}, Jenkinsfile-backed: {4})" -f $image.Name, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.IsDigestPinned, $image.HasJenkinsfile)
+            $lines += ("  {0}: {1} (tag: {2}, floating: {3}, digest pinned: {4}, Jenkinsfile-backed: {5})" -f $image.Name, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.UsesFloatingTag, $image.IsDigestPinned, $image.HasJenkinsfile)
         }
 
         $lines += ""
