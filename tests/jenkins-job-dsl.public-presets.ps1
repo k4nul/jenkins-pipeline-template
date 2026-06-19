@@ -617,6 +617,18 @@ Invoke-ScriptExpectingFailure `
     -Message "Job plan generation should reject parent-directory JobRoot segments"
 
 Invoke-ScriptExpectingFailure `
+    -ScriptPath $jobPlanScript `
+    -Arguments @{
+        RepoRoot = $root
+        SelectionName = "empty-root"
+        Profile = "web-platform"
+        JobRoot = ""
+        Format = "json"
+    } `
+    -ExpectedMessage "Jenkins job path must include at least one safe segment." `
+    -Message "Job plan generation should reject empty JobRoot values"
+
+Invoke-ScriptExpectingFailure `
     -ScriptPath $jobDslScript `
     -Arguments @{
         RepoRoot = $root
@@ -627,6 +639,18 @@ Invoke-ScriptExpectingFailure `
     } `
     -ExpectedMessage "Jenkins job path segment is not allowed" `
     -Message "Job DSL export should reject unsafe ServiceJobRoot segments"
+
+Invoke-ScriptExpectingFailure `
+    -ScriptPath $jobDslScript `
+    -Arguments @{
+        RepoRoot = $root
+        SelectionName = "empty-service-root"
+        Profile = "web-platform"
+        ServiceJobRoot = ""
+        OutputPath = "out/jenkins/tests/public-presets/empty-service-root-seed-job-dsl.groovy"
+    } `
+    -ExpectedMessage "Jenkins job path must include at least one safe segment." `
+    -Message "Job DSL export should reject empty ServiceJobRoot values"
 
 $serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $outputDirectory
 $serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
@@ -725,7 +749,7 @@ Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionN
 Write-Output ("Validated escaped metadata Job DSL fixture: {0}" -f $escapedMetadataDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output ("Validated IncludeJenkins opt-in boundary fixture: {0}" -f $includeJenkinsBoundaryDslPath)
-Write-Output "Validated unsafe Job DSL root segments fail closed."
+Write-Output "Validated unsafe and empty Job DSL root segments fail closed."
 Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
 Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
 Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."

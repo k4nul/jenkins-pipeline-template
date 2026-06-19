@@ -33,6 +33,8 @@ platform/
 - `SEED_REPO_URL` and `SEED_BRANCH_SPEC` default to blank in `job-seed.Jenkinsfile`.
 - Generated DSL uses public-safe SCM placeholders unless `SEED_REPO_URL` and `SEED_BRANCH_SPEC` are provided.
 - If you apply the generated DSL in Jenkins, set `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, and any required `SEED_SCM_CREDENTIALS_ID` first so SCM-backed jobs point at your intended repository.
+- If you provide `SEED_DOCKER_REGISTRY`, treat it as environment-specific metadata. The seed job will skip generated Job DSL artifact archival when concrete SCM, registry, or credential metadata is present.
+- Keep `SEED_JOB_ROOT` and `SEED_SERVICE_JOB_ROOT` as non-empty Jenkins folder paths made from safe literal segments. Blank roots, parent traversal, and expression-like folder segments fail before Job DSL generation.
 - Service pipeline validation runs before service-job generation unless `SEED_SKIP_SERVICE_JOBS=true`.
 
 ## Responsibility Boundaries
@@ -81,11 +83,13 @@ Jenkinsfile-backed service jobs are de-duplicated across multiple selected
 presets and nested service roots, verifies `-SkipServiceJobs` suppresses those
 generated service jobs when requested, verifies the seed job preflights service
 pipeline validation before generating service jobs, verifies the seed job passes
-typed exporter boolean arguments, checks that Jenkinsfile-backed service entries
-fail closed when `services/<name>/Jenkinsfile` is missing, validates service
-catalog metadata, and runs service pipeline validation. The public preset test
-suite adds custom selection, `SEED_SELECTION_NAME`-only defaults, nested
-job-root, unsafe root rejection, and runtime argument splatting coverage.
+typed exporter boolean arguments, verifies generated Job DSL artifact archival
+is skipped when concrete SCM, registry, or credential metadata is present,
+checks that Jenkinsfile-backed service entries fail closed when
+`services/<name>/Jenkinsfile` is missing, validates service catalog metadata, and
+runs service pipeline validation. The public preset test suite adds custom
+selection, `SEED_SELECTION_NAME`-only defaults, nested job-root, unsafe or empty
+root rejection, and runtime argument splatting coverage.
 
 This fixture is intentionally controller-free. Treat it as a pipeline unit test
 lane for generated command arguments, public-safe SCM placeholders, service

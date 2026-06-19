@@ -268,10 +268,10 @@ function New-JenkinsJobPlanArguments {
         Format = $Format
     }
 
-    if ($JobRoot) {
+    if ($BoundParameters.ContainsKey("JobRoot") -or $JobRoot) {
         $arguments["JobRoot"] = $JobRoot
     }
-    if ($ServiceJobRoot) {
+    if ($BoundParameters.ContainsKey("ServiceJobRoot") -or $ServiceJobRoot) {
         $arguments["ServiceJobRoot"] = $ServiceJobRoot
     }
 
@@ -324,6 +324,10 @@ function Join-JobPath {
                 $parts.Add($trimmed) | Out-Null
             }
         }
+    }
+
+    if ($parts.Count -eq 0) {
+        throw "Jenkins job path must include at least one safe segment."
     }
 
     return ($parts.ToArray() -join "/")

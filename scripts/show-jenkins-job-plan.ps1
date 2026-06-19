@@ -450,6 +450,8 @@ $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSSc
 $presetDirectory = Join-Path -Path $root -ChildPath "config\environments"
 $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
 $serviceCatalogIndex = Get-ServicePipelineCatalogIndex -Services @(Get-ServicePipelineCatalogServices -Catalog $servicePipelineCatalog)
+$normalizedJobRoot = Join-JobPath -Segments @($JobRoot)
+$normalizedServiceJobRoot = Join-JobPath -Segments @($ServiceJobRoot)
 
 $hasDirectSelection =
     $PSBoundParameters.ContainsKey("SelectionName") -or
@@ -562,7 +564,7 @@ foreach ($presetName in @($selectedPresetNames)) {
         -DataServices $selectionDataServices `
         -IncludeJenkins:$includeJenkins
 
-    $bundleFolderPath = Join-JobPath -Segments @($JobRoot, $selectionName)
+    $bundleFolderPath = Join-JobPath -Segments @($normalizedJobRoot, $selectionName)
 
     $selection = [PSCustomObject]@{
         Name = $selectionName
@@ -580,9 +582,9 @@ foreach ($presetName in @($selectedPresetNames)) {
         ArchivePath = $selectionArchivePath
         PromotionExtractPath = $selectionPromotionExtractPath
         BundleFolderPath = $bundleFolderPath
-        ValidationJobPath = Join-JobPath -Segments @($JobRoot, $selectionName, "repository-validation")
-        DeliveryJobPath = Join-JobPath -Segments @($JobRoot, $selectionName, "bundle-delivery")
-        PromotionJobPath = Join-JobPath -Segments @($JobRoot, $selectionName, "bundle-promotion")
+        ValidationJobPath = Join-JobPath -Segments @($normalizedJobRoot, $selectionName, "repository-validation")
+        DeliveryJobPath = Join-JobPath -Segments @($normalizedJobRoot, $selectionName, "bundle-delivery")
+        PromotionJobPath = Join-JobPath -Segments @($normalizedJobRoot, $selectionName, "bundle-promotion")
     }
 
     $validationCommand = Get-SelectionCommand -ScriptName "invoke-repository-validation.ps1" -Selection $selection
@@ -602,7 +604,7 @@ if (-not $SkipServiceJobs) {
         New-ServicePipelineJobs `
             -SelectionPlans @($selectionPlans.ToArray()) `
             -ServiceCatalogIndex $serviceCatalogIndex `
-            -ServiceJobRoot $ServiceJobRoot
+            -ServiceJobRoot $normalizedServiceJobRoot
     )
 }
 
@@ -640,8 +642,8 @@ switch ($Format) {
         $document = ([ordered]@{
             GeneratedAt = $generatedAt
             RepoRoot = $root
-            JobRoot = (Join-JobPath -Segments @($JobRoot))
-            ServiceJobRoot = (Join-JobPath -Segments @($ServiceJobRoot))
+            JobRoot = $normalizedJobRoot
+            ServiceJobRoot = $normalizedServiceJobRoot
             SelectionCount = $selectionPlans.Count
             ServiceJobCount = $serviceJobs.Count
             Selections = @($selectionPlans.ToArray())
@@ -656,8 +658,8 @@ switch ($Format) {
             "## Summary",
             "",
             ("- Repository root: " + $root),
-            ('- Bundle job root: `' + (Join-JobPath -Segments @($JobRoot)) + '`'),
-            ('- Service job root: `' + (Join-JobPath -Segments @($ServiceJobRoot)) + '`'),
+            ('- Bundle job root: `' + $normalizedJobRoot + '`'),
+            ('- Service job root: `' + $normalizedServiceJobRoot + '`'),
             ("- Bundle selection count: " + [string]$selectionPlans.Count),
             ("- Shared service job count: " + [string]$serviceJobs.Count),
             ""
@@ -735,8 +737,8 @@ switch ($Format) {
             "Jenkins Job Plan",
             "================",
             ("Repository root: " + $root),
-            ("Bundle job root: " + (Join-JobPath -Segments @($JobRoot))),
-            ("Service job root: " + (Join-JobPath -Segments @($ServiceJobRoot))),
+            ("Bundle job root: " + $normalizedJobRoot),
+            ("Service job root: " + $normalizedServiceJobRoot),
             ("Bundle selection count: " + [string]$selectionPlans.Count),
             ("Shared service job count: " + [string]$serviceJobs.Count),
             ""

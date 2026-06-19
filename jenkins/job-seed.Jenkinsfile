@@ -356,13 +356,14 @@ $argumentArray = $arguments
     post {
         always {
             script {
-                def hasConcreteScmValues =
+                def hasConcreteGeneratedMetadata =
                     (params.SEED_REPO_URL?.trim() && params.SEED_REPO_URL.trim() != 'REPLACE_WITH_REPOSITORY_URL') ||
                     (params.SEED_BRANCH_SPEC?.trim() && params.SEED_BRANCH_SPEC.trim() != 'REPLACE_WITH_BRANCH_SPEC') ||
-                    params.SEED_SCM_CREDENTIALS_ID?.trim()
+                    params.SEED_SCM_CREDENTIALS_ID?.trim() ||
+                    params.SEED_DOCKER_REGISTRY?.trim()
 
-                if (hasConcreteScmValues) {
-                    echo 'Skipping generated Job DSL artifact archive because concrete SCM values or credential IDs were supplied.'
+                if (hasConcreteGeneratedMetadata) {
+                    echo 'Skipping generated Job DSL artifact archive because concrete SCM, registry, or credential metadata was supplied.'
                 } else {
                     archiveArtifacts artifacts: requireLiteralOutPath(params.SEED_OUTPUT_PATH, 'SEED_OUTPUT_PATH'), allowEmptyArchive: true, fingerprint: true
                 }

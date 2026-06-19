@@ -79,6 +79,12 @@ controller or seed job:
 
 Do not commit real values for those parameters and do not commit generated DSL
 from a real controller. Local fixtures belong under ignored `out/` paths.
+When seed parameters include a concrete registry override, treat the generated
+DSL as environment-specific metadata and skip Jenkins artifact archival just as
+you would for concrete SCM values or credentials IDs.
+Generated job roots must remain non-empty Jenkins folder paths made from safe
+literal segments; blank roots, parent traversal, and expression-like segments
+fail before Job DSL is generated.
 
 ## Pipeline DSL Boundary
 

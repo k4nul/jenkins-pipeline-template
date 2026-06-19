@@ -29,13 +29,17 @@ de-duplication across multiple selected presets and nested service roots,
 verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
 `-SelectionName` by itself creates one custom selection with public-safe
 defaults instead of falling back to the full preset matrix, verifies
+empty or unsafe generated Job DSL roots fail closed before folder or job
+creation,
 destructive removed-job deletion requires explicit seed confirmation, verifies
 Job DSL apply still requires concrete SCM URL and branch inputs, verifies
-the seed job passes typed exporter boolean arguments, verifies Jenkins artifact
-archiving uses literal paths under `out/`, verifies non-dry-run delivery and
-promotion stay behind approval plus bootstrap readiness/status checks, verifies
-the committed runtime helper scripts and tracked public-safe values defaults
-exist, validates service catalog metadata and required service file paths,
+the seed job passes typed exporter boolean arguments, verifies seed-generated
+Job DSL artifacts are not archived when concrete SCM, registry, or credential
+metadata is supplied, verifies Jenkins artifact archiving uses literal paths
+under `out/`, verifies non-dry-run delivery and promotion stay behind approval
+plus bootstrap readiness/status checks, verifies the committed runtime helper
+scripts and tracked public-safe values defaults exist, validates service catalog
+metadata and required service file paths,
 verifies Jenkinsfile-backed catalog entries fail closed when
 `services/<name>/Jenkinsfile` is missing, and runs service pipeline validation.
 
@@ -138,12 +142,18 @@ gate to pass.
 - Explicit seed SCM URL, branch spec, and credentials ID values are emitted as
   escaped Groovy strings while generated jobs still call `credentials(scmCredentialsId)`
   and `branch(branchSpec)`.
+- Generated Jenkins job roots must resolve to at least one safe folder segment;
+  blank roots, parent traversal, and expression-like path segments fail before
+  Job DSL is generated.
 - Seed SCM URLs must be HTTPS/SSH absolute URIs or Git scp-like paths; local
   file URLs and relative repository paths fail before Job DSL generation.
 - Applying generated Job DSL with `SEED_REMOVED_JOB_ACTION=DELETE` requires the
   separate `SEED_CONFIRM_REMOVED_JOB_DELETE` guard.
 - Applying generated Job DSL requires concrete repository URL and branch inputs,
   not blank values or the public-safe placeholders.
+- Seed-generated Job DSL artifacts are archived only when generated metadata stays
+  public-safe; concrete SCM values, credentials IDs, or registry overrides skip
+  archival to avoid retaining environment-specific metadata in Jenkins artifacts.
 - Jenkins artifact archive paths are literal workspace-relative paths under
   `out/`, not caller-controlled absolute paths, parent traversal, or Ant globs.
 - Non-dry-run delivery and promotion stay manually approved and require bootstrap
