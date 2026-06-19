@@ -268,6 +268,51 @@ function Assert-NestedRootPlanAndDsl {
     }
 }
 
+function Assert-IncludeJenkinsBoundaryPlanAndDsl {
+    param(
+        [object]$Plan,
+        [string]$DslPath
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected 1 -Message "IncludeJenkins boundary selection should produce one selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "IncludeJenkins boundary selection should skip service jobs when requested"
+
+    $selection = @($Plan.Selections)[0]
+    Assert-Equal -Actual ([string]$selection.Name) -Expected "jenkins-controller-boundary" -Message "IncludeJenkins boundary selection name should be path-safe"
+    Assert-Condition -Condition ([bool]$selection.IncludeJenkins) -Message "IncludeJenkins boundary selection should opt into Jenkins controller manifests"
+    Assert-Condition -Condition (-not [bool]$selection.UsesPreset) -Message "IncludeJenkins boundary selection should remain an explicit custom selection"
+    Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected "platform/jenkins-controller-boundary" -Message "IncludeJenkins boundary bundle folder path"
+
+    $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+    $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
+    $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
+
+    Assert-ContainsItem -Values @($validationJob.KeyParameters) -Expected "VALIDATION_INCLUDE_JENKINS=true" -Message "IncludeJenkins validation job should expose the Jenkins-controller opt-in"
+    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_INCLUDE_JENKINS=true" -Message "IncludeJenkins delivery job should expose the Jenkins-controller opt-in"
+    Assert-ContainsItem -Values @($deliveryJob.KeyParameters) -Expected "BUNDLE_DEPLOY=false" -Message "IncludeJenkins delivery job should keep deploy disabled by default"
+    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_DEPLOY=false" -Message "IncludeJenkins promotion job should keep deploy disabled by default"
+    Assert-ContainsItem -Values @($promotionJob.KeyParameters) -Expected "PROMOTION_DEPLOY_DRY_RUN=true" -Message "IncludeJenkins promotion job should keep dry-run enabled by default"
+
+    Assert-TextContains -Text ([string]$validationJob.LocalCommand) -Expected "-IncludeJenkins" -Message "IncludeJenkins validation command should pass the Jenkins-controller opt-in"
+    Assert-TextContains -Text ([string]$deliveryJob.LocalCommand) -Expected "-IncludeJenkins" -Message "IncludeJenkins delivery command should pass the Jenkins-controller opt-in"
+    Assert-Condition -Condition (-not ([string]$promotionJob.LocalCommand).Contains("-IncludeJenkins")) -Message "IncludeJenkins promotion command should not change promotion scope"
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated IncludeJenkins boundary DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected "folder('platform/jenkins-controller-boundary')" -Message "IncludeJenkins DSL should create the explicit controller-boundary selection folder"
+    Assert-TextContains -Text $dsl -Expected "VALIDATION_INCLUDE_JENKINS=true" -Message "IncludeJenkins DSL should document the validation opt-in parameter"
+    Assert-TextContains -Text $dsl -Expected "BUNDLE_INCLUDE_JENKINS=true" -Message "IncludeJenkins DSL should document the delivery opt-in parameter"
+    Assert-TextContains -Text $dsl -Expected "BUNDLE_DEPLOY=false" -Message "IncludeJenkins DSL should keep delivery deployment disabled by default"
+    Assert-TextContains -Text $dsl -Expected "PROMOTION_DEPLOY=false" -Message "IncludeJenkins DSL should keep promotion deployment disabled by default"
+    Assert-TextContains -Text $dsl -Expected "PROMOTION_DEPLOY_DRY_RUN=true" -Message "IncludeJenkins DSL should keep promotion dry-run enabled by default"
+    Assert-TextContains -Text $dsl -Expected "-IncludeJenkins" -Message "IncludeJenkins DSL should include local validation and delivery commands with the opt-in switch"
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Message "IncludeJenkins DSL should keep the SCM URL parameterized"
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = 'REPLACE_WITH_BRANCH_SPEC'" -Message "IncludeJenkins DSL should keep the branch spec parameterized"
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = ''" -Message "IncludeJenkins DSL should keep credentials unset by default"
+    Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message "IncludeJenkins DSL should not include concrete SCM URLs"
+}
+
 function Assert-ServiceJobFixtureDsl {
     param(
         [object]$Plan,
@@ -503,6 +548,28 @@ $nestedRootDslPath = Join-Path $outputDirectory "nested-root-seed-job-dsl.groovy
     -OutputPath $nestedRootDslPath 6>$null | Out-Null
 Assert-NestedRootPlanAndDsl -Plan $nestedRootPlan -DslPath $nestedRootDslPath
 
+$includeJenkinsBoundaryPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    SelectionName = "jenkins/controller boundary"
+    Profile = "web-platform"
+    Applications = @("nginx-web")
+    DataServices = @("redis")
+    IncludeJenkins = $true
+    SkipServiceJobs = $true
+    Format = "json"
+}
+$includeJenkinsBoundaryDslPath = Join-Path $outputDirectory "include-jenkins-boundary-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -SelectionName "jenkins/controller boundary" `
+    -Profile "web-platform" `
+    -Applications @("nginx-web") `
+    -DataServices @("redis") `
+    -IncludeJenkins `
+    -SkipServiceJobs `
+    -OutputPath $includeJenkinsBoundaryDslPath 6>$null | Out-Null
+Assert-IncludeJenkinsBoundaryPlanAndDsl -Plan $includeJenkinsBoundaryPlan -DslPath $includeJenkinsBoundaryDslPath
+
 Invoke-ScriptExpectingFailure `
     -ScriptPath $jobPlanScript `
     -Arguments @{
@@ -623,6 +690,7 @@ Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $custo
 Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionNameOnlyDslPath)
 Write-Output ("Validated escaped metadata Job DSL fixture: {0}" -f $escapedMetadataDslPath)
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
+Write-Output ("Validated IncludeJenkins opt-in boundary fixture: {0}" -f $includeJenkinsBoundaryDslPath)
 Write-Output "Validated unsafe Job DSL root segments fail closed."
 Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
 Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
