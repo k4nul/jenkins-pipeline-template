@@ -829,6 +829,15 @@ function Assert-GeneratedDsl {
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message ("Preset {0} DSL should use the branch parameter" -f $Preset)
     Assert-TextContains -Text $dsl -Expected "lightweight(useLightweightCheckout)" -Message ("Preset {0} DSL should expose lightweight checkout as a parameter" -f $Preset)
 
+    $jobRoot = ([string]$Plan.JobRoot).Trim()
+    $serviceJobRoot = ([string]$Plan.ServiceJobRoot).Trim()
+    if ($jobRoot) {
+        Assert-TextContains -Text $dsl -Expected ("folder('{0}')" -f $jobRoot) -Message ("Preset {0} DSL should create the plan-owned bundle job root {1}." -f $Preset, $jobRoot)
+    }
+    if ($serviceJobRoot) {
+        Assert-TextContains -Text $dsl -Expected ("folder('{0}')" -f $serviceJobRoot) -Message ("Preset {0} DSL should create the plan-owned service job root {1}." -f $Preset, $serviceJobRoot)
+    }
+
     Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message ("Generated Job DSL for {0} contains a concrete SCM URL." -f $Preset)
     Assert-TextNotMatch -Text $dsl -Pattern "url\(['""]" -Message ("Generated Job DSL for {0} contains an inline SCM URL instead of the repoUrl parameter." -f $Preset)
     Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message ("Generated Job DSL for {0} contains an inline credentials ID instead of the scmCredentialsId parameter." -f $Preset)

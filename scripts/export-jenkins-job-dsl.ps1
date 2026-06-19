@@ -316,8 +316,14 @@ $selections = @($jobPlan.Selections)
 $serviceJobs = @($jobPlan.ServiceJobs)
 
 $folderDescriptions = @{}
-$bundleRootPath = Join-JobPath -Segments @($JobRoot)
-$serviceRootPath = Join-JobPath -Segments @($ServiceJobRoot)
+$bundleRootPath = ([string]$jobPlan.JobRoot).Trim()
+$serviceRootPath = ([string]$jobPlan.ServiceJobRoot).Trim()
+if (-not $bundleRootPath) {
+    throw "Jenkins job plan did not return a bundle JobRoot."
+}
+if (-not $serviceRootPath) {
+    throw "Jenkins job plan did not return a ServiceJobRoot."
+}
 
 foreach ($folderPath in @(Get-FolderPathsFromJobPath -JobPath ($bundleRootPath + "/placeholder"))) {
     Add-UniqueFolderDescription -Map $folderDescriptions -Path $folderPath -Description "Generated Jenkins folder for reusable bundle validation, delivery, and promotion jobs."

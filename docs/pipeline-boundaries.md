@@ -22,10 +22,10 @@ The controller-free validation lane depends on one direction of data flow:
 1. `config/environments/*.psd1`, `config/profiles/*.psd1`, and
    `config/service-pipelines.psd1` define public-safe catalog data.
 2. `scripts/show-jenkins-job-plan.ps1` resolves that catalog data into the
-   canonical job plan model.
+   canonical job plan model, including normalized bundle and service job roots.
 3. `scripts/export-jenkins-job-dsl.ps1` consumes the job plan model and writes
-   Job DSL; it should not reimplement preset, profile, or service selection
-   decisions that belong to the plan model.
+   Job DSL; it should not reimplement preset, profile, service selection, or
+   generated root normalization decisions that belong to the plan model.
 4. `jenkins/*.Jenkinsfile` execute the checked-in validation, delivery,
    promotion, and seed entrypoints; they should keep runtime argument handling
    separate from plan-model decisions.
