@@ -313,6 +313,29 @@ function Assert-IncludeJenkinsBoundaryPlanAndDsl {
     Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message "IncludeJenkins DSL should not include concrete SCM URLs"
 }
 
+function Assert-ScmVariantDsl {
+    param(
+        [string]$DslPath,
+        [string]$ExpectedRepoUrl,
+        [string]$ExpectedBranchSpec,
+        [string]$ExpectedScmCredentialsId = ""
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated SCM variant DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    Assert-TextContains -Text $dsl -Expected ("String repoUrl = '{0}'" -f $ExpectedRepoUrl.Replace("\", "\\").Replace("'", "\'")) -Message "SCM variant DSL should preserve and escape the repository URL"
+    Assert-TextContains -Text $dsl -Expected ("String branchSpec = '{0}'" -f $ExpectedBranchSpec.Replace("\", "\\").Replace("'", "\'")) -Message "SCM variant DSL should preserve and escape the branch spec"
+    Assert-TextContains -Text $dsl -Expected ("String scmCredentialsId = '{0}'" -f $ExpectedScmCredentialsId.Replace("\", "\\").Replace("'", "\'")) -Message "SCM variant DSL should preserve and escape the credentials ID"
+    Assert-TextContains -Text $dsl -Expected "url(repoUrl)" -Message "SCM variant DSL should keep the repository URL parameterized"
+    Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message "SCM variant DSL should keep branch selection parameterized"
+    Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message "SCM variant DSL should keep credentials parameterized"
+    Assert-TextNotMatch -Text $dsl -Pattern "url\(['""]" -Message "SCM variant DSL should not inline repository URL calls"
+    Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message "SCM variant DSL should not inline branch calls"
+    Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message "SCM variant DSL should not inline credentials calls"
+    Assert-TextNotMatch -Text $dsl -Pattern "user:token|password=" -Message "SCM variant DSL should not contain embedded credential material"
+}
+
 function Assert-ServiceJobFixtureDsl {
     param(
         [object]$Plan,
@@ -505,6 +528,32 @@ Assert-JobDslScmInputValidation `
     -Root $root `
     -OutputDirectory $outputDirectory `
     -Preset $explicitScmPreset
+
+$httpsScmDslPath = Join-Path $outputDirectory ("{0}-https-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $explicitScmPreset `
+    -RepoUrl "https://example.invalid/org/repo.git" `
+    -BranchSpec "refs/heads/release candidate" `
+    -OutputPath $httpsScmDslPath 6>$null | Out-Null
+Assert-ScmVariantDsl `
+    -DslPath $httpsScmDslPath `
+    -ExpectedRepoUrl "https://example.invalid/org/repo.git" `
+    -ExpectedBranchSpec "refs/heads/release candidate"
+
+$sshScmDslPath = Join-Path $outputDirectory ("{0}-ssh-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $explicitScmPreset `
+    -RepoUrl "ssh://git@example.invalid/org/repo.git" `
+    -BranchSpec "*/feature/controller-boundary" `
+    -ScmCredentialsId "jenkins-controller-scm" `
+    -OutputPath $sshScmDslPath 6>$null | Out-Null
+Assert-ScmVariantDsl `
+    -DslPath $sshScmDslPath `
+    -ExpectedRepoUrl "ssh://git@example.invalid/org/repo.git" `
+    -ExpectedBranchSpec "*/feature/controller-boundary" `
+    -ExpectedScmCredentialsId "jenkins-controller-scm"
 
 $multiPresetNames = @("dev", "staging")
 $multiPresetPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
@@ -775,6 +824,8 @@ Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
 Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
 Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
+Write-Output ("Validated public-safe HTTPS SCM fixture: {0}" -f $httpsScmDslPath)
+Write-Output ("Validated public-safe SSH SCM fixture: {0}" -f $sshScmDslPath)
 Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionNameOnlyDslPath)
