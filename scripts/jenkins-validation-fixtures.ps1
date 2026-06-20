@@ -138,3 +138,27 @@ pipeline {
 
     return $fixtureRoot
 }
+
+function New-JenkinsServiceJobFixtureContext {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory,
+        [string]$DslOutputDirectory = "out/jenkins/validation"
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory
+    $serviceJobFixtureDslOutputPath = Join-Path $DslOutputDirectory "service-job-fixture-seed-job-dsl.groovy"
+    $sharedServiceJobFixtureDslOutputPath = Join-Path $DslOutputDirectory "shared-service-job-fixture-seed-job-dsl.groovy"
+
+    return [PSCustomObject]@{
+        Root = $fixtureRoot
+        JobPlanScript = Join-Path $fixtureRoot "scripts/show-jenkins-job-plan.ps1"
+        JobDslScript = Join-Path $fixtureRoot "scripts/export-jenkins-job-dsl.ps1"
+        ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+        ServiceJobDslOutputPath = $serviceJobFixtureDslOutputPath
+        ServiceJobDslPath = Join-Path $fixtureRoot $serviceJobFixtureDslOutputPath
+        SharedServiceJobRoot = "team/services/images"
+        SharedServiceJobDslOutputPath = $sharedServiceJobFixtureDslOutputPath
+        SharedServiceJobDslPath = Join-Path $fixtureRoot $sharedServiceJobFixtureDslOutputPath
+    }
+}

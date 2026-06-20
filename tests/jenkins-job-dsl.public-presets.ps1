@@ -733,18 +733,13 @@ Invoke-ScriptExpectingFailure `
     -ExpectedMessage "Jenkins job path must include at least one safe segment." `
     -Message "Job DSL export should reject empty ServiceJobRoot values"
 
-$serviceJobFixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $root -OutputDirectory $outputDirectory
-$serviceJobFixturePlanScript = Join-Path $serviceJobFixtureRoot "scripts/show-jenkins-job-plan.ps1"
-$serviceJobFixtureDslScript = Join-Path $serviceJobFixtureRoot "scripts/export-jenkins-job-dsl.ps1"
-$serviceJobFixtureValidationScript = Join-Path $serviceJobFixtureRoot "scripts/validate-service-pipelines.ps1"
-$serviceJobFixtureDslOutputPath = "out/jenkins/tests/service-job-fixture-seed-job-dsl.groovy"
-$serviceJobFixtureDslPath = Join-Path $serviceJobFixtureRoot $serviceJobFixtureDslOutputPath
-$sharedServiceJobRoot = "team/services/images"
-$sharedServiceJobFixtureDslOutputPath = "out/jenkins/tests/shared-service-job-fixture-seed-job-dsl.groovy"
-$sharedServiceJobFixtureDslPath = Join-Path $serviceJobFixtureRoot $sharedServiceJobFixtureDslOutputPath
+$serviceJobFixture = New-JenkinsServiceJobFixtureContext `
+    -Root $root `
+    -OutputDirectory $outputDirectory `
+    -DslOutputDirectory "out/jenkins/tests"
 
-$serviceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScript -Arguments @{
-    RepoRoot = $serviceJobFixtureRoot
+$serviceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixture.JobPlanScript -Arguments @{
+    RepoRoot = $serviceJobFixture.Root
     SelectionName = "service-job-fixture"
     Profile = "web-platform"
     Applications = @("nginx-web")
@@ -752,40 +747,40 @@ $serviceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScr
 }
 Assert-JenkinsServiceJobFixturePlan -Plan $serviceJobFixturePlan
 
-& $serviceJobFixtureDslScript `
-    -RepoRoot $serviceJobFixtureRoot `
+& $serviceJobFixture.JobDslScript `
+    -RepoRoot $serviceJobFixture.Root `
     -SelectionName "service-job-fixture" `
     -Profile "web-platform" `
     -Applications @("nginx-web") `
-    -OutputPath $serviceJobFixtureDslOutputPath 6>$null | Out-Null
-Assert-GeneratedDsl -DslPath $serviceJobFixtureDslPath -Plan $serviceJobFixturePlan -Preset "service-job-fixture"
-Assert-ServiceJobFixtureDsl -Plan $serviceJobFixturePlan -DslPath $serviceJobFixtureDslPath
+    -OutputPath $serviceJobFixture.ServiceJobDslOutputPath 6>$null | Out-Null
+Assert-GeneratedDsl -DslPath $serviceJobFixture.ServiceJobDslPath -Plan $serviceJobFixturePlan -Preset "service-job-fixture"
+Assert-ServiceJobFixtureDsl -Plan $serviceJobFixturePlan -DslPath $serviceJobFixture.ServiceJobDslPath
 
-$sharedServiceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScript -Arguments @{
-    RepoRoot = $serviceJobFixtureRoot
+$sharedServiceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixture.JobPlanScript -Arguments @{
+    RepoRoot = $serviceJobFixture.Root
     EnvironmentPreset = @("fixture-alpha", "fixture-beta")
-    ServiceJobRoot = $sharedServiceJobRoot
+    ServiceJobRoot = $serviceJobFixture.SharedServiceJobRoot
     Format = "json"
 }
-Assert-JenkinsServiceJobSharedPresetPlan -Plan $sharedServiceJobFixturePlan -ExpectedServiceJobRoot $sharedServiceJobRoot
+Assert-JenkinsServiceJobSharedPresetPlan -Plan $sharedServiceJobFixturePlan -ExpectedServiceJobRoot $serviceJobFixture.SharedServiceJobRoot
 
-& $serviceJobFixtureDslScript `
-    -RepoRoot $serviceJobFixtureRoot `
+& $serviceJobFixture.JobDslScript `
+    -RepoRoot $serviceJobFixture.Root `
     -EnvironmentPreset @("fixture-alpha", "fixture-beta") `
-    -ServiceJobRoot $sharedServiceJobRoot `
-    -OutputPath $sharedServiceJobFixtureDslOutputPath 6>$null | Out-Null
-Assert-GeneratedDsl -DslPath $sharedServiceJobFixtureDslPath -Plan $sharedServiceJobFixturePlan -Preset "shared-service-job-fixture"
-Assert-ServiceJobSharedPresetDsl -Plan $sharedServiceJobFixturePlan -DslPath $sharedServiceJobFixtureDslPath -ExpectedServiceJobRoot $sharedServiceJobRoot
+    -ServiceJobRoot $serviceJobFixture.SharedServiceJobRoot `
+    -OutputPath $serviceJobFixture.SharedServiceJobDslOutputPath 6>$null | Out-Null
+Assert-GeneratedDsl -DslPath $serviceJobFixture.SharedServiceJobDslPath -Plan $sharedServiceJobFixturePlan -Preset "shared-service-job-fixture"
+Assert-ServiceJobSharedPresetDsl -Plan $sharedServiceJobFixturePlan -DslPath $serviceJobFixture.SharedServiceJobDslPath -ExpectedServiceJobRoot $serviceJobFixture.SharedServiceJobRoot
 
-$skippedServiceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixturePlanScript -Arguments @{
-    RepoRoot = $serviceJobFixtureRoot
+$skippedServiceJobFixturePlan = Invoke-JsonScript -ScriptPath $serviceJobFixture.JobPlanScript -Arguments @{
+    RepoRoot = $serviceJobFixture.Root
     EnvironmentPreset = @("fixture-alpha", "fixture-beta")
     SkipServiceJobs = $true
     Format = "json"
 }
 Assert-JenkinsServiceJobsSkippedPlan -Plan $skippedServiceJobFixturePlan
 
-& $serviceJobFixtureValidationScript -RepoRoot $serviceJobFixtureRoot 6>$null | Out-Null
+& $serviceJobFixture.ServiceValidationScript -RepoRoot $serviceJobFixture.Root 6>$null | Out-Null
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $outputDirectory
 Assert-UnsafeServiceCatalogNamesFail -Root $root -OutputDirectory $outputDirectory
 
@@ -840,8 +835,8 @@ Write-Output ("Validated escaped metadata Job DSL fixture: {0}" -f $escapedMetad
 Write-Output ("Validated nested Job DSL root fixture: {0}" -f $nestedRootDslPath)
 Write-Output ("Validated IncludeJenkins opt-in boundary fixture: {0}" -f $includeJenkinsBoundaryDslPath)
 Write-Output "Validated unsafe and empty Job DSL root segments fail closed."
-Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixtureDslPath)
-Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
+Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixture.ServiceJobDslPath)
+Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixture.SharedServiceJobDslPath)
 Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."
 Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
 Write-Output "Validated public preset application service catalog coverage."
