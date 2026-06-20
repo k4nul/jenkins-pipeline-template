@@ -52,8 +52,9 @@ The passing run produced this controller-free evidence:
 - service pipeline validation passed for the catalog-only public-image state;
   and
 - the aggregate Job DSL harness plus public preset test suite passed for
-  `dev`, `staging`, `prod`, custom selections, nested roots, unsafe root
-  rejection, SCM escaping, service-job fixtures, and runtime argument handling.
+  individual `dev`, `staging`, and `prod` fixtures, the combined public preset
+  matrix fixture, custom selections, nested roots, unsafe root rejection, SCM
+  escaping, service-job fixtures, and runtime argument handling.
 
 This evidence was refreshed after the phase controller reported the transition
 command as eligible. The phase metadata now records `template-maintenance` as
@@ -94,7 +95,7 @@ confirm these public-safe expectations:
   repository URL, branch spec, and credentials ID values parameterized;
 - service pipeline validation passes for the public-image catalog;
 - the aggregate Job DSL harness validates the built-in public-safe preset
-  matrix; and
+  matrix individually and as one combined matrix fixture; and
 - the public preset test suite covers custom selection, nested roots, unsafe
   root rejection, and runtime argument handling.
 

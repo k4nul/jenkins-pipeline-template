@@ -70,9 +70,9 @@ gate.
 
 `sh scripts/run-phase-validation.sh` is a local phase gate for public-safe Job
 DSL coverage. A passing result proves the `dev` dashboard lane, service catalog
-plan, Job DSL export, service validation, full preset matrix harness, public
-preset test suite, and committed runtime contract can run without a Jenkins
-controller.
+plan, Job DSL export, service validation, individual preset fixtures, the
+combined full preset matrix fixture, public preset test suite, and committed
+runtime contract can run without a Jenkins controller.
 
 It does not prove that a live controller is ready. Before applying generated DSL
 outside the local fixture, separately verify:

@@ -32,6 +32,10 @@
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
+`SEED_ENVIRONMENT_PRESETS` 가 비어 있을 때 `job-seed.Jenkinsfile` 이 사용하는
+전체 공개 프리셋 matrix 를 미리보거나 export 하려면 `-EnvironmentPreset` 을
+생략합니다.
+
 프리셋은 강제 규칙이라기보다 공통 기본값에 가깝습니다. 그래서 명시적으로 인자를 더 주면 프리셋 값을 계속 덮어쓸 수 있습니다.
 
 프리셋을 바꾼 뒤에는 Jenkins Job DSL 검증 하네스를 실행하세요.

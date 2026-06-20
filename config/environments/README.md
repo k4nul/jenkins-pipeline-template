@@ -42,6 +42,9 @@ Example:
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 ```
 
+Omit `-EnvironmentPreset` to preview or export the full public preset matrix
+that `job-seed.Jenkinsfile` uses when `SEED_ENVIRONMENT_PRESETS` is blank.
+
 Presets act as shared defaults, not hard locks. Explicit script arguments still
 override preset values.
 

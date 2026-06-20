@@ -63,8 +63,9 @@ pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
-pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
@@ -73,9 +74,10 @@ commands, dependency inventory, the aggregate harness, and the public preset
 test suite.
 `validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By
 default it validates every built-in environment preset, exports ignored DSL
-fixtures under `out/jenkins/validation`, checks generated `pipelineJob` entries,
-verifies SCM URL/branch/credentials values remain parameterized, exercises
-explicit SCM value escaping in generated Groovy, verifies destructive
+fixtures under `out/jenkins/validation`, exports one combined full public preset
+matrix fixture, checks generated `pipelineJob` entries, verifies SCM
+URL/branch/credentials values remain parameterized, exercises explicit SCM value
+escaping in generated Groovy, verifies destructive
 removed-job deletion requires explicit seed confirmation, validates
 validation-to-delivery-to-promotion dependencies, verifies Jenkinsfile-backed
 service job projection with a synthetic fixture, verifies public preset
@@ -116,7 +118,13 @@ The default preset matrix covers `dev`, `staging`, and `prod`.
 | `staging` | `shared-services` | `nginx-web`, `httpbin`, `adminer` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset staging` |
 | `prod` | `shared-services` | `nginx-web`, `whoami` | `postgresql`, `redis` | excluded | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset prod` |
 
-Run `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` for the full preset matrix when a change touches `config/environments/`, `config/profiles/`, `config/service-pipelines.psd1`, `scripts/show-jenkins-job-plan.ps1`, or `scripts/export-jenkins-job-dsl.ps1`. Keep `out/` generated files ignored and review generated Job DSL before applying it to a controller.
+Run `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` for the full
+preset matrix when a change touches `config/environments/`,
+`config/profiles/`, `config/service-pipelines.psd1`,
+`scripts/show-jenkins-job-plan.ps1`, or `scripts/export-jenkins-job-dsl.ps1`.
+The no-`EnvironmentPreset` plan/export path is the full matrix path. Keep
+`out/` generated files ignored and review generated Job DSL before applying it
+to a controller.
 
 ## Dependency Upgrade Lanes
 

@@ -30,8 +30,8 @@ service catalog metadata, and live controller/JCasC rollout, read
 | Environment presets | `config/environments/*.psd1` | Preset names, profile choices, application/data-service selections, values paths, version/output defaults | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
 | Profiles | `config/profiles/*.psd1` | Reusable bundle shapes consumed by presets and direct selections | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
 | Service pipeline catalog | `config/service-pipelines.psd1` | Public image service metadata and whether a service has its own Jenkinsfile-backed job | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
-| Job plan | `scripts/show-jenkins-job-plan.ps1` | Folder paths, generated bundle job plans, service job plans, and local command contracts | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` |
-| Job DSL export | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Jenkins folders, `pipelineJob` definitions, SCM placeholders, branch specs, credentials parameters, lightweight checkout, and seed apply guards | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy` |
+| Job plan | `scripts/show-jenkins-job-plan.ps1` | Folder paths, generated bundle job plans, service job plans, and local command contracts | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` for preview; `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json` for the full preset matrix |
+| Job DSL export | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Jenkins folders, `pipelineJob` definitions, SCM placeholders, branch specs, credentials parameters, lightweight checkout, and seed apply guards | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy` |
 | Pipeline runtime | `jenkins/*.Jenkinsfile` | Validation, delivery, promotion, archive, dry-run defaults, approval prompts, and public-safe live-action guards | `sh scripts/run-phase-validation.sh`, plus live Jenkins review before rollout |
 | Controller/JCasC scope | `k8s/jenkins-controller/README.md`, future JCasC files | Example controller deployment, plugin baseline, agents, credentials providers, and controller security | Controller or JCasC validation when those files exist |
 
@@ -51,11 +51,13 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 
 ### Job Plan Or Job DSL Export
 
-Preview the plan, export the `dev` DSL fixture, then run the aggregate harness:
+Preview the `dev` plan when you need a small readable example, export the full
+public preset matrix fixture, then run the aggregate harness:
 
 ```powershell
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
-pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 ```
 
@@ -132,9 +134,10 @@ sh scripts/run-phase-validation.sh
 ```
 
 That wrapper proves the focused `dev` job plan, service plan, Job DSL export,
-service pipeline validation, full public preset matrix harness, public preset
-test suite, committed runtime contract, and dependency inventory evidence from
-the public service catalog and controller manifests.
+service pipeline validation, individual public preset fixtures, a combined full
+public preset matrix fixture, the public preset test suite, committed runtime
+contract, and dependency inventory evidence from the public service catalog and
+controller manifests.
 
 The completed `pipeline-boundary-hardening` phase keeps the Job DSL, Pipeline
 DSL, service catalog, and future JCasC responsibilities explicit. Keep

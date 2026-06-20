@@ -45,7 +45,8 @@ validate its controller-free contract:
   state without requiring a `services/` directory;
 - Job DSL export can write a public-safe fixture while keeping repository URL,
   branch spec, and credentials ID values parameterized;
-- the aggregate harness validates the built-in public-safe preset matrix; and
+- the aggregate harness validates the built-in public-safe preset matrix both
+  as individual preset fixtures and as one combined matrix fixture; and
 - the public preset test suite covers custom selection and safety boundaries.
 
 This is not live-controller approval. It does not prove Jenkins plugins,

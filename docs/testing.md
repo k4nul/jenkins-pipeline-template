@@ -20,16 +20,16 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
 ```
 
 The harness validates every preset in `config/environments`, exports ignored
-fixtures under `out/jenkins/validation`, checks that generated SCM URL, branch
-spec, and credentials handling stay parameterized, verifies explicit seed SCM
-inputs are escaped in generated Groovy strings, verifies the generated
-validation-delivery-promotion dependency chain, verifies service-job projection
-with synthetic Jenkinsfile-backed service fixtures, verifies every public preset
-application is covered by service pipeline catalog metadata, verifies
-catalog-only public-image services do not produce Jenkins service jobs, verifies
-shared service-job de-duplication across multiple selected presets and nested
-service roots, verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service
-jobs, verifies
+fixtures under `out/jenkins/validation`, exports one combined full public preset
+matrix fixture, checks that generated SCM URL, branch spec, and credentials
+handling stay parameterized, verifies explicit seed SCM inputs are escaped in
+generated Groovy strings, verifies the generated validation-delivery-promotion
+dependency chain, verifies service-job projection with synthetic
+Jenkinsfile-backed service fixtures, verifies every public preset application is
+covered by service pipeline catalog metadata, verifies catalog-only public-image
+services do not produce Jenkins service jobs, verifies shared service-job
+de-duplication across multiple selected presets and nested service roots,
+verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
 `-SelectionName` by itself creates one custom selection with public-safe
 defaults instead of falling back to the full preset matrix, verifies
 empty or unsafe generated Job DSL roots fail closed before folder or job
@@ -70,12 +70,13 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
-The final aggregate command validates every built-in public-safe preset and
-writes generated fixtures under `out/jenkins/validation`. Generated output must
-stay under `out/`, which is ignored by Git. Job DSL fixture content is
-deterministic and the writer skips unchanged files, so repeated validation runs
-do not rewrite ignored artifacts just because the command was re-run. Do not
-commit generated Job DSL from a real controller or environment.
+The final aggregate command validates every built-in public-safe preset
+individually, then validates a single combined public preset matrix Job DSL
+fixture. Generated output must stay under `out/`, which is ignored by Git. Job
+DSL fixture content is deterministic and the writer skips unchanged files, so
+repeated validation runs do not rewrite ignored artifacts just because the
+command was re-run. Do not commit generated Job DSL from a real controller or
+environment.
 
 ## Template Maintenance Evidence
 
@@ -98,7 +99,8 @@ documentation package tracked by `docs/instructions/phase-gates.json`:
 - Job DSL export can create the seed fixture under `out/jenkins/` while keeping
   repository URL, branch spec, and credentials ID values parameterized.
 - Service pipeline validation, the aggregate Job DSL harness, and the public
-  preset test suite all pass without contacting a Jenkins controller.
+  preset test suite all pass without contacting a Jenkins controller; the
+  aggregate and test lanes both include a full public preset matrix fixture.
 - Jenkins runtime helpers for repository validation, delivery, promotion, and
   workstation checks exist and can produce or verify a public-safe contract
   bundle under `out/`.
@@ -137,6 +139,9 @@ gate to pass.
 - Job DSL export can produce folder and `pipelineJob` definitions.
 - The phase gate exercises both the focused `dev` transition commands and the
   all-preset public Job DSL harness.
+- The all-preset harness verifies that the generated full matrix keeps every
+  preset selection tied to service catalog metadata and only projects service
+  jobs for catalog entries that are explicitly Jenkinsfile-backed.
 - Generated bundle jobs preserve the validation, delivery, manual approval, and
   promotion dependency order.
 - Every public preset application is represented in the service pipeline

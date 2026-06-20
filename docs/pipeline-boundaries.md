@@ -153,7 +153,7 @@ when the change affects phase readiness or generated job topology.
 | Single preset data | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -EnvironmentPreset <name>` | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
 | Shared profile data | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` | `sh scripts/run-phase-validation.sh` when the profile changes generated topology or phase-readiness evidence |
 | Service catalog metadata | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
-| Job plan or Job DSL export | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` and `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy` | `sh scripts/run-phase-validation.sh` |
+| Job plan or Job DSL export | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` for a focused preview, plus `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy` for the full public preset matrix | `sh scripts/run-phase-validation.sh` |
 | Jenkinsfile flow or generated topology | `sh scripts/run-phase-validation.sh` | Live Jenkins rollout checks before enabling non-dry-run jobs |
 | Controller/JCasC package | Controller or JCasC validation for that package | Local template harness plus live-controller verification |
 

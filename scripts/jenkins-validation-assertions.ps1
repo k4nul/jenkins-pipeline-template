@@ -360,6 +360,130 @@ function Assert-PublicPresetServiceCatalogCoverage {
     }
 }
 
+function Assert-MultiPresetPlanAndDsl {
+    param(
+        [object]$Plan,
+        [string[]]$ExpectedPresets,
+        [string]$DslPath
+    )
+
+    Assert-Equal -Actual ([int]$Plan.SelectionCount) -Expected $ExpectedPresets.Count -Message "Multi-preset plan should include every requested preset selection"
+    Assert-Equal -Actual ([int]$Plan.ServiceJobCount) -Expected 0 -Message "Current public-safe presets should not create shared service jobs without service Jenkinsfiles"
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated multi-preset DSL should exist: {0}" -f $DslPath)
+
+    $dsl = Get-Content -Path $DslPath -Raw
+    Assert-TextContains -Text $dsl -Expected ("// Selection count: {0}" -f $ExpectedPresets.Count) -Message "Multi-preset DSL should record the combined selection count"
+    Assert-TextContains -Text $dsl -Expected "// Service job count: 0" -Message "Multi-preset DSL should record the absence of generated service jobs"
+    Assert-TextContains -Text $dsl -Expected "String repoUrl = 'REPLACE_WITH_REPOSITORY_URL'" -Message "Multi-preset DSL should keep the SCM URL parameterized"
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = 'REPLACE_WITH_BRANCH_SPEC'" -Message "Multi-preset DSL should keep the branch spec parameterized"
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = ''" -Message "Multi-preset DSL should keep credentials unset by default"
+    Assert-TextNotMatch -Text $dsl -Pattern "https?://|git@" -Message "Multi-preset DSL should not include concrete SCM URLs"
+
+    foreach ($preset in @($ExpectedPresets)) {
+        $selections = @($Plan.Selections | Where-Object { [string]$_.Name -eq $preset })
+        Assert-Equal -Actual $selections.Count -Expected 1 -Message ("Multi-preset plan should include selection {0} once" -f $preset)
+
+        $selection = $selections[0]
+        Assert-Condition -Condition ([bool]$selection.UsesPreset) -Message ("Selection {0} should remain preset-backed" -f $preset)
+        Assert-Equal -Actual ([string]$selection.BundleFolderPath) -Expected ("platform/{0}" -f $preset) -Message ("Selection {0} should keep its own bundle folder" -f $preset)
+        Assert-TextContains -Text $dsl -Expected ("folder('platform/{0}')" -f $preset) -Message ("Multi-preset DSL should include folder for {0}" -f $preset)
+
+        foreach ($job in @($selection.PipelineJobs)) {
+            Assert-TextContains -Text $dsl -Expected ("pipelineJob('{0}')" -f $job.Path) -Message ("Multi-preset DSL should include job {0}" -f $job.Path)
+            Assert-TextContains -Text $dsl -Expected ([string]$job.Jenkinsfile).Replace("\", "/") -Message ("Multi-preset DSL should include Jenkinsfile {0}" -f $job.Jenkinsfile)
+        }
+    }
+}
+
+function Assert-PublicPresetMatrixServiceCoverage {
+    param(
+        [object]$Plan,
+        [string[]]$ExpectedPresets,
+        [hashtable]$ServiceIndex
+    )
+
+    $expectedPresetNames = @(Get-NormalizedList -Values $ExpectedPresets)
+    Assert-Equal `
+        -Actual ([int]$Plan.SelectionCount) `
+        -Expected $expectedPresetNames.Count `
+        -Message "Full public preset matrix should include every expected selection"
+
+    $selectionByName = @{}
+    foreach ($selection in @($Plan.Selections)) {
+        $selectionByName[[string]$selection.Name] = $selection
+    }
+
+    $serviceUsage = @{}
+    foreach ($preset in $expectedPresetNames) {
+        Assert-Condition `
+            -Condition $selectionByName.ContainsKey($preset) `
+            -Message ("Full public preset matrix should include selection {0}." -f $preset)
+
+        $selection = $selectionByName[$preset]
+        Assert-Condition `
+            -Condition ([bool]$selection.UsesPreset) `
+            -Message ("Full public preset matrix selection {0} should remain preset-backed." -f $preset)
+
+        Assert-PublicPresetServiceCatalogCoverage `
+            -Selection $selection `
+            -Plan $Plan `
+            -Preset $preset `
+            -ServiceIndex $ServiceIndex
+
+        foreach ($serviceDirectory in @(Get-NormalizedList -Values @($selection.ServiceDirectories))) {
+            if (-not $serviceUsage.ContainsKey($serviceDirectory)) {
+                $serviceUsage[$serviceDirectory] = [System.Collections.Generic.List[string]]::new()
+            }
+
+            if (-not $serviceUsage[$serviceDirectory].Contains($preset)) {
+                $serviceUsage[$serviceDirectory].Add($preset) | Out-Null
+            }
+        }
+    }
+
+    $expectedServiceJobNames = @()
+    foreach ($serviceName in @($serviceUsage.Keys | Sort-Object)) {
+        Assert-Condition `
+            -Condition $ServiceIndex.ContainsKey([string]$serviceName) `
+            -Message ("Full public preset matrix selected service {0} should have catalog metadata." -f $serviceName)
+
+        $service = $ServiceIndex[[string]$serviceName]
+        Assert-Equal `
+            -Actual ([string]$service.Category) `
+            -Expected "public-image" `
+            -Message ("Full public preset matrix service {0} should remain public-image metadata." -f $serviceName)
+
+        $serviceJobs = @($Plan.ServiceJobs | Where-Object { [string]$_.Name -eq [string]$serviceName })
+        if ([bool]$service.HasJenkinsfile) {
+            $expectedServiceJobNames += [string]$serviceName
+            Assert-Equal `
+                -Actual $serviceJobs.Count `
+                -Expected 1 `
+                -Message ("Full public preset matrix Jenkinsfile-backed service {0} should project one shared service job." -f $serviceName)
+
+            $serviceJob = $serviceJobs[0]
+            foreach ($usedBySelection in @($serviceUsage[$serviceName].ToArray() | Sort-Object -Unique)) {
+                Assert-ContainsItem `
+                    -Values @($serviceJob.UsedBySelections) `
+                    -Expected ([string]$usedBySelection) `
+                    -Message ("Full public preset matrix service job {0} should record usage by {1}." -f $serviceName, $usedBySelection)
+            }
+        }
+        else {
+            Assert-Equal `
+                -Actual $serviceJobs.Count `
+                -Expected 0 `
+                -Message ("Full public preset matrix catalog-only service {0} should not project a Jenkins service job." -f $serviceName)
+        }
+    }
+
+    $expectedServiceJobNames = @($expectedServiceJobNames | Sort-Object -Unique)
+    Assert-Equal `
+        -Actual ([int]$Plan.ServiceJobCount) `
+        -Expected $expectedServiceJobNames.Count `
+        -Message "Full public preset matrix service job count should match Jenkinsfile-backed selected services"
+}
+
 function Assert-JenkinsPresetJobPlan {
     param(
         [object]$Plan,

@@ -30,6 +30,8 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 .\scripts\show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format markdown
 ```
 
+Omit `-EnvironmentPreset` when you want to preview the full public preset matrix.
+
 2. Run the controller-free Job DSL regression harness:
 
 ```powershell
@@ -39,7 +41,7 @@ Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail 
 3. Generate Job DSL:
 
 ```powershell
-.\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
+.\scripts\export-jenkins-job-dsl.ps1 -OutputPath .\out\jenkins\public-preset-matrix-seed-job-dsl.groovy
 ```
 
 4. Review the generated DSL and SCM settings.
@@ -68,7 +70,10 @@ Pipeline DSL, service catalog, and controller/JCasC ownership, see
 - Non-dry-run delivery and promotion deployments require Jenkins approval
   prompts and downstream live rollout implementation for cluster deployment,
   Helm repository refresh, and bootstrap status checks.
-- `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL, SCM placeholder safety, service catalog metadata, committed runtime helper scripts, and public-safe values defaults without contacting a Jenkins controller.
+- `validate-jenkins-job-dsl.ps1` validates job planning, generated Job DSL,
+  full public preset matrix coverage, SCM placeholder safety, service catalog
+  metadata, committed runtime helper scripts, and public-safe values defaults
+  without contacting a Jenkins controller.
 - Generated local command fields describe the Pipeline DSL entrypoint contract; the checked-in runtime helpers can validate inputs and write or verify a controller-free contract bundle under `out/`.
 - Live validation, delivery, and promotion still require private values, credentials, registry access, cluster context, and any downstream non-dry-run deployment implementation outside this public template.
 
@@ -117,6 +122,10 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 - verifies the seed job passes typed exporter boolean arguments such as lightweight checkout
 - validates service catalog metadata and runs the service pipeline validator
 - verifies committed runtime helper scripts and public-safe values defaults
+
+The harness also exports one combined full-matrix Job DSL fixture and verifies
+that every selected public preset application remains covered by service catalog
+metadata while catalog-only public-image services keep `ServiceJobCount = 0`.
 
 This is a controller-free regression fixture. It does not prove a live Jenkins
 controller has the Job DSL plugin installed or that private cluster deployment
