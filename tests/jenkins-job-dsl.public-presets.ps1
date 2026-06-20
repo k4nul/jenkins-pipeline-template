@@ -523,6 +523,31 @@ Assert-ScmVariantDsl `
     -ExpectedBranchSpec "*/feature/controller-boundary" `
     -ExpectedScmCredentialsId "jenkins-controller-scm"
 
+$gitSshScmDslPath = Join-Path $outputDirectory ("{0}-git-ssh-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
+& $jobDslScript `
+    -RepoRoot $root `
+    -EnvironmentPreset $explicitScmPreset `
+    -RepoUrl "git+ssh://git@example.invalid/org/repo.git" `
+    -BranchSpec "refs/heads/main" `
+    -ScmCredentialsId "git-ssh-scm" `
+    -OutputPath $gitSshScmDslPath 6>$null | Out-Null
+Assert-ScmVariantDsl `
+    -DslPath $gitSshScmDslPath `
+    -ExpectedRepoUrl "git+ssh://git@example.invalid/org/repo.git" `
+    -ExpectedBranchSpec "refs/heads/main" `
+    -ExpectedScmCredentialsId "git-ssh-scm"
+
+Invoke-ScriptExpectingFailure `
+    -ScriptPath $jobDslScript `
+    -Arguments @{
+        RepoRoot = $root
+        EnvironmentPreset = $explicitScmPreset
+        RepoUrl = "https://example.invalid/org/repo with space.git"
+        OutputPath = "out/jenkins/tests/public-presets/unsafe-scm-url-whitespace.groovy"
+    } `
+    -ExpectedMessage "RepoUrl must not contain whitespace." `
+    -Message "Job DSL export should reject repository URLs with whitespace"
+
 $multiPresetNames = @("dev", "staging")
 $multiPresetPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
@@ -809,6 +834,8 @@ Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslP
 Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
 Write-Output ("Validated public-safe HTTPS SCM fixture: {0}" -f $httpsScmDslPath)
 Write-Output ("Validated public-safe SSH SCM fixture: {0}" -f $sshScmDslPath)
+Write-Output ("Validated public-safe git+ssh SCM fixture: {0}" -f $gitSshScmDslPath)
+Write-Output "Validated whitespace-bearing SCM URLs fail closed before Job DSL generation."
 Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated full public preset matrix fixture: {0}" -f $publicPresetMatrixDslPath)
 Write-Output "Validated full public preset service catalog coverage."
