@@ -29,10 +29,11 @@ The controller-free validation lane depends on one direction of data flow:
 4. `jenkins/*.Jenkinsfile` execute the checked-in validation, delivery,
    promotion, and seed entrypoints; they should keep runtime argument handling
    separate from plan-model decisions.
-5. `scripts/jenkins-validation-assertions.ps1` and
+5. `scripts/jenkins-validation-assertions.ps1`,
+   `scripts/jenkins-validation-fixtures.ps1`, and
    `tests/jenkins-job-dsl.public-presets.ps1` verify the public contract across
-   the plan model, generated DSL, service catalog, and Jenkinsfile runtime
-   guardrails.
+   the plan model, generated DSL, service catalog, synthetic service-job
+   fixtures, and Jenkinsfile runtime guardrails.
 
 Keep helper ownership narrow. Put helpers in `scripts/jenkins-job-common.ps1`
 only when multiple entrypoints share the same rule, such as job path
@@ -40,6 +41,9 @@ normalization, repository output safety, service catalog loading, or generated
 folder path derivation. Keep command-rendering helpers, Groovy formatting
 helpers, and fixture-specific assertions close to the entrypoint that owns the
 format. This avoids making the shared helper file a second policy layer.
+Synthetic fixture repository builders belong in
+`scripts/jenkins-validation-fixtures.ps1`, separate from assertion functions, so
+test data construction does not become another assertion policy surface.
 
 ## Refactor Guardrails
 
