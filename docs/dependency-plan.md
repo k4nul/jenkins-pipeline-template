@@ -38,6 +38,38 @@ controller-free inventory of the current catalog and controller image references
 but treat each upgrade candidate as requiring external release-note review plus
 the local validation commands below.
 
+## Current Validation Snapshot
+
+On 2026-06-20, the repository-local dependency and Jenkins validation lane
+passed with PowerShell 7.6.2. No dependency version was changed because the
+committed evidence supports planning and controller-free validation, not a safe
+release-note-reviewed image refresh.
+
+Validated commands:
+
+```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+```
+
+The aggregate wrapper also passed:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+Inventory evidence from the same run:
+
+- package manager manifests: `0`
+- public service images: `4`
+- controller image references: `1`
+- floating controller image references: `jenkins/jenkins:lts`
+- dependency risk posture: manifest-free repository, tag-based public service
+  images, and a floating public-safe Jenkins controller example image
+
 ## Dependency Inventory
 
 | Area | Owning files | Repository-local dependency data | Validation lane |
@@ -234,17 +266,26 @@ sh scripts/run-phase-validation.sh
 
 ## Changes Made And Validation
 
-This document is the dependency-plan hygiene package. It makes no dependency
-version changes and does not add runtime dependencies.
+This run updated the dependency-plan hygiene record with a dated validation
+snapshot. It makes no dependency version changes and does not add runtime
+dependencies.
 
-Validate documentation-only changes with:
+Validation completed:
+
+```powershell
+pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
+pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
+pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
+pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+```
 
 ```sh
+sh scripts/run-phase-validation.sh
 git diff --check
 ```
 
-This run adds the repository-local dependency inventory command and wires it into
-the public preset test lane. Validate dependency planning changes with:
+For future dependency planning changes, start with:
 
 ```powershell
 pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
