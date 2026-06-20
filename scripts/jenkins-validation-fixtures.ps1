@@ -7,7 +7,7 @@ function New-JenkinsServiceJobFixtureRoot {
         [string]$Name = "service-job-fixture-repo"
     )
 
-    $fixtureRoot = Join-Path $OutputDirectory $Name
+    $fixtureRoot = Join-Path -Path $OutputDirectory -ChildPath $Name
     if (Test-Path -Path $fixtureRoot) {
         Remove-Item -Path $fixtureRoot -Recurse -Force
     }
@@ -20,7 +20,7 @@ function New-JenkinsServiceJobFixtureRoot {
         "services/nginx-web",
         "services/nginx-web/site"
     )) {
-        New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $relativeDirectory) -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path -Path $fixtureRoot -ChildPath $relativeDirectory) -Force | Out-Null
     }
 
     foreach ($scriptName in @(
@@ -31,11 +31,11 @@ function New-JenkinsServiceJobFixtureRoot {
         "show-jenkins-job-plan.ps1",
         "validate-service-pipelines.ps1"
     )) {
-        Copy-Item -Path (Join-Path $Root "scripts/$scriptName") -Destination (Join-Path $fixtureRoot "scripts/$scriptName")
+        Copy-Item -Path (Join-Path -Path $Root -ChildPath "scripts/$scriptName") -Destination (Join-Path -Path $fixtureRoot -ChildPath "scripts/$scriptName")
     }
 
-    Copy-Item -Path (Join-Path $Root "config/profiles/*.psd1") -Destination (Join-Path $fixtureRoot "config/profiles")
-    Set-Content -Path (Join-Path $fixtureRoot "config/fixture-values.env.example") -Value "FIXTURE_VALUE=true" -Encoding utf8NoBOM
+    Copy-Item -Path (Join-Path -Path $Root -ChildPath "config/profiles/*.psd1") -Destination (Join-Path -Path $fixtureRoot -ChildPath "config/profiles")
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "config/fixture-values.env.example") -Value "FIXTURE_VALUE=true" -Encoding utf8NoBOM
 
     $catalog = @'
 @{
@@ -71,7 +71,7 @@ function New-JenkinsServiceJobFixtureRoot {
     )
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "config/service-pipelines.psd1") -Value $catalog -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "config/service-pipelines.psd1") -Value $catalog -Encoding utf8NoBOM
 
     $fixturePresetAlpha = @'
 @{
@@ -89,7 +89,7 @@ function New-JenkinsServiceJobFixtureRoot {
     PromotionExtractPath = "out\promotion\fixture-alpha"
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "config/environments/fixture-alpha.psd1") -Value $fixturePresetAlpha -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "config/environments/fixture-alpha.psd1") -Value $fixturePresetAlpha -Encoding utf8NoBOM
 
     $fixturePresetBeta = @'
 @{
@@ -107,11 +107,11 @@ function New-JenkinsServiceJobFixtureRoot {
     PromotionExtractPath = "out\promotion\fixture-beta"
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "config/environments/fixture-beta.psd1") -Value $fixturePresetBeta -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "config/environments/fixture-beta.psd1") -Value $fixturePresetBeta -Encoding utf8NoBOM
 
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/README.md") -Value "# NGINX fixture service" -Encoding utf8NoBOM
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/docker-compose.yaml") -Value "services: {}" -Encoding utf8NoBOM
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/site/index.html") -Value "<h1>NGINX fixture service</h1>" -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "services/nginx-web/README.md") -Value "# NGINX fixture service" -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "services/nginx-web/docker-compose.yaml") -Value "services: {}" -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "services/nginx-web/site/index.html") -Value "<h1>NGINX fixture service</h1>" -Encoding utf8NoBOM
 
     $jenkinsfile = @'
 pipeline {
@@ -134,7 +134,7 @@ pipeline {
     }
 }
 '@
-    Set-Content -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Value $jenkinsfile -Encoding utf8NoBOM
+    Set-Content -Path (Join-Path -Path $fixtureRoot -ChildPath "services/nginx-web/Jenkinsfile") -Value $jenkinsfile -Encoding utf8NoBOM
 
     return $fixtureRoot
 }
@@ -147,18 +147,18 @@ function New-JenkinsServiceJobFixtureContext {
     )
 
     $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory
-    $serviceJobFixtureDslOutputPath = Join-Path $DslOutputDirectory "service-job-fixture-seed-job-dsl.groovy"
-    $sharedServiceJobFixtureDslOutputPath = Join-Path $DslOutputDirectory "shared-service-job-fixture-seed-job-dsl.groovy"
+    $serviceJobFixtureDslOutputPath = Join-Path -Path $DslOutputDirectory -ChildPath "service-job-fixture-seed-job-dsl.groovy"
+    $sharedServiceJobFixtureDslOutputPath = Join-Path -Path $DslOutputDirectory -ChildPath "shared-service-job-fixture-seed-job-dsl.groovy"
 
     return [PSCustomObject]@{
         Root = $fixtureRoot
-        JobPlanScript = Join-Path $fixtureRoot "scripts/show-jenkins-job-plan.ps1"
-        JobDslScript = Join-Path $fixtureRoot "scripts/export-jenkins-job-dsl.ps1"
-        ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+        JobPlanScript = Join-Path -Path $fixtureRoot -ChildPath "scripts/show-jenkins-job-plan.ps1"
+        JobDslScript = Join-Path -Path $fixtureRoot -ChildPath "scripts/export-jenkins-job-dsl.ps1"
+        ServiceValidationScript = Join-Path -Path $fixtureRoot -ChildPath "scripts/validate-service-pipelines.ps1"
         ServiceJobDslOutputPath = $serviceJobFixtureDslOutputPath
-        ServiceJobDslPath = Join-Path $fixtureRoot $serviceJobFixtureDslOutputPath
+        ServiceJobDslPath = Join-Path -Path $fixtureRoot -ChildPath $serviceJobFixtureDslOutputPath
         SharedServiceJobRoot = "team/services/images"
         SharedServiceJobDslOutputPath = $sharedServiceJobFixtureDslOutputPath
-        SharedServiceJobDslPath = Join-Path $fixtureRoot $sharedServiceJobFixtureDslOutputPath
+        SharedServiceJobDslPath = Join-Path -Path $fixtureRoot -ChildPath $sharedServiceJobFixtureDslOutputPath
     }
 }
