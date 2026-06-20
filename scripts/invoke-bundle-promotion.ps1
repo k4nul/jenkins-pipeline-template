@@ -47,6 +47,7 @@ if ((Test-Path -Path $resolvedExtractPath) -and -not $CleanExtractPath) {
 }
 
 New-Item -ItemType Directory -Path $resolvedExtractPath -Force | Out-Null
+Assert-ZipArchiveEntrySafety -ArchivePath $resolvedArchivePath -DestinationPath $resolvedExtractPath
 Expand-Archive -Path $resolvedArchivePath -DestinationPath $resolvedExtractPath -Force
 
 $manifestPath = Join-Path $resolvedExtractPath "bundle-manifest.json"

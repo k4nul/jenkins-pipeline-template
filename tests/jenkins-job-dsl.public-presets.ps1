@@ -491,6 +491,7 @@ $root = $context.Root
 $jobPlanScript = $context.Paths.JobPlanScript
 $jobDslScript = $context.Paths.JobDslScript
 $dependencyInventoryScript = $context.Paths.DependencyInventoryScript
+$bundlePromotionScript = $context.Paths.BundlePromotionScript
 $seedJobPath = $context.Paths.SeedJobPath
 $deliveryJobPath = $context.Paths.DeliveryJobPath
 $promotionJobPath = $context.Paths.PromotionJobPath
@@ -498,6 +499,8 @@ $outputDirectory = $context.OutputDirectory
 $presets = @($context.Presets)
 $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
+
+Assert-RepoOutputPathCaseBoundary -Root $root
 
 foreach ($preset in $presets) {
     $plan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
@@ -819,6 +822,10 @@ Assert-JenkinsfileDeploymentApprovalSafety `
     -DryRunParameterName "PROMOTION_DEPLOY_DRY_RUN" `
     -RequireSecretsParameterName "PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY" `
     -RequireStatusParameterName "PROMOTION_REQUIRE_BOOTSTRAP_STATUS"
+Assert-PromotionArchiveEntrySafety `
+    -PromotionScript $bundlePromotionScript `
+    -Root $root `
+    -OutputDirectory $outputDirectory
 
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
@@ -841,5 +848,7 @@ Write-Output "Validated public preset application service catalog coverage."
 Write-Output "Validated dependency inventory risk indicators."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
+Write-Output "Validated repository output paths reject case-variant out roots."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
+Write-Output "Validated promotion archive entries fail closed before extraction."
 Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."

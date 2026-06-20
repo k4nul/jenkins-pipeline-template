@@ -23,6 +23,7 @@ $root = $context.Root
 $jobPlanScript = $context.Paths.JobPlanScript
 $jobDslScript = $context.Paths.JobDslScript
 $serviceValidationScript = $context.Paths.ServiceValidationScript
+$bundlePromotionScript = $context.Paths.BundlePromotionScript
 $seedJobPath = $context.Paths.SeedJobPath
 $deliveryJobPath = $context.Paths.DeliveryJobPath
 $promotionJobPath = $context.Paths.PromotionJobPath
@@ -30,6 +31,8 @@ $presets = @($context.Presets)
 $resolvedOutputDirectory = $context.OutputDirectory
 $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
+
+Assert-RepoOutputPathCaseBoundary -Root $root
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -94,6 +97,10 @@ Assert-JenkinsfileDeploymentApprovalSafety `
     -DryRunParameterName "PROMOTION_DEPLOY_DRY_RUN" `
     -RequireSecretsParameterName "PROMOTION_REQUIRE_BOOTSTRAP_SECRETS_READY" `
     -RequireStatusParameterName "PROMOTION_REQUIRE_BOOTSTRAP_STATUS"
+Assert-PromotionArchiveEntrySafety `
+    -PromotionScript $bundlePromotionScript `
+    -Root $root `
+    -OutputDirectory $resolvedOutputDirectory
 
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
@@ -162,6 +169,8 @@ $summary = [PSCustomObject]@{
     ServiceJobFixture = $serviceJobFixtureDslPath
     SharedServiceJobFixture = $sharedServiceJobFixtureDslPath
     SeedJobSafety = "passed"
+    OutputPathCaseBoundary = "passed"
+    PromotionArchiveEntrySafety = "passed"
     RuntimeContract = "passed"
     Results = @($results.ToArray())
 }
@@ -178,7 +187,9 @@ else {
     Write-Output "Validated public preset application service catalog coverage."
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
+    Write-Output "Validated repository output paths reject case-variant out roots."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
+    Write-Output "Validated promotion archive entries fail closed before extraction."
     Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
     Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $sharedServiceJobFixtureDslPath)
     Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."

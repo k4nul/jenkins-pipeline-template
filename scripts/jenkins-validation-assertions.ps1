@@ -144,6 +144,26 @@ function Assert-RepoRelativeFileExists {
     return $resolvedPath
 }
 
+function Assert-RepoOutputPathCaseBoundary {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $failed = $false
+    $message = ""
+    try {
+        Resolve-RepoOutputPath -RepoRoot $Root -Path "OUT/jenkins/case-boundary-probe.txt" | Out-Null
+    }
+    catch {
+        $failed = $true
+        $message = [string]$_
+    }
+
+    Assert-Condition -Condition $failed -Message "Repo output path validation should reject case-variant output roots."
+    Assert-TextContains -Text $message -Expected "OutputPath must resolve under the repository out directory" -Message "Case-variant output root rejection should explain the repository out boundary."
+}
+
 function Assert-JenkinsRuntimeContract {
     param(
         [Parameter(Mandatory = $true)]
@@ -1033,4 +1053,102 @@ function Assert-JenkinsfileDeploymentApprovalSafety {
     Assert-TextContains -Text $jenkinsfile -Expected "input message:" -Message ("{0} should require Jenkins input approval for non-dry-run deployment" -f $JenkinsfilePath)
     Assert-TextContains -Text $jenkinsfile -Expected ("{0} must be true for non-dry-run deployments." -f $RequireSecretsParameterName) -Message ("{0} should require bootstrap secret readiness before non-dry-run deployment" -f $JenkinsfilePath)
     Assert-TextContains -Text $jenkinsfile -Expected ("{0} must be true for non-dry-run deployments." -f $RequireStatusParameterName) -Message ("{0} should require bootstrap status validation before non-dry-run deployment" -f $JenkinsfilePath)
+}
+
+function New-ZipArchiveFixture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$EntryNames
+    )
+
+    $archiveDirectory = Split-Path -Path $ArchivePath -Parent
+    if ($archiveDirectory) {
+        New-Item -ItemType Directory -Path $archiveDirectory -Force | Out-Null
+    }
+    if (Test-Path -Path $ArchivePath -PathType Leaf) {
+        Remove-Item -Path $ArchivePath -Force
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::Open($ArchivePath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($entryName in @($EntryNames)) {
+            $entry = $archive.CreateEntry($entryName)
+            if (-not $entryName.EndsWith("/")) {
+                $writer = [System.IO.StreamWriter]::new($entry.Open())
+                try {
+                    $writer.Write("fixture")
+                }
+                finally {
+                    $writer.Dispose()
+                }
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+function Assert-PromotionArchiveEntrySafety {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PromotionScript,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    $cases = @(
+        @{
+            EntryName = "../escaped.txt"
+            ExpectedMessage = "parent-directory segments"
+            Message = "Promotion should reject archive entries that traverse out of the extraction directory."
+        },
+        @{
+            EntryName = "/absolute.txt"
+            ExpectedMessage = "must be relative"
+            Message = "Promotion should reject absolute archive entries."
+        },
+        @{
+            EntryName = "nested/unsafe:name.txt"
+            ExpectedMessage = "unsupported characters"
+            Message = "Promotion should reject archive entries with platform-sensitive characters."
+        }
+    )
+
+    for ($index = 0; $index -lt $cases.Count; $index++) {
+        $case = $cases[$index]
+        $archivePath = Join-Path $OutputDirectory ("unsafe-promotion-archive-{0}.zip" -f $index)
+        $extractPath = Join-Path $OutputDirectory ("unsafe-promotion-extract-{0}" -f $index)
+        $escapedPath = Join-Path $OutputDirectory "escaped.txt"
+
+        if (Test-Path -Path $extractPath) {
+            Remove-Item -Path $extractPath -Recurse -Force
+        }
+        if (Test-Path -Path $escapedPath -PathType Leaf) {
+            Remove-Item -Path $escapedPath -Force
+        }
+
+        New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames @("bundle-manifest.json", [string]$case.EntryName)
+
+        $failed = $false
+        $message = ""
+        try {
+            & $PromotionScript -RepoRoot $Root -ArchivePath $archivePath -ExtractPath $extractPath 6>$null | Out-Null
+        }
+        catch {
+            $failed = $true
+            $message = [string]$_
+        }
+
+        Assert-Condition -Condition $failed -Message ([string]$case.Message)
+        Assert-TextContains -Text $message -Expected ([string]$case.ExpectedMessage) -Message ([string]$case.Message)
+        Assert-Condition -Condition (-not (Test-Path -Path $escapedPath -PathType Leaf)) -Message "Promotion archive validation must not write traversal entries before failing."
+    }
 }

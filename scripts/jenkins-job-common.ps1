@@ -162,11 +162,62 @@ function Resolve-RepoOutputPath {
     }
 
     $outputRootPrefix = $outputRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-    if ($resolvedPath -ne $outputRoot -and -not $resolvedPath.StartsWith($outputRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if ($resolvedPath -ne $outputRoot -and -not $resolvedPath.StartsWith($outputRootPrefix, [System.StringComparison]::Ordinal)) {
         throw ("OutputPath must resolve under the repository out directory: {0}" -f $Path)
     }
 
     return $resolvedPath
+}
+
+function Assert-ZipArchiveEntrySafety {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath
+    )
+
+    $resolvedDestinationPath = [System.IO.Path]::GetFullPath($DestinationPath)
+    $destinationPathPrefix = $resolvedDestinationPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $archive = $null
+
+    try {
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        foreach ($entry in @($archive.Entries)) {
+            $entryName = [string]$entry.FullName
+            $normalizedEntryName = $entryName.Replace("\", "/").TrimEnd("/")
+
+            if ([string]::IsNullOrWhiteSpace($normalizedEntryName)) {
+                throw ("Archive entry path must not be empty: {0}" -f $ArchivePath)
+            }
+
+            if ($normalizedEntryName -match "[\x00-\x1F\x7F*?\[\]{}:]") {
+                throw ("Archive entry path contains unsupported characters: {0}" -f $entryName)
+            }
+
+            if ($normalizedEntryName.StartsWith("/") -or $normalizedEntryName -match "^[A-Za-z]:/") {
+                throw ("Archive entry path must be relative: {0}" -f $entryName)
+            }
+
+            $segments = @($normalizedEntryName -split "/")
+            foreach ($segment in $segments) {
+                if ([string]::IsNullOrWhiteSpace($segment) -or $segment -in @(".", "..")) {
+                    throw ("Archive entry path must not contain empty, current-directory, or parent-directory segments: {0}" -f $entryName)
+                }
+            }
+
+            $resolvedEntryPath = [System.IO.Path]::GetFullPath((Join-Path $resolvedDestinationPath $normalizedEntryName))
+            if ($resolvedEntryPath -ne $resolvedDestinationPath -and -not $resolvedEntryPath.StartsWith($destinationPathPrefix, [System.StringComparison]::Ordinal)) {
+                throw ("Archive entry path must extract inside the promotion directory: {0}" -f $entryName)
+            }
+        }
+    }
+    finally {
+        if ($null -ne $archive) {
+            $archive.Dispose()
+        }
+    }
 }
 
 function Write-RepoDocument {
