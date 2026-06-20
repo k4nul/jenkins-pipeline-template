@@ -259,9 +259,8 @@ sh scripts/run-phase-validation.sh
 
 ## Suggested Next Automated Task
 
-Continue `pipeline-boundary-hardening` only when a change improves the
-Job DSL, Pipeline DSL, service catalog, or controller/JCasC responsibility
-boundaries. The current phase validation command is still the repository-owned
-transition gate, and a passing `sh scripts/run-phase-validation.sh` result means
-the dependency-plan lane has no repository-local blocker to a future
-`template-maintenance` handoff.
+Continue `template-maintenance` dependency work only when a change preserves the
+Job DSL, Pipeline DSL, service catalog, and controller/JCasC responsibility
+boundaries. The current validation command is still the repository-owned
+`sh scripts/run-phase-validation.sh` wrapper for changes that affect dependency
+inventory evidence or phase-readiness wording.

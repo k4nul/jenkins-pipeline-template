@@ -1,14 +1,17 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "project": "devops/jenkins-pipeline-template",
-  "current_phase": "pipeline-boundary-hardening",
-  "next_phase": "template-maintenance",
+  "current_phase": "template-maintenance",
+  "next_phase": "",
   "transition": {
-    "intent": "Move to template-maintenance only after the public-safe Job DSL gate remains green and the Job DSL, Pipeline DSL, service catalog, and controller/JCasC boundaries are documented.",
-    "mode": "machine-gated-boundary-hardening",
+    "intent": "Keep the public Jenkins pipeline template in maintenance after the public-safe Job DSL gate remains green and the Job DSL, Pipeline DSL, service catalog, and controller/JCasC boundaries are documented.",
+    "mode": "template-maintenance-no-pending-transition",
     "validation_command": "sh scripts/run-phase-validation.sh",
-    "transition_validation_command": "sh scripts/run-phase-validation.sh",
-    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
+    "transition_validation_command": "",
+    "decision_rule": "Select a new next_phase and transition_validation_command before routing another phase-transition.",
+    "phase_update_files": [
+      "docs/instructions/phase-gates.json"
+    ]
   },
   "phase_model": [
     {

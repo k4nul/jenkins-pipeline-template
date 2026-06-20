@@ -31,8 +31,8 @@ generated DSL from a live controller or a real environment.
 
 ## Latest Handoff Evidence
 
-The `job-dsl-coverage` transition gate passed in this worktree on
-2026-06-19 with:
+The `job-dsl-coverage` transition gate most recently passed in this worktree on
+2026-06-20 with:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -55,24 +55,24 @@ The passing run produced this controller-free evidence:
   `dev`, `staging`, `prod`, custom selections, nested roots, unsafe root
   rejection, SCM escaping, service-job fixtures, and runtime argument handling.
 
-## Current Transition State
+This evidence was refreshed after the phase controller reported the transition
+command as eligible. The phase metadata now records `template-maintenance` as
+the active phase, so this handoff remains as the audit trail for the completed
+boundary-hardening transition.
 
-The current machine-managed phase is `pipeline-boundary-hardening`, and the
-next phase is `template-maintenance`. The phase manifest treats the transition
-as eligible only when the repository-owned wrapper passes and the boundary,
-pipeline unit strategy, preset matrix, and handoff documentation gates remain
-recorded.
+## Current Maintenance State
 
-When automation selects `docs-update` while the transition is eligible, keep the
-work documentation-only. A docs-update run may refresh this handoff, testing
-guidance, maintenance guidance, or troubleshooting language, but it should not
-edit `docs/instructions/phase-gates.json` or other phase metadata. Phase
-metadata belongs to a separate `phase-transition` run so the phase file update
-is reviewed against the same validation command that made the transition
-eligible.
+The current machine-managed phase is `template-maintenance`, and there is no
+pending `next_phase`. The phase manifest keeps the repository-owned wrapper as
+the normal validation command for changes that affect generated job topology,
+Jenkinsfile runtime contracts, service catalog behavior, dependency inventory
+evidence, or phase-readiness wording.
 
-Before a phase-transition run moves the project to `template-maintenance`, the
-reader-facing handoff should show three things:
+Template-maintenance work should preserve the boundary-hardening contract rather
+than broadening the reusable template by default. Select a new phase in
+`docs/instructions/phase-gates.json` before adding new Jenkins platform scope.
+
+The completed transition handoff should continue to show three things:
 
 - the exact wrapper command that passed;
 - the controller-free evidence produced by the wrapper; and
@@ -98,9 +98,9 @@ confirm these public-safe expectations:
 - the public preset test suite covers custom selection, nested roots, unsafe
   root rejection, and runtime argument handling.
 
-If any item fails, remain in `pipeline-boundary-hardening` and fix the failing
-controller-free contract before updating phase metadata to
-`template-maintenance`.
+If any item fails in future maintenance work, fix the failing controller-free
+contract before changing generated job topology, service catalog behavior, or
+phase-readiness wording.
 
 ## Boundary Hardening Handoff
 

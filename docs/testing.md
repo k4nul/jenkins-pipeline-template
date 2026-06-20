@@ -77,11 +77,10 @@ deterministic and the writer skips unchanged files, so repeated validation runs
 do not rewrite ignored artifacts just because the command was re-run. Do not
 commit generated Job DSL from a real controller or environment.
 
-## Template Maintenance Transition Evidence
+## Template Maintenance Evidence
 
-The current machine-managed transition is from `pipeline-boundary-hardening` to
-`template-maintenance`. The remaining machine-check gate is the controller-free
-wrapper:
+The current machine-managed phase is `template-maintenance`. The completed
+boundary-hardening transition evidence is the controller-free wrapper:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -107,10 +106,10 @@ documentation package tracked by `docs/instructions/phase-gates.json`:
 Use this evidence as a boundary, not as live-controller approval. The wrapper
 does not install Jenkins plugins, verify JCasC, create credentials, check agent
 tool images, or run delivery/promotion against a cluster. Boundary-hardening
-docs are the evidence package for template-maintenance eligibility; live
+docs are the evidence package for template-maintenance; live
 controller rollout remains a separate controller, plugin, agent, credential, and
 target-environment concern. See [phase-handoff.md](phase-handoff.md) for the
-evidence checklist to record before phase metadata changes, and see
+completed transition evidence, and see
 [pipeline-boundaries.md](pipeline-boundaries.md) for the ownership map across
 Job DSL generation, Pipeline DSL execution, service catalog metadata, and
 controller/JCasC rollout.

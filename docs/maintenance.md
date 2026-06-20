@@ -122,9 +122,10 @@ pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 
 ## Phase Handoff
 
-The current machine-managed phase is `pipeline-boundary-hardening`. The previous
-`job-dsl-coverage` transition gate remains the public-safe validation wrapper
-for generated Job DSL, service pipeline catalog, and runtime contract changes:
+The current machine-managed phase is `template-maintenance`. The previous
+`job-dsl-coverage` and boundary-hardening transition gate remains the
+public-safe validation wrapper for generated Job DSL, service pipeline catalog,
+and runtime contract changes:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -135,34 +136,25 @@ service pipeline validation, full public preset matrix harness, public preset
 test suite, committed runtime contract, and dependency inventory evidence from
 the public service catalog and controller manifests.
 
-The active `pipeline-boundary-hardening` phase is for keeping the Job DSL,
-Pipeline DSL, service catalog, and future JCasC responsibilities explicit.
-Documentation updates may improve those explanations, but only a
-`phase-transition` task should edit `docs/instructions/phase-gates.json` or
-other phase metadata.
+The completed `pipeline-boundary-hardening` phase keeps the Job DSL, Pipeline
+DSL, service catalog, and future JCasC responsibilities explicit. Keep
+[phase-handoff.md](phase-handoff.md) as the audit trail for the passing local
+gate and for the live-controller checks that remain separate from public
+defaults.
 
-Before another phase-transition task changes phase metadata, record the current
-controller-free evidence with [phase-handoff.md](phase-handoff.md). That handoff
-keeps the passing Job DSL gate separate from live-controller rollout readiness.
-
-The reader-facing boundary package for that phase is
+The reader-facing boundary package is
 [pipeline-boundaries.md](pipeline-boundaries.md). Keep it aligned with
 `jenkins/JOB_BLUEPRINT.md`, `jenkins/README.md`, and the validation commands in
 this runbook when future changes move responsibilities between template
 generation, Jenkinsfile execution, service catalog metadata, and controller
-rollout. When those boundaries and validation evidence are current, the next
-machine-managed phase is `template-maintenance`.
+rollout.
 
 The required transition gates are recorded in
-`docs/instructions/phase-gates.json`: the wrapper machine-check must pass, and
-the boundary documentation, pipeline unit strategy, public preset matrix, and
-handoff evidence gates must remain recorded as passed.
-
-If the phase controller reports that the transition command passed but the
-selected task is still a documentation update, keep the run in this runbook
-lane. Update reader-facing handoff or boundary guidance only, rerun the
-repository-owned wrapper when the wording describes command behavior or phase
-readiness, and leave phase metadata for a dedicated `phase-transition` task.
+`docs/instructions/phase-gates.json`: the wrapper machine-check passed, and the
+boundary documentation, pipeline unit strategy, public preset matrix, and
+handoff evidence gates remain recorded as passed. The manifest has no pending
+`next_phase`; select one with a transition validation command before routing
+another phase-transition.
 
 In `template-maintenance`, use the same responsibility map to pick the narrowest
 safe validation command. Maintenance work may update docs, security notes, audit

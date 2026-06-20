@@ -47,11 +47,10 @@ fresh checkout or preparing first validation evidence. See
 [docs/testing.md](docs/testing.md) for the controller-free validation lane and
 [docs/maintenance.md](docs/maintenance.md) for the Job DSL maintenance runbook,
 including the Job DSL, Pipeline DSL, and controller/JCasC responsibility
-boundaries for the current `pipeline-boundary-hardening` phase and
-`template-maintenance` handoff. Use
+boundaries preserved in the current `template-maintenance` phase. Use
 [docs/phase-handoff.md](docs/phase-handoff.md) when recording or refreshing the
-passed controller-free evidence before the
-`pipeline-boundary-hardening` to `template-maintenance` phase metadata changes.
+passed controller-free evidence from the completed
+`pipeline-boundary-hardening` to `template-maintenance` handoff.
 Use [docs/pipeline-boundaries.md](docs/pipeline-boundaries.md)
 as the focused guide for deciding whether a change belongs in Job DSL generation,
 Pipeline DSL execution, service catalog metadata, or live controller/JCasC
