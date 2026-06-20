@@ -31,8 +31,8 @@ generated DSL from a live controller or a real environment.
 
 ## Latest Handoff Evidence
 
-The `job-dsl-coverage` transition gate most recently passed in this worktree on
-2026-06-20 with:
+The controller-free Jenkins gate most recently passed in this worktree on
+2026-06-21 with:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -56,10 +56,11 @@ The passing run produced this controller-free evidence:
   matrix fixture, custom selections, nested roots, unsafe root rejection, SCM
   escaping, service-job fixtures, and runtime argument handling.
 
-This evidence was refreshed after the phase controller reported the transition
-command as eligible. The phase metadata now records `template-maintenance` as
-the active phase, so this handoff remains as the audit trail for the completed
-boundary-hardening transition.
+This evidence was refreshed during `template-maintenance` after the automation
+dashboard still reported `jenkins validation failed`. The phase metadata
+records `template-maintenance` as the active phase, so this handoff remains as
+the audit trail for the completed boundary-hardening transition and as the
+current maintenance evidence that the local Jenkins validation gate is green.
 
 For template-maintenance progress checks, the same wrapper is also the
 repository-local way to refresh a stale `jenkins validation failed` dashboard
