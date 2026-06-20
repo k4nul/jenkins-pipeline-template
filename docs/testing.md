@@ -116,6 +116,15 @@ completed transition evidence, and see
 Job DSL generation, Pipeline DSL execution, service catalog metadata, and
 controller/JCasC rollout.
 
+If an automation dashboard reports `jenkins validation failed` for this target,
+rerun the wrapper from a clean checkout before changing phase or rollout
+language. A passing wrapper run means the repository-local Jenkins gate is green
+again for the current checkout; record the refreshed evidence in
+[phase-handoff.md](phase-handoff.md) when the dashboard status or phase evidence
+needs to explain why the failure is no longer current. If the wrapper still
+fails, keep the dashboard status as the active blocker and troubleshoot the first
+failing command from the wrapper output.
+
 When a documentation-only change explains these boundaries, rerun the wrapper if
 the wording describes command behavior, generated job topology, or phase
 readiness. For prose that only links existing runbooks together, a Markdown

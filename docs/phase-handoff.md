@@ -61,6 +61,12 @@ command as eligible. The phase metadata now records `template-maintenance` as
 the active phase, so this handoff remains as the audit trail for the completed
 boundary-hardening transition.
 
+For template-maintenance progress checks, the same wrapper is also the
+repository-local way to refresh a stale `jenkins validation failed` dashboard
+status. A fresh passing run confirms the current checkout still satisfies the
+controller-free Jenkins gate; a failing run keeps the first failing wrapper
+command as the active blocker.
+
 ## Current Maintenance State
 
 The current machine-managed phase is `template-maintenance`, and there is no

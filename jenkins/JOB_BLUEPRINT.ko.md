@@ -34,6 +34,9 @@ platform/
 - `job-seed.Jenkinsfile` 에서 `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 기본값은 비어 있습니다.
 - `SEED_REPO_URL` 과 `SEED_BRANCH_SPEC` 를 제공하지 않으면 생성된 DSL 은 공개용 SCM placeholder 를 사용합니다.
 - Jenkins 에서 생성된 DSL 을 적용한다면, 먼저 `SEED_REPO_URL`, `SEED_BRANCH_SPEC`, 필요 시 `SEED_SCM_CREDENTIALS_ID` 를 설정해 SCM 기반 잡이 의도한 저장소를 바라보게 하세요.
+- `SEED_DOCKER_REGISTRY` 처럼 구체적인 registry metadata 를 제공하면 환경별 정보로 취급하세요. 구체적인 SCM, registry, credentials metadata 가 있으면 seed job 은 생성된 Job DSL artifact 보관을 건너뜁니다.
+- `SEED_JOB_ROOT` 와 `SEED_SERVICE_JOB_ROOT` 는 안전한 literal segment 로 구성된 비어 있지 않은 Jenkins folder path 여야 합니다. 공란, parent traversal, expression-like segment 는 Job DSL 생성 전에 실패합니다.
+- `SEED_SKIP_SERVICE_JOBS=true` 가 아니면 서비스 잡 생성 전에 서비스 파이프라인 검증이 먼저 실행됩니다.
 
 ## 컨트롤러 없는 회귀 전략
 

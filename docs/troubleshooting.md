@@ -94,6 +94,28 @@ repository rollout issue rather than weakening the public-safe defaults. Use
 [phase-handoff.md](phase-handoff.md) to record the local evidence before a
 phase-transition task updates phase metadata.
 
+## Dashboard Still Says `jenkins validation failed`
+
+Treat the progress dashboard as a cached signal until you compare it with a
+fresh local wrapper run:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+If the wrapper passes, the current checkout has satisfied the controller-free
+Jenkins validation lane even if an older dashboard snapshot still says
+`jenkins validation failed`. Refresh [phase-handoff.md](phase-handoff.md) with
+the passing command and the evidence summary when a maintenance run needs to
+make that status change auditable.
+
+If the wrapper fails, use the first failing command in its output as the active
+blocker. Common causes are a missing PowerShell runtime, invalid generated
+`out/` path, unsafe SCM input, a service catalog entry that expects a missing
+`services/<name>/Jenkinsfile`, or a changed Jenkinsfile/runtime helper that no
+longer matches the public-safe assertions. Fix that repository-local failure
+before changing phase-readiness wording or live-controller rollout guidance.
+
 ## Service Jobs Do Not Appear
 
 Service jobs are generated only for catalog entries that set
