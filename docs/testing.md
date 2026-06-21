@@ -136,11 +136,13 @@ rerun the wrapper from a clean checkout before changing phase or rollout
 language. A passing wrapper run means the repository-local Jenkins gate is green
 again for the current checkout; record the refreshed evidence in
 [phase-handoff.md](phase-handoff.md) when the dashboard status or phase evidence
-needs to explain why the failure is no longer current. If the wrapper still
-fails, keep the dashboard status as the active blocker and troubleshoot the first
-failing labeled command from the wrapper output. Make sure the checkout can
-write ignored fixtures under `out/`; the controller-free gate intentionally
-generates Job DSL fixtures there during validation.
+needs to explain why the failure is no longer current. Use
+[validation-evidence.md](validation-evidence.md) for the exact refresh workflow
+and the evidence summary to capture. If the wrapper still fails, keep the
+dashboard status as the active blocker and troubleshoot the first failing
+labeled command from the wrapper output. Make sure the checkout can write
+ignored fixtures under `out/`; the controller-free gate intentionally generates
+Job DSL fixtures there during validation.
 
 When a documentation-only change explains these boundaries, rerun the wrapper if
 the wording describes command behavior, generated job topology, or phase
@@ -225,5 +227,7 @@ Use [maintenance.md](maintenance.md) for the change-lane checklist that maps
 presets, profiles, service catalog entries, Job DSL export, Jenkinsfiles, and
 controller/JCasC scope to their validation commands. Use
 [phase-handoff.md](phase-handoff.md) when the wrapper passes and the next action
-is a phase decision. Use [pipeline-boundaries.md](pipeline-boundaries.md) when
-the change moves behavior between those ownership areas.
+is a phase decision, and use [validation-evidence.md](validation-evidence.md)
+when the next action is only to refresh stale validation evidence. Use
+[pipeline-boundaries.md](pipeline-boundaries.md) when the change moves behavior
+between those ownership areas.

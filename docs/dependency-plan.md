@@ -51,9 +51,11 @@ Validated commands:
 ```powershell
 pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
 The aggregate wrapper also passed:
@@ -282,9 +284,11 @@ Validation completed:
 ```powershell
 pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
+pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
 ```sh

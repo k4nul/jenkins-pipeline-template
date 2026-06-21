@@ -34,6 +34,7 @@ sh scripts/run-phase-validation.sh
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 .\scripts\export-jenkins-job-dsl.ps1 -OutputPath .\out\jenkins\public-preset-matrix-seed-job-dsl.groovy
 .\scripts\validate-service-pipelines.ps1
+.\tests\jenkins-job-dsl.public-presets.ps1
 ```
 
 Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export, environment presets, profiles, or service pipeline catalog data. It validates the built-in public-safe preset matrix and writes generated fixtures only under ignored `out/` paths.
@@ -56,6 +57,10 @@ boundaries preserved in the current `template-maintenance` phase. Use
 [docs/phase-handoff.md](docs/phase-handoff.md) when recording or refreshing the
 passed controller-free evidence from the completed
 `pipeline-boundary-hardening` to `template-maintenance` handoff.
+Use [docs/validation-evidence.md](docs/validation-evidence.md) when a progress
+dashboard or maintenance report still says `jenkins validation failed` and you
+need the exact controller-free evidence refresh workflow before changing phase
+wording.
 Use [docs/pipeline-boundaries.md](docs/pipeline-boundaries.md)
 as the focused guide for deciding whether a change belongs in Job DSL generation,
 Pipeline DSL execution, service catalog metadata, or live controller/JCasC

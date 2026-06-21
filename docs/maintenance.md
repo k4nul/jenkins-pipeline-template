@@ -149,7 +149,9 @@ The completed `pipeline-boundary-hardening` phase keeps the Job DSL, Pipeline
 DSL, service catalog, and future JCasC responsibilities explicit. Keep
 [phase-handoff.md](phase-handoff.md) as the audit trail for the passing local
 gate and for the live-controller checks that remain separate from public
-defaults.
+defaults. Use [validation-evidence.md](validation-evidence.md) when the work is
+only to refresh or explain a stale `jenkins validation failed` dashboard signal
+without selecting a new phase.
 
 The reader-facing boundary package is
 [pipeline-boundaries.md](pipeline-boundaries.md). Keep it aligned with
@@ -170,6 +172,15 @@ safe validation command. Maintenance work may update docs, security notes, audit
 findings, dependency plans, or public-safe template behavior, but new Jenkins
 platform scope should first get an explicit phase or owner decision instead of
 silently expanding the reusable template.
+
+When a maintenance run refreshes validation evidence, prefer this order:
+
+1. Run `sh scripts/run-phase-validation.sh`.
+2. If it passes, update only the handoff or report text that needs current
+   evidence.
+3. If it fails, keep the first failing wrapper label as the maintenance blocker.
+4. Leave `docs/instructions/phase-gates.json` unchanged unless the selected task
+   is a phase-transition with a new `next_phase` and transition command.
 
 ## Pipeline Boundary Hardening Checklist
 

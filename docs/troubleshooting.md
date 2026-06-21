@@ -109,7 +109,9 @@ If the wrapper passes, the current checkout has satisfied the controller-free
 Jenkins validation lane even if an older dashboard snapshot still says
 `jenkins validation failed`. Refresh [phase-handoff.md](phase-handoff.md) with
 the passing command and the evidence summary when a maintenance run needs to
-make that status change auditable.
+make that status change auditable. Use
+[validation-evidence.md](validation-evidence.md) for the refresh checklist and
+for the claims that must remain outside the controller-free evidence.
 
 If the wrapper fails, use the first `Phase validation failed during "<label>"`
 message as the active blocker. The wrapper prints the failed label, exit code,

@@ -53,7 +53,9 @@ The passing run produced this controller-free evidence:
 - the `dev` job plan rendered validation, delivery, and promotion jobs under
   `platform/dev`;
 - the service pipeline plan rendered the four public catalog services with
-  `HasJenkinsfile = false` and `ServiceJobCount = 0`;
+  `HasJenkinsfile = false`;
+- the Jenkins job plan reported `ServiceJobCount = 0` for the current
+  catalog-only public-image service state;
 - Job DSL export wrote the seed fixture under ignored `out/jenkins/` while
   keeping repository URL, branch spec, and credentials ID values parameterized;
 - service pipeline validation passed for the catalog-only public-image state;
