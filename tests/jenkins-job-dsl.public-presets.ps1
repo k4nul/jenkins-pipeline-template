@@ -511,6 +511,7 @@ $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
 
 Assert-RepoOutputPathCaseBoundary -Root $root
+Assert-RepoOutputPathRejectsControlCharacters -Root $root
 
 foreach ($preset in $presets) {
     $plan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
@@ -903,6 +904,7 @@ Write-Output "Validated dependency inventory risk indicators."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
 Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
 Write-Output "Validated repository output paths reject case-variant out roots."
+Write-Output "Validated repository output paths reject control characters."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
 Write-Output "Validated promotion archive entries fail closed before extraction."
 Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."

@@ -1,5 +1,9 @@
 String requireLiteralOutPath(String value, String parameterName) {
-    String normalized = value == null ? '' : value.trim().replace('\\', '/')
+    String rawValue = value == null ? '' : value
+    if (rawValue ==~ /.*[\u0000-\u001F\u007F].*/) {
+        throw new IllegalArgumentException("${parameterName} must not contain control characters.")
+    }
+    String normalized = rawValue.trim().replace('\\', '/')
     if (!normalized) {
         throw new IllegalArgumentException("${parameterName} must not be empty before using it as a Jenkins artifact path.")
     }
@@ -142,7 +146,11 @@ function Assert-LiteralOutPath {
         [string]$Value
     )
 
-    $normalized = ([string]$Value).Trim().Replace([char]92, [char]47)
+    $rawValue = [string]$Value
+    if ($rawValue -match '[\x00-\x1F\x7F]') {
+        throw "$Name must not contain control characters."
+    }
+    $normalized = $rawValue.Trim().Replace([char]92, [char]47)
     if (-not $normalized) {
         throw "$Name must not be empty before file output or artifact archiving."
     }

@@ -164,6 +164,26 @@ function Assert-RepoOutputPathCaseBoundary {
     Assert-TextContains -Text $message -Expected "OutputPath must resolve under the repository out directory" -Message "Case-variant output root rejection should explain the repository out boundary."
 }
 
+function Assert-RepoOutputPathRejectsControlCharacters {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $failed = $false
+    $message = ""
+    try {
+        Resolve-RepoOutputPath -RepoRoot $Root -Path "out/jenkins/control`ncharacter.txt" | Out-Null
+    }
+    catch {
+        $failed = $true
+        $message = [string]$_
+    }
+
+    Assert-Condition -Condition $failed -Message "Repo output path validation should reject control characters."
+    Assert-TextContains -Text $message -Expected "OutputPath must not contain control characters" -Message "Control-character output path rejection should explain the unsafe input."
+}
+
 function Assert-JenkinsRuntimeContract {
     param(
         [Parameter(Mandatory = $true)]
@@ -1129,12 +1149,18 @@ function Assert-JenkinsfileArtifactPathSafety {
     $jenkinsfile = Get-Content -Path $JenkinsfilePath -Raw
 
     Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutPath" -Message ("{0} should validate literal out/ artifact paths" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "String rawValue = value == null ? '' : value" -Message ("{0} should inspect raw artifact paths before trimming" -f $JenkinsfilePath)
     Assert-TextContains -Text $jenkinsfile -Expected "must stay under out/." -Message ("{0} should require archive paths under out/" -f $JenkinsfilePath)
     Assert-TextContains -Text $jenkinsfile -Expected "must be a literal path, not an Ant glob pattern." -Message ("{0} should reject archive glob patterns" -f $JenkinsfilePath)
+    Assert-TextContains -Text $jenkinsfile -Expected "must not contain control characters." -Message ("{0} should reject control characters in artifact paths" -f $JenkinsfilePath)
     Assert-TextContains -Text $jenkinsfile -Expected "segment == '..'" -Message ("{0} should reject parent-directory archive segments" -f $JenkinsfilePath)
 
     if (@($ExpectedDirectoryParameterNames).Count -gt 0) {
         Assert-TextContains -Text $jenkinsfile -Expected "String requireLiteralOutDirectoryPattern" -Message ("{0} should sanitize directory archive patterns" -f $JenkinsfilePath)
+    }
+
+    if (@($ExpectedPipelineBoundaryNames).Count -gt 0) {
+        Assert-TextContains -Text $jenkinsfile -Expected '$rawValue = [string]$Value' -Message ("{0} should inspect raw script path values before trimming" -f $JenkinsfilePath)
     }
 
     foreach ($parameterName in @($ExpectedParameterNames)) {

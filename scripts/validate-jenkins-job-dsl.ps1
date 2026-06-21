@@ -33,6 +33,7 @@ $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
 
 Assert-RepoOutputPathCaseBoundary -Root $root
+Assert-RepoOutputPathRejectsControlCharacters -Root $root
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -184,6 +185,7 @@ $summary = [PSCustomObject]@{
     SharedServiceJobFixture = $serviceJobFixture.SharedServiceJobDslPath
     SeedJobSafety = "passed"
     OutputPathCaseBoundary = "passed"
+    OutputPathControlCharacters = "passed"
     PromotionArchiveEntrySafety = "passed"
     RuntimeContract = "passed"
     Results = @($results.ToArray())
@@ -204,6 +206,7 @@ else {
     Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output "Validated repository output paths reject case-variant out roots."
+    Write-Output "Validated repository output paths reject control characters."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
     Write-Output "Validated promotion archive entries fail closed before extraction."
     Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
