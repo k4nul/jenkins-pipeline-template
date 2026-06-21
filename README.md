@@ -39,6 +39,8 @@ sh scripts/run-phase-validation.sh
 Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export, environment presets, profiles, or service pipeline catalog data. It validates the built-in public-safe preset matrix and writes generated fixtures only under ignored `out/` paths.
 Omit `-EnvironmentPreset` from plan or export commands when you need to preview
 the same full public-safe preset matrix that the seed job uses by default.
+The phase wrapper labels each validation step, reports the first failing command,
+and is also run by the `Jenkins Phase Validation` GitHub Actions workflow.
 Use `show-dependency-inventory.ps1` before image, controller, or toolchain
 planning so the dependency posture is based on committed catalog and Kubernetes
 manifest evidence.

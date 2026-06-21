@@ -1,0 +1,34 @@
+name: Jenkins Phase Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controller-free-validation:
+    name: Controller-free Jenkins validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show PowerShell version
+        run: pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+
+      - name: Run phase validation wrapper
+        run: sh scripts/run-phase-validation.sh
+
+      - name: Upload generated validation fixtures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jenkins-validation-fixtures
+          path: out/jenkins/**
+          if-no-files-found: ignore
+          retention-days: 7

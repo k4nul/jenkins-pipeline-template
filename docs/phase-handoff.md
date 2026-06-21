@@ -38,6 +38,13 @@ The controller-free Jenkins gate most recently passed in this worktree on
 sh scripts/run-phase-validation.sh
 ```
 
+The wrapper now reports the resolved PowerShell runtime, labels each validation
+step, and prints the first failing label, exit code, and command when a future
+run fails. The same wrapper is the command used by the
+`Jenkins Phase Validation` GitHub Actions workflow, which uploads ignored
+`out/jenkins/**` fixtures as diagnostic workflow artifacts without contacting a
+Jenkins controller.
+
 The passing run produced this controller-free evidence:
 
 - dependency inventory reported the manifest-free package posture, four
@@ -66,7 +73,7 @@ For template-maintenance progress checks, the same wrapper is also the
 repository-local way to refresh a stale `jenkins validation failed` dashboard
 status. A fresh passing run confirms the current checkout still satisfies the
 controller-free Jenkins gate; a failing run keeps the first failing wrapper
-command as the active blocker.
+label and command as the active blocker.
 
 ## Current Maintenance State
 

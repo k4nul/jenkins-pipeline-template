@@ -13,6 +13,8 @@ For automation, use `sh scripts/run-phase-validation.sh` or set
 `POWERSHELL_BIN` to the absolute `pwsh` path. The wrapper also checks `PWSH`,
 `$HOME/.local/bin/pwsh`, and common system install paths so cron-style shells do
 not fail only because their `PATH` omits a local PowerShell install.
+When PowerShell is found, the wrapper prints the resolved path and version to
+stderr before running the validation steps.
 
 ## `OutputPath must resolve under the repository out directory`
 
@@ -109,12 +111,20 @@ Jenkins validation lane even if an older dashboard snapshot still says
 the passing command and the evidence summary when a maintenance run needs to
 make that status change auditable.
 
-If the wrapper fails, use the first failing command in its output as the active
-blocker. Common causes are a missing PowerShell runtime, invalid generated
-`out/` path, unsafe SCM input, a service catalog entry that expects a missing
-`services/<name>/Jenkinsfile`, or a changed Jenkinsfile/runtime helper that no
-longer matches the public-safe assertions. Fix that repository-local failure
-before changing phase-readiness wording or live-controller rollout guidance.
+If the wrapper fails, use the first `Phase validation failed during "<label>"`
+message as the active blocker. The wrapper prints the failed label, exit code,
+and command before exiting. Common causes are a missing PowerShell runtime,
+invalid generated `out/` path, unsafe SCM input, a read-only checkout that
+cannot write ignored validation fixtures under `out/`, a service catalog entry
+that expects a missing `services/<name>/Jenkinsfile`, or a changed
+Jenkinsfile/runtime helper that no longer matches the public-safe assertions.
+Fix that repository-local failure before changing phase-readiness wording or
+live-controller rollout guidance.
+
+For GitHub Actions failures, open the `Jenkins Phase Validation` workflow run
+and inspect the `jenkins-validation-fixtures` artifact when it exists. Those
+files are generated from ignored `out/jenkins/**` paths and are diagnostic
+evidence only; do not commit them as controller output.
 
 ## Service Jobs Do Not Appear
 

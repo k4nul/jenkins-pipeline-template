@@ -136,6 +136,10 @@ The phase transition wrapper, `scripts/run-phase-validation.sh`, runs the focuse
 `tests/jenkins-job-dsl.public-presets.ps1` so transition checks exercise the
 public default path, the full public-safe preset matrix, custom selection path
 safety, and runtime contract files.
+It labels each step, reports the first failing command, and is also the command
+run by the `Jenkins Phase Validation` GitHub Actions workflow. Workflow
+artifacts from `out/jenkins/**` are diagnostic fixtures only and should not be
+committed as generated controller output.
 Use [`docs/maintenance.md`](../docs/maintenance.md) when selecting the narrower
 validation lane for a preset, service catalog, Job DSL, Jenkinsfile, or
 controller/JCasC documentation change. Use

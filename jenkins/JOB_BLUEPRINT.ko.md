@@ -52,7 +52,7 @@ pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 ```
 
-`run-phase-validation.sh` 는 전환 gate 이며, `dev` 기본 경로 검증 뒤에 전체 공개 프리셋 Job DSL 하네스를 실행합니다. `validate-jenkins-job-dsl.ps1` 는 `dev`, `staging`, `prod` 개별 프리셋과 전체 공개 프리셋 matrix fixture, `SelectionName` 단독 커스텀 selection, SCM placeholder, 명시적 SCM 값 escaping, 삭제 보호, 서비스 카탈로그 메타데이터를 컨트롤러 없이 검증합니다.
+`run-phase-validation.sh` 는 전환 gate 이며, `dev` 기본 경로 검증 뒤에 전체 공개 프리셋 Job DSL 하네스를 실행합니다. 이 wrapper 는 각 단계를 라벨로 출력하고, 실패 시 첫 실패 명령과 exit code 를 보고하며, `Jenkins Phase Validation` GitHub Actions workflow 에서도 같은 명령으로 실행됩니다. 생성되는 `out/jenkins/**` workflow artifact 는 진단용 fixture 일 뿐 Git 에 커밋하지 않습니다. `validate-jenkins-job-dsl.ps1` 는 `dev`, `staging`, `prod` 개별 프리셋과 전체 공개 프리셋 matrix fixture, `SelectionName` 단독 커스텀 selection, SCM placeholder, 명시적 SCM 값 escaping, 삭제 보호, 서비스 카탈로그 메타데이터를 컨트롤러 없이 검증합니다.
 
 ## 선택형 서비스 잡
 

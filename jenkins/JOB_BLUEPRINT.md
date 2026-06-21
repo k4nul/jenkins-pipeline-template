@@ -71,7 +71,10 @@ pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 
 `run-phase-validation.sh` is the transition gate and calls the focused `dev`
 commands, dependency inventory, the aggregate harness, and the public preset
-test suite.
+test suite. It labels each wrapper step, reports the first failing command and
+exit code, and is the same command used by the `Jenkins Phase Validation`
+GitHub Actions workflow. Generated `out/jenkins/**` workflow artifacts are
+diagnostic fixtures only and stay out of Git.
 `validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By
 default it validates every built-in environment preset, exports ignored DSL
 fixtures under `out/jenkins/validation`, exports one combined full public preset

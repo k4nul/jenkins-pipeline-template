@@ -70,6 +70,12 @@ pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
+The wrapper prints the resolved PowerShell path and labeled step boundaries to
+stderr before each command. If a step fails, the first failing label, exit code,
+and command are reported before the wrapper exits with that command's status.
+Use that first failed label as the dashboard blocker instead of rerunning a
+different subset of checks.
+
 The final aggregate command validates every built-in public-safe preset
 individually, then validates a single combined public preset matrix Job DSL
 fixture. Generated output must stay under `out/`, which is ignored by Git. Job
@@ -77,6 +83,15 @@ DSL fixture content is deterministic and the writer skips unchanged files, so
 repeated validation runs do not rewrite ignored artifacts just because the
 command was re-run. Do not commit generated Job DSL from a real controller or
 environment.
+
+The same wrapper is also wired into
+`.github/workflows/phase-validation.yml` for pull requests, pushes, and manual
+workflow dispatch. That workflow is controller-free: it checks out the
+repository, shows the hosted PowerShell version, runs
+`sh scripts/run-phase-validation.sh`, and uploads ignored `out/jenkins/**`
+fixtures as short-retention workflow artifacts for diagnosis. The workflow
+does not require Jenkins credentials, registry access, a live controller, or a
+cluster.
 
 ## Template Maintenance Evidence
 
@@ -123,7 +138,9 @@ again for the current checkout; record the refreshed evidence in
 [phase-handoff.md](phase-handoff.md) when the dashboard status or phase evidence
 needs to explain why the failure is no longer current. If the wrapper still
 fails, keep the dashboard status as the active blocker and troubleshoot the first
-failing command from the wrapper output.
+failing labeled command from the wrapper output. Make sure the checkout can
+write ignored fixtures under `out/`; the controller-free gate intentionally
+generates Job DSL fixtures there during validation.
 
 When a documentation-only change explains these boundaries, rerun the wrapper if
 the wording describes command behavior, generated job topology, or phase

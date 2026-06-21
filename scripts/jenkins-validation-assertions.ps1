@@ -107,7 +107,13 @@ function Get-JenkinsValidationPaths {
         RepositoryValidationScript = Join-Path $Root "scripts/invoke-repository-validation.ps1"
         BundleDeliveryScript = Join-Path $Root "scripts/invoke-bundle-delivery.ps1"
         BundlePromotionScript = Join-Path $Root "scripts/invoke-bundle-promotion.ps1"
+        PhaseValidationScript = Join-Path $Root "scripts/run-phase-validation.sh"
         PublicPresetTestScript = Join-Path $Root "tests/jenkins-job-dsl.public-presets.ps1"
+        PhaseGateManifest = Join-Path $Root "docs/instructions/phase-gates.json"
+        PhaseValidationWorkflow = Join-Path $Root ".github/workflows/phase-validation.yml"
+        TestingGuide = Join-Path $Root "docs/testing.md"
+        TroubleshootingGuide = Join-Path $Root "docs/troubleshooting.md"
+        PhaseHandoff = Join-Path $Root "docs/phase-handoff.md"
         HelmConfigFile = Join-Path $Root "config/helm-releases.psd1"
         SeedJobPath = Join-Path $Root "jenkins/job-seed.Jenkinsfile"
         DeliveryJobPath = Join-Path $Root "jenkins/bundle-delivery.Jenkinsfile"
@@ -238,6 +244,55 @@ function Assert-JenkinsRuntimeContract {
                 -Path ([string]$presetData.ValuesFile) `
                 -Description ("ValuesFile for preset {0}" -f $preset) | Out-Null
         }
+    }
+}
+
+function Assert-PhaseValidationEvidenceContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Paths
+    )
+
+    $expectedCommand = "sh scripts/run-phase-validation.sh"
+
+    foreach ($path in @(
+        $Paths.PhaseValidationScript,
+        $Paths.PhaseGateManifest,
+        $Paths.PhaseValidationWorkflow,
+        $Paths.TestingGuide,
+        $Paths.TroubleshootingGuide,
+        $Paths.PhaseHandoff
+    )) {
+        Assert-Condition -Condition (Test-Path -Path $path -PathType Leaf) -Message ("Phase validation evidence file should exist: {0}" -f $path)
+    }
+
+    $manifest = Get-Content -Path $Paths.PhaseGateManifest -Raw | ConvertFrom-Json
+    Assert-Equal `
+        -Actual ([string]$manifest.transition.validation_command) `
+        -Expected $expectedCommand `
+        -Message "Phase manifest should keep the wrapper as the canonical validation command"
+
+    $phaseGate = @($manifest.required_gates) | Where-Object { $_.id -eq "phase-validation-passes" } | Select-Object -First 1
+    Assert-Condition -Condition ($null -ne $phaseGate) -Message "Phase manifest should define the phase-validation-passes gate."
+    Assert-Equal `
+        -Actual ([string]$phaseGate.status) `
+        -Expected "machine-check" `
+        -Message "Phase validation gate should stay machine-checked instead of relying on stale prose evidence"
+
+    $wrapper = Get-Content -Path $Paths.PhaseValidationScript -Raw
+    Assert-TextContains -Text $wrapper -Expected "Phase validation failed during" -Message "Phase wrapper should report the first failing labeled step."
+    Assert-TextContains -Text $wrapper -Expected "Using PowerShell:" -Message "Phase wrapper should report the resolved PowerShell runtime."
+    Assert-TextContains -Text $wrapper -Expected 'run_step "dev Jenkins job plan"' -Message "Phase wrapper should label the dev dashboard job-plan step."
+    Assert-TextContains -Text $wrapper -Expected 'run_step "public preset test suite"' -Message "Phase wrapper should label the public preset test step."
+
+    $workflow = Get-Content -Path $Paths.PhaseValidationWorkflow -Raw
+    Assert-TextContains -Text $workflow -Expected $expectedCommand -Message "CI workflow should run the same phase validation wrapper."
+    Assert-TextContains -Text $workflow -Expected "actions/upload-artifact@v4" -Message "CI workflow should preserve generated validation fixtures as workflow artifacts."
+    Assert-TextContains -Text $workflow -Expected "out/jenkins/**" -Message "CI workflow should upload ignored Jenkins validation fixtures only from out/."
+
+    foreach ($docPath in @($Paths.TestingGuide, $Paths.TroubleshootingGuide, $Paths.PhaseHandoff)) {
+        $doc = Get-Content -Path $docPath -Raw
+        Assert-TextContains -Text $doc -Expected $expectedCommand -Message ("Documentation should reference the canonical wrapper command: {0}" -f $docPath)
     }
 }
 

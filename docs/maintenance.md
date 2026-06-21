@@ -105,6 +105,12 @@ Run the phase wrapper after changing Jenkinsfiles or generated job topology:
 sh scripts/run-phase-validation.sh
 ```
 
+The wrapper labels each command and reports the first failing label, exit code,
+and command. The GitHub Actions `Jenkins Phase Validation` workflow runs this
+same wrapper and uploads ignored `out/jenkins/**` fixtures as short-retention
+diagnostic artifacts. Keep those fixtures out of Git; they are evidence for the
+controller-free run, not generated controller output to publish.
+
 This controller-free check does not prove the Job DSL plugin, Jenkins agents,
 credentials providers, registry access, or cluster permissions exist on a live
 controller. Verify those separately during rollout.
