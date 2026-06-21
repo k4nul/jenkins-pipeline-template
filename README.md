@@ -65,6 +65,9 @@ Use [docs/pipeline-boundaries.md](docs/pipeline-boundaries.md)
 as the focused guide for deciding whether a change belongs in Job DSL generation,
 Pipeline DSL execution, service catalog metadata, or live controller/JCasC
 rollout. Use
+[docs/architecture-audit.md](docs/architecture-audit.md) as the current
+architecture map and ranked maintenance package list for the template boundary.
+Use
 [docs/troubleshooting.md](docs/troubleshooting.md) for common local failures and
 for interpreting a passing local phase gate that still needs live-controller
 rollout checks.

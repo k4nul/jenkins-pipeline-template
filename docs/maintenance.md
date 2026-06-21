@@ -6,7 +6,9 @@ public template safe to inspect without a live Jenkins controller.
 
 For a focused ownership map across generated Job DSL, checked-in Jenkinsfiles,
 service catalog metadata, and live controller/JCasC rollout, read
-[pipeline-boundaries.md](pipeline-boundaries.md) with this runbook.
+[pipeline-boundaries.md](pipeline-boundaries.md) with this runbook. For the
+current architecture audit, risk map, and ranked maintenance work packages, read
+[architecture-audit.md](architecture-audit.md).
 
 ## Maintenance Rules
 
