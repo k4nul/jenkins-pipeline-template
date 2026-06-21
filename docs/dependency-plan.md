@@ -34,16 +34,17 @@ The main maintenance risk is provenance, not a directly proven vulnerability:
 public image freshness, Jenkins LTS image drift, live controller plugins,
 Jenkins agent images, and cluster tooling cannot be verified from committed
 files alone. `scripts/show-dependency-inventory.ps1` now gives dependency runs a
-controller-free inventory of the current catalog and controller image references,
-but treat each upgrade candidate as requiring external release-note review plus
-the local validation commands below.
+controller-free inventory of the current catalog, controller image references,
+and checked-in Jenkins agent tool contracts, but treat each upgrade candidate as
+requiring external release-note review plus the local validation commands below.
 
 ## Current Validation Snapshot
 
-On 2026-06-20, the repository-local dependency and Jenkins validation lane
-passed with PowerShell 7.6.2. No dependency version was changed because the
-committed evidence supports planning and controller-free validation, not a safe
-release-note-reviewed image refresh.
+On 2026-06-21, the repository-local dependency and Jenkins validation lane
+passed with PowerShell 7.6.2. This run expanded the dependency inventory to
+report checked-in Jenkins agent tool contracts. No dependency version was
+changed because the committed evidence supports planning and controller-free
+validation, not a safe release-note-reviewed image refresh.
 
 Validated commands:
 
@@ -67,8 +68,10 @@ Inventory evidence from the same run:
 - public service images: `4`
 - controller image references: `1`
 - floating controller image references: `jenkins/jenkins:lts`
+- Jenkins agent tool contracts: `4`
 - dependency risk posture: manifest-free repository, tag-based public service
-  images, and a floating public-safe Jenkins controller example image
+  images, a floating public-safe Jenkins controller example image, and
+  Jenkinsfile-declared agent tool requirements for non-dry-run rollout planning
 
 ## Dependency Inventory
 
@@ -76,7 +79,7 @@ Inventory evidence from the same run:
 | --- | --- | --- | --- |
 | PowerShell runtime | `scripts/*.ps1`, `scripts/run-phase-validation.sh` | PowerShell 7 or newer through `pwsh`, `POWERSHELL_BIN`, `PWSH`, or common install paths | `sh scripts/run-phase-validation.sh` |
 | Public service images | `config/service-pipelines.psd1` | `adminer:5.3.0-standalone`, `mccutchen/go-httpbin:v2.15.0`, `nginx:1.28-alpine`, `traefik/whoami:v1.10.4` | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json`; `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
-| Dependency inventory | `scripts/show-dependency-inventory.ps1`, `config/service-pipelines.psd1`, `k8s/**/*.yaml` | package-manager manifest absence, public service image tags, controller image references, PowerShell validation contract | `pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json` |
+| Dependency inventory | `scripts/show-dependency-inventory.ps1`, `config/service-pipelines.psd1`, `k8s/**/*.yaml`, `jenkins/*.Jenkinsfile` | package-manager manifest absence, public service image tags, controller image references, Jenkins agent tool contracts, PowerShell validation contract | `pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json` |
 | Environment presets and profiles | `config/environments/*.psd1`, `config/profiles/*.psd1` | Preset/profile selections, values-file paths, version defaults, selected applications/data services | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
 | Generated Job DSL | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Job folder and `pipelineJob` generation, parameterized SCM URL, branch spec, and credentials ID handling | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy`; `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json` |
 | Jenkins controller example | `k8s/jenkins-controller/jenkins.yaml`, `k8s/jenkins-controller/README.md` | `jenkins/jenkins:lts` and ephemeral `emptyDir` storage for a public-safe example only | Manifest review plus future controller/JCasC validation when those files exist |
@@ -232,6 +235,9 @@ sh scripts/run-phase-validation.sh
 - Controller-free validation proves generated Job DSL shape and public-safe
   defaults; it does not prove live Jenkins plugin installation, credential
   providers, agent image contents, registry access, or cluster permissions.
+- Jenkins agent tool requirements are declared in checked-in Jenkinsfiles and
+  now appear in the dependency inventory; use that evidence before changing
+  agent images or making optional tools mandatory.
 - Generated artifacts under `out/` are intentionally ignored. A change that
   commits generated Job DSL or controller output would blur the source of truth.
 - The repository has no language package lockfile to audit because it has no
@@ -266,9 +272,10 @@ sh scripts/run-phase-validation.sh
 
 ## Changes Made And Validation
 
-This run updated the dependency-plan hygiene record with a dated validation
-snapshot. It makes no dependency version changes and does not add runtime
-dependencies.
+This run updated the dependency inventory to report checked-in Jenkins agent
+tool contracts and refreshed the dependency-plan hygiene record with a dated
+validation snapshot. It makes no dependency version changes and does not add
+runtime dependencies.
 
 Validation completed:
 

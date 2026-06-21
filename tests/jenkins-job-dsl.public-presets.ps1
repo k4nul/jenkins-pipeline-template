@@ -374,6 +374,7 @@ function Assert-DependencyInventory {
     Assert-Equal -Actual ([int]@($Inventory.PackageManagerManifests).Count) -Expected 0 -Message "Template should not currently report package-manager manifests"
     Assert-Equal -Actual ([int]@($Inventory.ServiceImages).Count) -Expected 4 -Message "Dependency inventory should include the public service images"
     Assert-Equal -Actual ([int]@($Inventory.ControllerImages).Count) -Expected 1 -Message "Dependency inventory should include the Jenkins controller example image"
+    Assert-Equal -Actual ([int]@($Inventory.JenkinsAgentToolContracts).Count) -Expected 4 -Message "Dependency inventory should include Jenkins agent tool contracts"
 
     $expectedServiceImages = @{
         "adminer" = "adminer:5.3.0-standalone"
@@ -403,6 +404,29 @@ function Assert-DependencyInventory {
     Assert-Condition -Condition (-not [bool]$controllerImage.IsDigestPinned) -Message "Dependency inventory should report the Jenkins LTS example as tag-based"
     Assert-Condition -Condition ([bool]$controllerImage.UsesFloatingTag) -Message "Dependency inventory should flag the floating Jenkins LTS example tag"
 
+    $agentContractsByPath = @{}
+    foreach ($contract in @($Inventory.JenkinsAgentToolContracts)) {
+        $agentContractsByPath[[string]$contract.SourcePath] = $contract
+    }
+
+    foreach ($path in @(
+        "jenkins/bundle-delivery.Jenkinsfile",
+        "jenkins/bundle-promotion.Jenkinsfile",
+        "jenkins/repository-validation.Jenkinsfile"
+    )) {
+        Assert-Condition -Condition $agentContractsByPath.ContainsKey($path) -Message ("Dependency inventory should include agent tools for {0}" -f $path)
+        Assert-ContainsItem -Values @($agentContractsByPath[$path].RequiredTools) -Expected "helm" -Message ("{0} should report helm as a conditional required agent tool" -f $path)
+        Assert-ContainsItem -Values @($agentContractsByPath[$path].RequiredTools) -Expected "kubectl" -Message ("{0} should report kubectl as a conditional required agent tool" -f $path)
+        Assert-ContainsItem -Values @($agentContractsByPath[$path].OptionalTools) -Expected "git" -Message ("{0} should report git as an optional agent tool" -f $path)
+        Assert-ContainsItem -Values @($agentContractsByPath[$path].OptionalTools) -Expected "docker" -Message ("{0} should report docker as an optional agent tool" -f $path)
+        Assert-ContainsItem -Values @($agentContractsByPath[$path].OptionalTools) -Expected "python" -Message ("{0} should report python as an optional agent tool" -f $path)
+    }
+
+    $seedContract = $agentContractsByPath["jenkins/job-seed.Jenkinsfile"]
+    Assert-Condition -Condition ($null -ne $seedContract) -Message "Dependency inventory should include agent tools for the seed Jenkinsfile"
+    Assert-Equal -Actual ([int]@($seedContract.RequiredTools).Count) -Expected 0 -Message "Seed job should not require cluster tools"
+    Assert-ContainsItem -Values @($seedContract.OptionalTools) -Expected "git" -Message "Seed job should report git as optional"
+
     $riskText = @($Inventory.RiskIndicators) -join [Environment]::NewLine
     Assert-TextContains `
         -Text $riskText `
@@ -416,6 +440,10 @@ function Assert-DependencyInventory {
         -Text $riskText `
         -Expected "Public service image references are tag-based" `
         -Message "Dependency inventory should explain tag-based public service image risk"
+    Assert-TextContains `
+        -Text $riskText `
+        -Expected "Jenkins agent tool requirements are declared in checked-in Jenkinsfiles" `
+        -Message "Dependency inventory should explain Jenkins agent tool contract risk"
 }
 
 function Assert-DependencyInventoryHumanReadableOutput {
@@ -436,6 +464,14 @@ function Assert-DependencyInventoryHumanReadableOutput {
         -Text $Markdown `
         -Expected "| k8s/jenkins-controller/jenkins.yaml:17 | jenkins/jenkins:lts | lts | True | False |" `
         -Message "Markdown dependency inventory should still flag the floating Jenkins controller image"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| Source | Profiles | Required tools | Optional tools |" `
+        -Message "Markdown dependency inventory should expose Jenkins agent tool contracts"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| jenkins/bundle-delivery.Jenkinsfile | bundle delivery agent | helm, kubectl | docker, git, python |" `
+        -Message "Markdown dependency inventory should report delivery agent tools"
 
     Assert-TextContains `
         -Text $Text `
@@ -445,6 +481,10 @@ function Assert-DependencyInventoryHumanReadableOutput {
         -Text $Text `
         -Expected "k8s/jenkins-controller/jenkins.yaml:17: jenkins/jenkins:lts (tag: lts, floating: True, digest pinned: False)" `
         -Message "Text dependency inventory should still flag the floating Jenkins controller image"
+    Assert-TextContains `
+        -Text $Text `
+        -Expected "jenkins/bundle-delivery.Jenkinsfile: profiles: bundle delivery agent; required: helm, kubectl; optional: docker, git, python" `
+        -Message "Text dependency inventory should expose delivery agent tool contracts"
 }
 
 function Assert-PresetRuntimeEntrypointsUsePresetValues {

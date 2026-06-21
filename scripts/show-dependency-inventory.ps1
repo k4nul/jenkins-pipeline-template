@@ -130,6 +130,74 @@ function Find-ControllerImages {
     return @($images.ToArray())
 }
 
+function Get-SingleQuotedValues {
+    param(
+        [string]$Text
+    )
+
+    $values = New-Object System.Collections.Generic.List[string]
+    foreach ($match in [regex]::Matches($Text, "'([^']+)'")) {
+        $values.Add([string]$match.Groups[1].Value) | Out-Null
+    }
+
+    return @($values.ToArray())
+}
+
+function Find-JenkinsAgentToolContracts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $jenkinsRoot = Join-Path $Root "jenkins"
+    if (-not (Test-Path -Path $jenkinsRoot -PathType Container)) {
+        return @()
+    }
+
+    $contracts = New-Object System.Collections.Generic.List[object]
+    foreach ($file in @(Get-ChildItem -Path $jenkinsRoot -File -Filter "*.Jenkinsfile" | Sort-Object FullName)) {
+        $content = Get-Content -Path $file.FullName -Raw
+        $requiredTools = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::Ordinal)
+        $optionalTools = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::Ordinal)
+        $profileNames = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::Ordinal)
+
+        foreach ($match in [regex]::Matches($content, "\`$requiredTools\.Add\('([^']+)'\)")) {
+            $requiredTools.Add([string]$match.Groups[1].Value) | Out-Null
+        }
+
+        foreach ($match in [regex]::Matches($content, "-RequiredTools\s+@\(([^)]*)\)")) {
+            foreach ($tool in @(Get-SingleQuotedValues -Text ([string]$match.Groups[1].Value))) {
+                $requiredTools.Add($tool) | Out-Null
+            }
+        }
+
+        foreach ($match in [regex]::Matches($content, "-OptionalTools\s+@\(([^)]*)\)")) {
+            foreach ($tool in @(Get-SingleQuotedValues -Text ([string]$match.Groups[1].Value))) {
+                $optionalTools.Add($tool) | Out-Null
+            }
+        }
+
+        foreach ($match in [regex]::Matches($content, "-ProfileName\s+'([^']+)'")) {
+            $profileNames.Add([string]$match.Groups[1].Value) | Out-Null
+        }
+
+        $required = @($requiredTools | Sort-Object)
+        $optional = @($optionalTools | Sort-Object)
+        if ($required.Count -eq 0 -and $optional.Count -eq 0) {
+            continue
+        }
+
+        $contracts.Add([PSCustomObject]@{
+            SourcePath = Get-RepoRelativePath -Root $Root -Path $file.FullName
+            ProfileNames = @($profileNames | Sort-Object)
+            RequiredTools = @($required)
+            OptionalTools = @($optional)
+        }) | Out-Null
+    }
+
+    return @($contracts.ToArray())
+}
+
 function New-DependencyInventory {
     param(
         [Parameter(Mandatory = $true)]
@@ -156,6 +224,7 @@ function New-DependencyInventory {
 
     $packageManagerManifests = @(Find-PackageManagerManifests -Root $Root)
     $controllerImages = @(Find-ControllerImages -Root $Root)
+    $jenkinsAgentToolContracts = @(Find-JenkinsAgentToolContracts -Root $Root)
     $floatingControllerImages = @($controllerImages | Where-Object { [bool]$_.UsesFloatingTag })
 
     $riskIndicators = New-Object System.Collections.Generic.List[string]
@@ -171,11 +240,16 @@ function New-DependencyInventory {
         $riskIndicators.Add("Public service image references are tag-based; refresh them only as a release-note-reviewed catalog batch.") | Out-Null
     }
 
+    if ($jenkinsAgentToolContracts.Count -gt 0) {
+        $riskIndicators.Add("Jenkins agent tool requirements are declared in checked-in Jenkinsfiles; standardize agent images before non-dry-run rollout.") | Out-Null
+    }
+
     return [PSCustomObject]@{
         Status = "passed"
         PackageManagerManifests = @($packageManagerManifests)
         ServiceImages = @($serviceImages)
         ControllerImages = @($controllerImages)
+        JenkinsAgentToolContracts = @($jenkinsAgentToolContracts)
         Toolchain = [PSCustomObject]@{
             PowerShellMinimum = "7+"
             PhaseValidation = "sh scripts/run-phase-validation.sh"
@@ -201,6 +275,7 @@ switch ($Format) {
             ("- Package manager manifests: " + [string]@($inventory.PackageManagerManifests).Count),
             ("- Public service images: " + [string]@($inventory.ServiceImages).Count),
             ("- Controller image references: " + [string]@($inventory.ControllerImages).Count),
+            ("- Jenkins agent tool contracts: " + [string]@($inventory.JenkinsAgentToolContracts).Count),
             "",
             "## Public Service Images",
             "",
@@ -226,6 +301,18 @@ switch ($Format) {
 
         $lines += @(
             "",
+            "## Jenkins Agent Tool Contracts",
+            "",
+            "| Source | Profiles | Required tools | Optional tools |",
+            "| --- | --- | --- | --- |"
+        )
+
+        foreach ($contract in @($inventory.JenkinsAgentToolContracts)) {
+            $lines += ("| {0} | {1} | {2} | {3} |" -f $contract.SourcePath, $(@($contract.ProfileNames) -join ", "), $(@($contract.RequiredTools) -join ", "), $(@($contract.OptionalTools) -join ", "))
+        }
+
+        $lines += @(
+            "",
             "## Risk Indicators",
             ""
         )
@@ -244,6 +331,7 @@ switch ($Format) {
             ("Package manager manifests: " + [string]@($inventory.PackageManagerManifests).Count),
             ("Public service images: " + [string]@($inventory.ServiceImages).Count),
             ("Controller image references: " + [string]@($inventory.ControllerImages).Count),
+            ("Jenkins agent tool contracts: " + [string]@($inventory.JenkinsAgentToolContracts).Count),
             "",
             "Public service images:"
         )
@@ -256,6 +344,12 @@ switch ($Format) {
         $lines += "Controller images:"
         foreach ($image in @($inventory.ControllerImages)) {
             $lines += ("  {0}:{1}: {2} (tag: {3}, floating: {4}, digest pinned: {5})" -f $image.SourcePath, $image.LineNumber, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.UsesFloatingTag, $image.IsDigestPinned)
+        }
+
+        $lines += ""
+        $lines += "Jenkins agent tool contracts:"
+        foreach ($contract in @($inventory.JenkinsAgentToolContracts)) {
+            $lines += ("  {0}: profiles: {1}; required: {2}; optional: {3}" -f $contract.SourcePath, $(@($contract.ProfileNames) -join ", "), $(@($contract.RequiredTools) -join ", "), $(@($contract.OptionalTools) -join ", "))
         }
 
         $lines += ""
