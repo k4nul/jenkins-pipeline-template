@@ -26,6 +26,7 @@ function New-JenkinsServiceJobFixtureRoot {
     foreach ($scriptName in @(
         "environment-preset.ps1",
         "export-jenkins-job-dsl.ps1",
+        "jenkins-job-dsl-common.ps1",
         "jenkins-job-common.ps1",
         "platform-catalog.ps1",
         "show-jenkins-job-plan.ps1",
