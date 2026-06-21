@@ -530,6 +530,129 @@ function Assert-PresetRuntimeEntrypointsUsePresetValues {
     Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out\delivery\dev.zip" -Message "Preset-only bundle manifest selection should use the dev preset archive path"
 }
 
+function Get-PublicPresetDataByName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Presets
+    )
+
+    $presetDataByName = @{}
+    foreach ($preset in @($Presets)) {
+        $presetPath = Join-Path $Root ("config/environments/{0}.psd1" -f $preset)
+        Assert-Condition -Condition (Test-Path -Path $presetPath -PathType Leaf) -Message ("Public preset file should exist: {0}" -f $presetPath)
+        $presetDataByName[$preset] = Import-PowerShellDataFile -Path $presetPath
+    }
+
+    return $presetDataByName
+}
+
+function ConvertTo-ExpectedDslText {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return $Value.Replace("\", "\\").Replace("'", "\'")
+}
+
+function Assert-PublicPresetSelectionMatchesDataFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Selection,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$PresetData,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Preset
+    )
+
+    Assert-Equal -Actual ([string]$Selection.Description) -Expected ([string]$PresetData.Description) -Message ("Preset {0} description should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.Profile) -Expected ([string]$PresetData.Profile) -Message ("Preset {0} profile should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.ValuesFile) -Expected ([string]$PresetData.ValuesFile) -Message ("Preset {0} values file should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.Version) -Expected ([string]$PresetData.Version) -Message ("Preset {0} version should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.BundleOutputPath) -Expected ([string]$PresetData.OutputPath) -Message ("Preset {0} bundle output path should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.ArchivePath) -Expected ([string]$PresetData.ArchivePath) -Message ("Preset {0} archive path should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([string]$Selection.PromotionExtractPath) -Expected ([string]$PresetData.PromotionExtractPath) -Message ("Preset {0} promotion extract path should come from the preset file" -f $Preset)
+    Assert-Equal -Actual ([bool]$Selection.IncludeJenkins) -Expected ([bool]$PresetData.IncludeJenkins) -Message ("Preset {0} IncludeJenkins value should come from the preset file" -f $Preset)
+
+    foreach ($application in @(Get-NormalizedList -Values @($PresetData.Applications))) {
+        Assert-ContainsItem -Values @($Selection.Applications) -Expected ([string]$application) -Message ("Preset {0} should include application {1} from the preset file" -f $Preset, $application)
+        Assert-ContainsItem -Values @($Selection.ServiceDirectories) -Expected ([string]$application) -Message ("Preset {0} service projection should include application {1}" -f $Preset, $application)
+    }
+
+    foreach ($dataService in @(Get-NormalizedList -Values @($PresetData.DataServices))) {
+        Assert-ContainsItem -Values @($Selection.DataServices) -Expected ([string]$dataService) -Message ("Preset {0} should include data service {1} from the preset file" -f $Preset, $dataService)
+    }
+}
+
+function Assert-PublicPresetMatrixDslContainsPresetData {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Plan,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DslPath,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$PresetDataByName,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$ExpectedPresets
+    )
+
+    Assert-Condition -Condition (Test-Path -Path $DslPath -PathType Leaf) -Message ("Generated public preset matrix DSL should exist: {0}" -f $DslPath)
+    $dsl = Get-Content -Path $DslPath -Raw
+
+    foreach ($preset in @($ExpectedPresets)) {
+        Assert-Condition -Condition $PresetDataByName.ContainsKey($preset) -Message ("Preset data should be loaded for {0}" -f $preset)
+        $presetData = $PresetDataByName[$preset]
+        $selection = @($Plan.Selections | Where-Object { [string]$_.Name -eq $preset })[0]
+        Assert-Condition -Condition ($null -ne $selection) -Message ("Public preset matrix should include selection {0}" -f $preset)
+
+        Assert-PublicPresetSelectionMatchesDataFile -Selection $selection -PresetData $presetData -Preset $preset
+
+        $validationJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "repository-validation"
+        $deliveryJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-delivery"
+        $promotionJob = Get-JenkinsPlanPipelineJob -Selection $selection -Name "bundle-promotion"
+
+        foreach ($expectedText in @(
+            ("Generated bundle job folder for selection \'{0}\' using profile \'{1}\'." -f $preset, $presetData.Profile),
+            ("Selection: {0}" -f $preset),
+            ("Profile: {0}" -f $selection.Profile),
+            ("Applications: {0}" -f (Get-TextList -Values @($selection.Applications))),
+            ("Data services: {0}" -f (Get-TextList -Values @($selection.DataServices))),
+            ("VALIDATION_ENVIRONMENT_PRESET={0}" -f $preset),
+            ("VALIDATION_VALUES_FILE={0}" -f (ConvertTo-ExpectedDslText -Value ([string]$presetData.ValuesFile))),
+            ("VALIDATION_REQUIRE_BOOTSTRAP_SECRETS_READY=false"),
+            ("BUNDLE_ENVIRONMENT_PRESET={0}" -f $preset),
+            ("BUNDLE_OUTPUT_PATH={0}" -f (ConvertTo-ExpectedDslText -Value ([string]$presetData.OutputPath))),
+            ("BUNDLE_ARCHIVE_PATH={0}" -f (ConvertTo-ExpectedDslText -Value ([string]$presetData.ArchivePath))),
+            ("BUNDLE_DEPLOY=false"),
+            ("PROMOTION_ENVIRONMENT_PRESET={0}" -f $preset),
+            ("PROMOTION_ARCHIVE_PATH={0}" -f (ConvertTo-ExpectedDslText -Value ([string]$presetData.ArchivePath))),
+            ("PROMOTION_EXTRACT_PATH={0}" -f (ConvertTo-ExpectedDslText -Value ([string]$presetData.PromotionExtractPath))),
+            ("PROMOTION_DEPLOY=false"),
+            ("PROMOTION_DEPLOY_DRY_RUN=true"),
+            (ConvertTo-ExpectedDslText -Value ([string]$validationJob.LocalCommand)),
+            (ConvertTo-ExpectedDslText -Value ([string]$deliveryJob.LocalCommand)),
+            (ConvertTo-ExpectedDslText -Value ([string]$promotionJob.LocalCommand))
+        )) {
+            Assert-TextContains -Text $dsl -Expected ([string]$expectedText) -Message ("Public preset matrix DSL should include {0} data: {1}" -f $preset, $expectedText)
+        }
+
+        Assert-ContainsItem -Values @($deliveryJob.UpstreamDependencies) -Expected ([string]$validationJob.Path) -Message ("Public preset matrix delivery job should depend on validation for {0}" -f $preset)
+        Assert-ContainsItem -Values @($promotionJob.UpstreamDependencies) -Expected ([string]$deliveryJob.Path) -Message ("Public preset matrix promotion job should depend on delivery for {0}" -f $preset)
+    }
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -549,6 +672,7 @@ $outputDirectory = $context.OutputDirectory
 $presets = @($context.Presets)
 $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
+$presetDataByName = Get-PublicPresetDataByName -Root $root -Presets $presets
 
 Assert-RepoOutputPathCaseBoundary -Root $root
 Assert-RepoOutputPathRejectsControlCharacters -Root $root
@@ -662,6 +786,11 @@ $publicPresetMatrixDslPath = Join-Path $outputDirectory "public-preset-matrix-se
     -EnvironmentPreset $presets `
     -OutputPath $publicPresetMatrixDslPath 6>$null | Out-Null
 Assert-MultiPresetPlanAndDsl -Plan $publicPresetMatrixPlan -ExpectedPresets $presets -DslPath $publicPresetMatrixDslPath
+Assert-PublicPresetMatrixDslContainsPresetData `
+    -Plan $publicPresetMatrixPlan `
+    -DslPath $publicPresetMatrixDslPath `
+    -PresetDataByName $presetDataByName `
+    -ExpectedPresets $presets
 
 $customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
