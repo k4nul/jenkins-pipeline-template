@@ -48,6 +48,19 @@ For a passing refresh, capture the command, date, and this evidence summary:
 This evidence belongs in documentation or reports, not in generated DSL
 fixtures. Keep generated files under ignored `out/` paths.
 
+## Latest Refresh
+
+The latest repository-local refresh passed on 2026-06-22 with PowerShell 7.6.2:
+
+```sh
+sh scripts/run-phase-validation.sh
+```
+
+The run covered dependency inventory, the focused `dev` job plan, service
+pipeline plan, ignored Job DSL export, service pipeline validation, aggregate
+Job DSL validation, and the public preset test suite. The generated evidence
+remained under ignored `out/jenkins/` paths, and no phase metadata was changed.
+
 ## What Not To Claim
 
 A passing refresh does not prove live Jenkins readiness. Keep these checks
