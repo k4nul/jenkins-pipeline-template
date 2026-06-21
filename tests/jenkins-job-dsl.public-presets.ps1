@@ -447,6 +447,49 @@ function Assert-DependencyInventoryHumanReadableOutput {
         -Message "Text dependency inventory should still flag the floating Jenkins controller image"
 }
 
+function Assert-PresetRuntimeEntrypointsUsePresetValues {
+    param(
+        [string]$RepositoryValidationScript,
+        [string]$BundleDeliveryScript,
+        [string]$Root
+    )
+
+    $validation = Invoke-JsonScript -ScriptPath $RepositoryValidationScript -Arguments @{
+        RepoRoot = $Root
+        EnvironmentPreset = @("dev")
+        SkipWorkstationValidation = $true
+    }
+    Assert-Equal -Actual ([string]$validation.Profile) -Expected "web-platform" -Message "Preset-only repository validation should use the dev preset profile"
+    Assert-Equal -Actual ([string]$validation.Version) -Expected "0.0.0-dev" -Message "Preset-only repository validation should use the dev preset version"
+    Assert-TextContains `
+        -Text ([string]$validation.ValuesFile).Replace("\", "/") `
+        -Expected "config/platform-values.dev.env.example" `
+        -Message "Preset-only repository validation should validate the dev preset values file"
+
+    $delivery = Invoke-JsonScript -ScriptPath $BundleDeliveryScript -Arguments @{
+        RepoRoot = $Root
+        EnvironmentPreset = @("dev")
+        SkipRepositoryValidation = $true
+        SkipArchive = $true
+        CleanOutput = $true
+    }
+    Assert-TextContains `
+        -Text ([string]$delivery.OutputPath).Replace("\", "/") `
+        -Expected "out/delivery/dev" `
+        -Message "Preset-only bundle delivery should write to the dev preset output path"
+
+    $manifestPath = Join-Path ([string]$delivery.OutputPath) "bundle-manifest.json"
+    Assert-Condition -Condition (Test-Path -Path $manifestPath -PathType Leaf) -Message "Preset-only bundle delivery should write a manifest"
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$manifest.Profile) -Expected "web-platform" -Message "Preset-only bundle manifest should use the dev preset profile"
+    Assert-Equal -Actual ([string]$manifest.Version) -Expected "0.0.0-dev" -Message "Preset-only bundle manifest should use the dev preset version"
+    Assert-Equal -Actual ([string]$manifest.ValuesFile) -Expected "config\platform-values.dev.env.example" -Message "Preset-only bundle manifest should use the dev preset values file"
+
+    $selection = @($manifest.Selections)[0]
+    Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected "out\delivery\dev" -Message "Preset-only bundle manifest selection should use the dev preset output path"
+    Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out\delivery\dev.zip" -Message "Preset-only bundle manifest selection should use the dev preset archive path"
+}
+
 $context = Initialize-JenkinsValidationContext `
     -RepoRoot $RepoRoot `
     -DefaultRoot (Join-Path $PSScriptRoot "..") `
@@ -456,6 +499,8 @@ $root = $context.Root
 $jobPlanScript = $context.Paths.JobPlanScript
 $jobDslScript = $context.Paths.JobDslScript
 $dependencyInventoryScript = $context.Paths.DependencyInventoryScript
+$repositoryValidationScript = $context.Paths.RepositoryValidationScript
+$bundleDeliveryScript = $context.Paths.BundleDeliveryScript
 $bundlePromotionScript = $context.Paths.BundlePromotionScript
 $seedJobPath = $context.Paths.SeedJobPath
 $deliveryJobPath = $context.Paths.DeliveryJobPath
@@ -798,6 +843,10 @@ Assert-DependencyInventory -Inventory $dependencyInventory
 $dependencyInventoryMarkdown = (& $dependencyInventoryScript -RepoRoot $root -Format markdown | Out-String).Trim()
 $dependencyInventoryText = (& $dependencyInventoryScript -RepoRoot $root -Format text | Out-String).Trim()
 Assert-DependencyInventoryHumanReadableOutput -Markdown $dependencyInventoryMarkdown -Text $dependencyInventoryText
+Assert-PresetRuntimeEntrypointsUsePresetValues `
+    -RepositoryValidationScript $repositoryValidationScript `
+    -BundleDeliveryScript $bundleDeliveryScript `
+    -Root $root
 
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")

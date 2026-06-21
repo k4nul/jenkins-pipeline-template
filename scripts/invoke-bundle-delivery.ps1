@@ -32,8 +32,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
-$resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $OutputPath
-$resolvedArchivePath = Resolve-RepoOutputPath -RepoRoot $root -Path $ArchivePath
+$normalizedPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
 
 if ($DeployBundle -and -not $DeploymentDryRun) {
     throw "Non-dry-run bundle deployment is not implemented in this public-safe Jenkins template. Keep DeploymentDryRun enabled or provide a downstream deployment implementation."
@@ -47,30 +46,81 @@ if ($RequireBootstrapStatus) {
     throw "RequireBootstrapStatus needs a live cluster and is outside this controller-free bundle delivery contract."
 }
 
+$planBoundParameters = @{}
+foreach ($name in @($PSBoundParameters.Keys)) {
+    $planBoundParameters[$name] = $PSBoundParameters[$name]
+}
+if ($PSBoundParameters.ContainsKey("OutputPath")) {
+    $planBoundParameters["BundleOutputPath"] = $OutputPath
+}
+if ($normalizedPresets.Count -eq 0) {
+    foreach ($name in @("Profile", "ValuesFile", "Version", "BundleOutputPath", "ArchivePath")) {
+        if (-not $planBoundParameters.ContainsKey($name)) {
+            $planBoundParameters[$name] = $true
+        }
+    }
+}
+
+$planArguments = New-JenkinsJobPlanArguments `
+    -RepoRoot $root `
+    -Format "json" `
+    -EnvironmentPreset $EnvironmentPreset `
+    -Profile $Profile `
+    -Applications $Applications `
+    -DataServices $DataServices `
+    -ValuesFile $ValuesFile `
+    -DockerRegistry $DockerRegistry `
+    -Version $Version `
+    -BundleOutputPath $OutputPath `
+    -ArchivePath $ArchivePath `
+    -IncludeJenkins:$IncludeJenkins `
+    -BoundParameters $planBoundParameters
+
+$plan = ((& (Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1") @planArguments | Out-String).Trim()) | ConvertFrom-Json
+$selections = @($plan.Selections)
+$singleSelection = if ($selections.Count -eq 1) { $selections[0] } else { $null }
+$effectiveProfile = if ($null -ne $singleSelection) { [string]$singleSelection.Profile } else { $Profile }
+$effectiveApplications = if ($null -ne $singleSelection) { @($singleSelection.Applications) } else { @(Get-NormalizedList -Values $Applications) }
+$effectiveDataServices = if ($null -ne $singleSelection) { @($singleSelection.DataServices) } else { @(Get-NormalizedList -Values $DataServices) }
+$effectiveValuesFile = if ($null -ne $singleSelection) { [string]$singleSelection.ValuesFile } else { $ValuesFile }
+$effectiveDockerRegistry = if ($null -ne $singleSelection) { [string]$singleSelection.DockerRegistry } else { $DockerRegistry }
+$effectiveVersion = if ($null -ne $singleSelection) { [string]$singleSelection.Version } else { $Version }
+$effectiveOutputPath = if ($PSBoundParameters.ContainsKey("OutputPath") -or $null -eq $singleSelection -or -not [string]$singleSelection.BundleOutputPath) {
+    $OutputPath
+}
+else {
+    [string]$singleSelection.BundleOutputPath
+}
+$effectiveArchivePath = if ($PSBoundParameters.ContainsKey("ArchivePath") -or $null -eq $singleSelection -or -not [string]$singleSelection.ArchivePath) {
+    $ArchivePath
+}
+else {
+    [string]$singleSelection.ArchivePath
+}
+$resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $effectiveOutputPath
+$resolvedArchivePath = Resolve-RepoOutputPath -RepoRoot $root -Path $effectiveArchivePath
+
 if (-not $SkipRepositoryValidation) {
     $validationArguments = @{
         RepoRoot = $root
-        Profile = $Profile
-        ValuesFile = $ValuesFile
+        Profile = $effectiveProfile
+        ValuesFile = $effectiveValuesFile
         HelmConfigFile = $HelmConfigFile
-        Version = $Version
+        Version = $effectiveVersion
         SkipPlatformAssetValidation = $true
     }
 
-    $validationPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
-    if ($validationPresets.Count -gt 0) {
-        $validationArguments["EnvironmentPreset"] = @($validationPresets)
+    if ($normalizedPresets.Count -gt 0) {
+        $validationArguments["EnvironmentPreset"] = @($normalizedPresets)
     }
-    $validationApplications = @(Get-NormalizedList -Values $Applications)
-    if ($validationApplications.Count -gt 0) {
-        $validationArguments["Applications"] = @($validationApplications)
+    if ($effectiveApplications.Count -gt 0) {
+        $validationArguments["Applications"] = @($effectiveApplications)
     }
-    $validationDataServices = @(Get-NormalizedList -Values $DataServices)
-    if ($validationDataServices.Count -gt 0) {
-        $validationArguments["DataServices"] = @($validationDataServices)
+    if ($effectiveDataServices.Count -gt 0) {
+        $validationArguments["DataServices"] = @($effectiveDataServices)
     }
-    if ($DockerRegistry) {
-        $validationArguments["DockerRegistry"] = $DockerRegistry
+    if ($effectiveDockerRegistry) {
+        $validationArguments["DockerRegistry"] = $effectiveDockerRegistry
     }
     if ($IncludeJenkins) {
         $validationArguments["IncludeJenkins"] = $true
@@ -98,50 +148,19 @@ if ((Test-Path -Path $resolvedOutputPath) -and -not $CleanOutput) {
 
 New-Item -ItemType Directory -Path $resolvedOutputPath -Force | Out-Null
 
-$planArguments = @{
-    RepoRoot = $root
-    Profile = $Profile
-    ValuesFile = $ValuesFile
-    Version = $Version
-    Format = "json"
-}
-
-$normalizedPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
-if ($normalizedPresets.Count -gt 0) {
-    $planArguments["EnvironmentPreset"] = @($normalizedPresets)
-}
-else {
-    $normalizedApplications = @(Get-NormalizedList -Values $Applications)
-    $normalizedDataServices = @(Get-NormalizedList -Values $DataServices)
-    if ($normalizedApplications.Count -gt 0) {
-        $planArguments["Applications"] = @($normalizedApplications)
-    }
-    if ($normalizedDataServices.Count -gt 0) {
-        $planArguments["DataServices"] = @($normalizedDataServices)
-    }
-    if ($DockerRegistry) {
-        $planArguments["DockerRegistry"] = $DockerRegistry
-    }
-    if ($IncludeJenkins) {
-        $planArguments["IncludeJenkins"] = $true
-    }
-}
-
-$plan = ((& (Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1") @planArguments | Out-String).Trim()) | ConvertFrom-Json
-
 $manifest = [PSCustomObject]@{
     SchemaVersion = "1.0.0"
     Kind = "jenkins-pipeline-template-contract-bundle"
     GeneratedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     RepoRoot = $root
     EnvironmentPresets = @($normalizedPresets)
-    Profile = $Profile
-    Applications = @(Get-NormalizedList -Values $Applications)
-    DataServices = @(Get-NormalizedList -Values $DataServices)
-    ValuesFile = $ValuesFile
+    Profile = $effectiveProfile
+    Applications = @($effectiveApplications)
+    DataServices = @($effectiveDataServices)
+    ValuesFile = $effectiveValuesFile
     HelmConfigFile = $HelmConfigFile
-    DockerRegistry = $DockerRegistry
-    Version = $Version
+    DockerRegistry = $effectiveDockerRegistry
+    Version = $effectiveVersion
     IncludeJenkins = [bool]$IncludeJenkins
     IncludeDeferredComponents = [bool]$IncludeDeferredComponents
     RequireBootstrapSecretsReady = [bool]$RequireBootstrapSecretsReady

@@ -65,11 +65,11 @@ function Resolve-RepoInputFile {
 }
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
-$valuesPath = Resolve-RepoInputFile -Root $root -Path $ValuesFile -Description "ValuesFile"
 $helmConfigPath = Resolve-RepoInputFile -Root $root -Path $HelmConfigFile -Description "HelmConfigFile"
 $jobPlanScript = Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1"
 $serviceValidationScript = Join-Path -Path $root -ChildPath "scripts/validate-service-pipelines.ps1"
 $workstationScript = Join-Path -Path $root -ChildPath "scripts/validate-workstation.ps1"
+$normalizedPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
 
 if (-not $SkipWorkstationValidation) {
     & $workstationScript -ProfileName "repository validation local runtime" -RequiredTools @() -OptionalTools @("git", "kubectl", "helm") -Strict:$Strict | Out-Null
@@ -84,34 +84,30 @@ if ($ValidateCrdBackedResources) {
 }
 
 if (-not $SkipTemplateValidation) {
-    $jobPlanArguments = @{
-        RepoRoot = $root
-        Profile = $Profile
-        ValuesFile = $ValuesFile
-        Version = $Version
-        Format = "json"
+    $planBoundParameters = @{}
+    foreach ($name in @($PSBoundParameters.Keys)) {
+        $planBoundParameters[$name] = $PSBoundParameters[$name]
+    }
+    if ($normalizedPresets.Count -eq 0) {
+        foreach ($name in @("Profile", "ValuesFile", "Version")) {
+            if (-not $planBoundParameters.ContainsKey($name)) {
+                $planBoundParameters[$name] = $true
+            }
+        }
     }
 
-    $normalizedPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
-    if ($normalizedPresets.Count -gt 0) {
-        $jobPlanArguments["EnvironmentPreset"] = @($normalizedPresets)
-    }
-    else {
-        $normalizedApplications = @(Get-NormalizedList -Values $Applications)
-        $normalizedDataServices = @(Get-NormalizedList -Values $DataServices)
-        if ($normalizedApplications.Count -gt 0) {
-            $jobPlanArguments["Applications"] = @($normalizedApplications)
-        }
-        if ($normalizedDataServices.Count -gt 0) {
-            $jobPlanArguments["DataServices"] = @($normalizedDataServices)
-        }
-        if ($DockerRegistry) {
-            $jobPlanArguments["DockerRegistry"] = $DockerRegistry
-        }
-        if ($IncludeJenkins) {
-            $jobPlanArguments["IncludeJenkins"] = $true
-        }
-    }
+    $jobPlanArguments = New-JenkinsJobPlanArguments `
+        -RepoRoot $root `
+        -Format "json" `
+        -EnvironmentPreset $EnvironmentPreset `
+        -Profile $Profile `
+        -Applications $Applications `
+        -DataServices $DataServices `
+        -ValuesFile $ValuesFile `
+        -DockerRegistry $DockerRegistry `
+        -Version $Version `
+        -IncludeJenkins:$IncludeJenkins `
+        -BoundParameters $planBoundParameters
 
     $planJson = (& $jobPlanScript @jobPlanArguments | Out-String).Trim()
     if ([string]::IsNullOrWhiteSpace($planJson)) {
@@ -122,6 +118,24 @@ if (-not $SkipTemplateValidation) {
 else {
     $plan = $null
 }
+
+$effectiveSelections = if ($null -ne $plan) { @($plan.Selections) } else { @() }
+$singleSelection = if ($effectiveSelections.Count -eq 1) { $effectiveSelections[0] } else { $null }
+$effectiveValuesFiles = @(
+    if ($effectiveSelections.Count -gt 0) {
+        $effectiveSelections |
+            ForEach-Object { [string]$_.ValuesFile } |
+            Where-Object { $_ } |
+            Sort-Object -Unique
+    }
+    else {
+        $ValuesFile
+    }
+)
+$valuesPaths = @(
+    $effectiveValuesFiles |
+        ForEach-Object { Resolve-RepoInputFile -Root $root -Path $_ -Description "ValuesFile" }
+)
 
 & $serviceValidationScript -RepoRoot $root 6>$null | Out-Null
 
@@ -147,13 +161,13 @@ if ($RequireBootstrapSecretsReady) {
 $summary = [PSCustomObject]@{
     Status = "passed"
     RepoRoot = $root
-    EnvironmentPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
-    Profile = $Profile
-    Applications = @(Get-NormalizedList -Values $Applications)
-    DataServices = @(Get-NormalizedList -Values $DataServices)
-    ValuesFile = $valuesPath
+    EnvironmentPresets = @($normalizedPresets)
+    Profile = if ($null -ne $singleSelection) { [string]$singleSelection.Profile } else { $Profile }
+    Applications = if ($null -ne $singleSelection) { @($singleSelection.Applications) } else { @(Get-NormalizedList -Values $Applications) }
+    DataServices = if ($null -ne $singleSelection) { @($singleSelection.DataServices) } else { @(Get-NormalizedList -Values $DataServices) }
+    ValuesFile = if ($valuesPaths.Count -eq 1) { $valuesPaths[0] } else { @($valuesPaths) }
     HelmConfigFile = $helmConfigPath
-    Version = $Version
+    Version = if ($null -ne $singleSelection) { [string]$singleSelection.Version } else { $Version }
     SelectionCount = if ($null -ne $plan) { [int]$plan.SelectionCount } else { 0 }
     ServiceJobCount = if ($null -ne $plan) { [int]$plan.ServiceJobCount } else { 0 }
     Contract = "controller-free Jenkins runtime contract"
