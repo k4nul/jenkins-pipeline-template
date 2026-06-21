@@ -130,6 +130,30 @@ function Assert-BranchSpecSafety {
     }
 
     Assert-NoControlCharacters -Name "BranchSpec" -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -eq "REPLACE_WITH_BRANCH_SPEC") {
+        return
+    }
+
+    if ($trimmed -ne $Value) {
+        throw "BranchSpec must not contain leading or trailing whitespace."
+    }
+
+    if ($trimmed -match "\s") {
+        throw "BranchSpec must not contain whitespace."
+    }
+
+    if ($trimmed.Contains("..")) {
+        throw "BranchSpec must not contain '..'."
+    }
+
+    if ($trimmed -notmatch "^[A-Za-z0-9._/@*+-]+$") {
+        throw "BranchSpec must contain only letters, digits, '.', '_', '-', '/', '*', '+', or '@'."
+    }
 }
 
 function Assert-ScmCredentialsIdSafety {
@@ -143,6 +167,22 @@ function Assert-ScmCredentialsIdSafety {
     }
 
     Assert-NoControlCharacters -Name "ScmCredentialsId" -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -ne $Value) {
+        throw "ScmCredentialsId must not contain leading or trailing whitespace."
+    }
+
+    if ($trimmed -match "\s") {
+        throw "ScmCredentialsId must not contain whitespace."
+    }
+
+    if ($trimmed -notmatch "^[A-Za-z0-9_.@-]+$") {
+        throw "ScmCredentialsId must contain only letters, digits, '.', '_', '@', or '-'."
+    }
 }
 
 function Add-UniqueFolderDescription {

@@ -1033,15 +1033,15 @@ function Assert-ExplicitScmDsl {
     $dsl = Get-Content -Path $DslPath -Raw
 
     Assert-TextContains -Text $dsl -Expected "String repoUrl = 'git@example.invalid:org/repo.git'" -Message "Explicit SCM URL should be emitted as a Git scp-like repository path."
-    Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote\'safe'" -Message "Explicit branch spec should be escaped in the generated DSL."
-    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm\'credentials'" -Message "Explicit credentials ID should be escaped in the generated DSL."
+    Assert-TextContains -Text $dsl -Expected "String branchSpec = '*/feature/quote-safe'" -Message "Explicit branch spec should be emitted as a constrained Jenkins branch spec."
+    Assert-TextContains -Text $dsl -Expected "String scmCredentialsId = 'jenkins-scm-credentials'" -Message "Explicit credentials ID should be emitted as a constrained Jenkins credentials ID."
     Assert-TextContains -Text $dsl -Expected "url(repoUrl)" -Message "Explicit SCM DSL should keep the repository URL parameterized."
     Assert-TextContains -Text $dsl -Expected "credentials(scmCredentialsId)" -Message "Explicit SCM DSL should keep credentials parameterized."
     Assert-TextContains -Text $dsl -Expected "branch(branchSpec)" -Message "Explicit SCM DSL should keep branch selection parameterized."
 
     Assert-Condition -Condition (-not $dsl.Contains("String repoUrl = 'example.invalid/org/repo'with-quote.git'")) -Message "Explicit SCM URL should not be written from an unsafe local-style path fixture."
-    Assert-Condition -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) -Message "Explicit branch spec should not be written without Groovy escaping."
-    Assert-Condition -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) -Message "Explicit credentials ID should not be written without Groovy escaping."
+    Assert-Condition -Condition (-not $dsl.Contains("String branchSpec = '*/feature/quote'safe'")) -Message "Explicit branch spec should not allow quoted branch metadata."
+    Assert-Condition -Condition (-not $dsl.Contains("String scmCredentialsId = 'jenkins-scm'credentials'")) -Message "Explicit credentials ID should not allow quoted credentials metadata."
     Assert-TextNotMatch -Text $dsl -Pattern "url\(['""]" -Message "Explicit SCM DSL should not inline repository URL calls."
     Assert-TextNotMatch -Text $dsl -Pattern "credentials\(['""]" -Message "Explicit SCM DSL should not inline credentials calls."
     Assert-TextNotMatch -Text $dsl -Pattern "branch\(['""]" -Message "Explicit SCM DSL should not inline branch calls."
@@ -1158,11 +1158,51 @@ function Assert-JobDslScmInputValidation {
             Arguments = @{
                 RepoRoot = $Root
                 EnvironmentPreset = $Preset
+                BranchSpec = "refs/heads/release candidate"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-branch-spec-whitespace.groovy")
+            }
+            ExpectedMessage = "BranchSpec must not contain whitespace."
+            Message = "Job DSL export should reject branch specs with whitespace."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                BranchSpec = "*/feature/quote'safe"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-branch-spec-quote.groovy")
+            }
+            ExpectedMessage = "BranchSpec must contain only letters, digits"
+            Message = "Job DSL export should reject branch specs with quoted metadata."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
                 ScmCredentialsId = "jenkins-scm`ncredential"
                 OutputPath = (Join-Path $OutputDirectory "unsafe-scm-credentials-control-character.groovy")
             }
             ExpectedMessage = "ScmCredentialsId must not contain control characters."
             Message = "Job DSL export should reject SCM credentials IDs with control characters."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                ScmCredentialsId = "jenkins scm credential"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-scm-credentials-whitespace.groovy")
+            }
+            ExpectedMessage = "ScmCredentialsId must not contain whitespace."
+            Message = "Job DSL export should reject SCM credentials IDs with whitespace."
+        },
+        @{
+            Arguments = @{
+                RepoRoot = $Root
+                EnvironmentPreset = $Preset
+                ScmCredentialsId = "jenkins-scm'credential"
+                OutputPath = (Join-Path $OutputDirectory "unsafe-scm-credentials-quote.groovy")
+            }
+            ExpectedMessage = "ScmCredentialsId must contain only letters, digits"
+            Message = "Job DSL export should reject SCM credentials IDs with quoted metadata."
         }
     )
 
@@ -1206,6 +1246,8 @@ function Assert-SeedJobSafety {
     Assert-TextContains -Text $seedJob -Expected "Assert-SeedRepoUrlSafety -Value `$env:SEED_REPO_URL" -Message "Seed job should run repository URL safety checks before exporting DSL."
     Assert-TextContains -Text $seedJob -Expected "Assert-SeedBranchSpecSafety -Value `$env:SEED_BRANCH_SPEC" -Message "Seed job should run branch-spec safety checks before exporting DSL."
     Assert-TextContains -Text $seedJob -Expected "Assert-SeedScmCredentialsIdSafety -Value `$env:SEED_SCM_CREDENTIALS_ID" -Message "Seed job should run credentials ID safety checks before exporting DSL."
+    Assert-TextContains -Text $seedJob -Expected "SEED_BRANCH_SPEC must contain only letters, digits" -Message "Seed job should constrain branch-spec characters before exporting DSL."
+    Assert-TextContains -Text $seedJob -Expected "SEED_SCM_CREDENTIALS_ID must contain only letters, digits" -Message "Seed job should constrain credentials ID characters before exporting DSL."
     Assert-TextContains -Text $seedJob -Expected "def hasConcreteGeneratedMetadata =" -Message "Seed job should detect concrete generated metadata before artifact archiving."
     Assert-TextContains -Text $seedJob -Expected 'params.SEED_DOCKER_REGISTRY?.trim()' -Message "Seed job should treat concrete registry overrides as generated metadata before artifact archiving."
     Assert-TextContains -Text $seedJob -Expected "Skipping generated Job DSL artifact archive because concrete SCM, registry, or credential metadata was supplied." -Message "Seed job should avoid archiving generated DSL that includes concrete SCM, registry, or credential metadata."

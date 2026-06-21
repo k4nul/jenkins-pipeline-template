@@ -26,7 +26,12 @@ such as `out/jenkins/seed-job-dsl.groovy` or `out/jenkins/validation`.
 The default export should use `REPLACE_WITH_REPOSITORY_URL` and
 `REPLACE_WITH_BRANCH_SPEC` placeholders. Pass `-RepoUrl`, `-BranchSpec`, and
 `-ScmCredentialsId` only for local inspection or from Jenkins seed parameters,
-and keep those values out of committed documentation and fixtures.
+and keep those values out of committed documentation and fixtures. Branch specs
+are intentionally constrained to common Jenkins Git patterns such as
+`*/main`, `*/release-1`, or `refs/heads/main`; whitespace, quotes, and other
+expression-like characters fail closed before DSL generation. SCM credentials
+IDs are also constrained to simple identifier characters and should refer to
+Jenkins-managed credentials, not embedded credential material.
 
 ## `No services directory found`
 

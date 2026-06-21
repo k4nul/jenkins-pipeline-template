@@ -84,8 +84,8 @@ $explicitScmDslPath = Join-Path $resolvedOutputDirectory ("{0}-explicit-scm-seed
     -RepoRoot $root `
     -EnvironmentPreset $explicitScmPreset `
     -RepoUrl "git@example.invalid:org/repo.git" `
-    -BranchSpec "*/feature/quote'safe" `
-    -ScmCredentialsId "jenkins-scm'credentials" `
+    -BranchSpec "*/feature/quote-safe" `
+    -ScmCredentialsId "jenkins-scm-credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
 Assert-JobDslScmInputValidation `
@@ -199,7 +199,7 @@ else {
     Write-Output ("Jenkins Job DSL validation passed for presets: {0}" -f ($presets -join ", "))
     Write-Output ("Validated full public preset matrix fixture: {0}" -f $publicPresetMatrixDslPath)
     Write-Output "Validated full public preset service catalog coverage."
-    Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+    Write-Output ("Validated explicit SCM constrained-value fixture: {0}" -f $explicitScmDslPath)
     Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
     Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixture.ServiceJobDslPath)
     Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."

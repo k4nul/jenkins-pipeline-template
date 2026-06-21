@@ -697,8 +697,8 @@ $explicitScmDslPath = Join-Path $outputDirectory ("{0}-explicit-scm-seed-job-dsl
     -RepoRoot $root `
     -EnvironmentPreset $explicitScmPreset `
     -RepoUrl "git@example.invalid:org/repo.git" `
-    -BranchSpec "*/feature/quote'safe" `
-    -ScmCredentialsId "jenkins-scm'credentials" `
+    -BranchSpec "*/feature/quote-safe" `
+    -ScmCredentialsId "jenkins-scm-credentials" `
     -OutputPath $explicitScmDslPath 6>$null | Out-Null
 Assert-ExplicitScmDsl -DslPath $explicitScmDslPath
 Assert-JobDslScmInputValidation `
@@ -712,12 +712,12 @@ $httpsScmDslPath = Join-Path $outputDirectory ("{0}-https-scm-seed-job-dsl.groov
     -RepoRoot $root `
     -EnvironmentPreset $explicitScmPreset `
     -RepoUrl "https://example.invalid/org/repo.git" `
-    -BranchSpec "refs/heads/release candidate" `
+    -BranchSpec "refs/heads/release-candidate" `
     -OutputPath $httpsScmDslPath 6>$null | Out-Null
 Assert-ScmVariantDsl `
     -DslPath $httpsScmDslPath `
     -ExpectedRepoUrl "https://example.invalid/org/repo.git" `
-    -ExpectedBranchSpec "refs/heads/release candidate"
+    -ExpectedBranchSpec "refs/heads/release-candidate"
 
 $sshScmDslPath = Join-Path $outputDirectory ("{0}-ssh-scm-seed-job-dsl.groovy" -f $explicitScmPreset)
 & $jobDslScript `
@@ -1051,7 +1051,7 @@ Assert-PhaseValidationEvidenceContract -Paths $context.Paths
 
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
 Write-Output ("Validated service pipeline catalog entries: {0}" -f @($servicePlan.Services).Count)
-Write-Output ("Validated explicit SCM escaping fixture: {0}" -f $explicitScmDslPath)
+Write-Output ("Validated explicit SCM constrained-value fixture: {0}" -f $explicitScmDslPath)
 Write-Output "Validated unsafe SCM inputs fail closed before Job DSL generation."
 Write-Output ("Validated public-safe HTTPS SCM fixture: {0}" -f $httpsScmDslPath)
 Write-Output ("Validated public-safe SSH SCM fixture: {0}" -f $sshScmDslPath)

@@ -69,7 +69,11 @@ when the selected repository needs Jenkins-managed credentials. Keep the
 generated jobs calling `credentials(scmCredentialsId)` and `branch(branchSpec)`
 instead of inlining real values. `SEED_REPO_URL` must be an HTTPS/SSH
 repository URI or a Git scp-like path; local file URLs and relative paths are
-rejected before DSL generation.
+rejected before DSL generation. `SEED_BRANCH_SPEC` accepts common Jenkins Git
+branch specs such as `*/main` and `refs/heads/main`; whitespace, quotes, parent
+markers, and expression-like characters are rejected before DSL generation.
+`SEED_SCM_CREDENTIALS_ID` accepts simple Jenkins credentials ID characters only
+and must not carry credential material itself.
 
 ### Service Pipeline Catalog
 

@@ -279,7 +279,35 @@ function Assert-SeedBranchSpecSafety {
         [string]$Value
     )
 
+    if ($null -eq $Value) {
+        return
+    }
+
     Assert-NoControlCharacters -Name 'SEED_BRANCH_SPEC' -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -eq 'REPLACE_WITH_BRANCH_SPEC') {
+        return
+    }
+
+    if ($trimmed -ne $Value) {
+        throw 'SEED_BRANCH_SPEC must not contain leading or trailing whitespace.'
+    }
+
+    if ($trimmed -match '\s') {
+        throw 'SEED_BRANCH_SPEC must not contain whitespace.'
+    }
+
+    if ($trimmed.Contains('..')) {
+        throw "SEED_BRANCH_SPEC must not contain '..'."
+    }
+
+    if ($trimmed -notmatch '^[A-Za-z0-9._/@*+-]+$') {
+        throw "SEED_BRANCH_SPEC must contain only letters, digits, '.', '_', '-', '/', '*', '+', or '@'."
+    }
 }
 
 function Assert-SeedScmCredentialsIdSafety {
@@ -288,7 +316,27 @@ function Assert-SeedScmCredentialsIdSafety {
         [string]$Value
     )
 
+    if ($null -eq $Value) {
+        return
+    }
+
     Assert-NoControlCharacters -Name 'SEED_SCM_CREDENTIALS_ID' -Value $Value
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -ne $Value) {
+        throw 'SEED_SCM_CREDENTIALS_ID must not contain leading or trailing whitespace.'
+    }
+
+    if ($trimmed -match '\s') {
+        throw 'SEED_SCM_CREDENTIALS_ID must not contain whitespace.'
+    }
+
+    if ($trimmed -notmatch '^[A-Za-z0-9_.@-]+$') {
+        throw "SEED_SCM_CREDENTIALS_ID must contain only letters, digits, '.', '_', '@', or '-'."
+    }
 }
 
 Assert-SeedRepoUrlSafety -Value $env:SEED_REPO_URL
