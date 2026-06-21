@@ -948,6 +948,33 @@ function Assert-UnsafeServiceCatalogNamesFail {
     }
 }
 
+function Assert-UnsupportedServiceComposeUpdateFails {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "unsupported-compose-update-fixture-repo"
+    $catalogPath = Join-Path $fixtureRoot "config/service-pipelines.psd1"
+    $validationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+    $catalog = Get-Content -Path $catalogPath -Raw
+
+    Set-Content -Path $catalogPath -Value $catalog.Replace('ComposeUpdate = "none"', 'ComposeUpdate = "sometimes"') -Encoding utf8NoBOM
+
+    $failed = $false
+    $message = ""
+    try {
+        & $validationScript -RepoRoot $fixtureRoot 6>$null | Out-Null
+    }
+    catch {
+        $failed = $true
+        $message = [string]$_
+    }
+
+    Assert-Condition -Condition $failed -Message "Service pipeline validation should reject unsupported ComposeUpdate catalog values."
+    Assert-TextContains -Text $message -Expected "unsupported ComposeUpdate value" -Message "Unsupported ComposeUpdate failure should explain the catalog value mismatch."
+}
+
 function Assert-GeneratedDsl {
     param(
         [string]$DslPath,

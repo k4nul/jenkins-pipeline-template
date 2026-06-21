@@ -49,6 +49,11 @@ function Test-ServiceRelativePath {
 
 $safeRequiredFilesByService = @{}
 foreach ($serviceName in $catalogMap.Keys) {
+    $composeUpdate = [string]$catalogMap[$serviceName].ComposeUpdate
+    if ($composeUpdate -notin @("manual", "none", "test-only")) {
+        $errors.Add("Catalog entry for $serviceName uses unsupported ComposeUpdate value: $composeUpdate") | Out-Null
+    }
+
     $safeRequiredFiles = [System.Collections.Generic.List[string]]::new()
     foreach ($fileName in @($catalogMap[$serviceName].RequiredFiles)) {
         if (Test-ServiceRelativePath -ServiceName $serviceName -Path $fileName -Errors $errors) {
@@ -179,6 +184,7 @@ foreach ($serviceName in $catalogMap.Keys) {
                 $errors.Add("Jenkinsfile for $serviceName should not include a docker-compose update stage.") | Out-Null
             }
         }
+        "manual" {}
         "test-only" {
             if (-not $hasComposeUpdate) {
                 $errors.Add("Jenkinsfile for $serviceName should include a docker-compose update stage.") | Out-Null

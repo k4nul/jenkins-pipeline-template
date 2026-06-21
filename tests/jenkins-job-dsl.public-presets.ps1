@@ -1046,6 +1046,7 @@ Assert-PromotionArchiveEntrySafety `
     -PromotionScript $bundlePromotionScript `
     -Root $root `
     -OutputDirectory $outputDirectory
+Assert-UnsupportedServiceComposeUpdateFails -Root $root -OutputDirectory $outputDirectory
 Assert-PhaseValidationEvidenceContract -Paths $context.Paths
 
 Write-Output ("Jenkins public preset tests passed for presets: {0}" -f ($presets -join ", "))
@@ -1078,4 +1079,5 @@ Write-Output "Validated repository output paths reject control characters."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
 Write-Output "Validated promotion archive entries fail closed before extraction."
 Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
+Write-Output "Validated unsupported service ComposeUpdate values fail closed."
 Write-Output "Validated phase validation evidence contract."
