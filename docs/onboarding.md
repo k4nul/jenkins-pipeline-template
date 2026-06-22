@@ -37,8 +37,8 @@ A passing wrapper run is evidence that the public template can render and
 validate its controller-free contract:
 
 - the dependency inventory can report package-manager manifest absence, public
-  service image tags, controller image references, and the PowerShell validation
-  contract from committed files;
+  service image tags, controller image references, CI action references, and
+  the PowerShell validation contract from committed files;
 - the `dev` job plan renders the validation, delivery, and promotion bundle
   jobs under the `platform/dev` folder;
 - the service catalog can be planned and validated in its current public-image

@@ -163,7 +163,8 @@ gate to pass.
 
 - The `dev`, `staging`, and `prod` presets can render Jenkins job plans.
 - The dependency inventory can report manifest-free package posture, public
-  service image tags, and controller image risk indicators from committed files.
+  service image tags, CI action refs, and controller image risk indicators from
+  committed files.
 - Job DSL export can produce folder and `pipelineJob` definitions.
 - The phase gate exercises both the focused `dev` transition commands and the
   all-preset public Job DSL harness.

@@ -130,6 +130,42 @@ function Find-ControllerImages {
     return @($images.ToArray())
 }
 
+function Find-CIActionReferences {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $workflowRoot = Join-Path $Root ".github/workflows"
+    if (-not (Test-Path -Path $workflowRoot -PathType Container)) {
+        return @()
+    }
+
+    $actions = New-Object System.Collections.Generic.List[object]
+    foreach ($file in @(Get-ChildItem -Path $workflowRoot -File | Where-Object { $_.Name -match "\.ya?ml$" } | Sort-Object FullName)) {
+        $lines = @(Get-Content -Path $file.FullName)
+        for ($index = 0; $index -lt $lines.Count; $index++) {
+            if ($lines[$index] -match "^\s*uses:\s*['""]?([^@'""]+)@([^'""]+)['""]?\s*$") {
+                $actionName = $Matches[1].Trim()
+                $ref = $Matches[2].Trim()
+                $isPinnedToSha = $ref -match "^[A-Fa-f0-9]{40}$"
+                $usesMajorTag = $ref -match "^v\d+$"
+
+                $actions.Add([PSCustomObject]@{
+                    SourcePath = Get-RepoRelativePath -Root $Root -Path $file.FullName
+                    LineNumber = $index + 1
+                    Action = $actionName
+                    Ref = $ref
+                    IsPinnedToSha = [bool]$isPinnedToSha
+                    UsesMajorTag = [bool]$usesMajorTag
+                }) | Out-Null
+            }
+        }
+    }
+
+    return @($actions.ToArray())
+}
+
 function Get-SingleQuotedValues {
     param(
         [string]$Text
@@ -224,8 +260,10 @@ function New-DependencyInventory {
 
     $packageManagerManifests = @(Find-PackageManagerManifests -Root $Root)
     $controllerImages = @(Find-ControllerImages -Root $Root)
+    $ciActionReferences = @(Find-CIActionReferences -Root $Root)
     $jenkinsAgentToolContracts = @(Find-JenkinsAgentToolContracts -Root $Root)
     $floatingControllerImages = @($controllerImages | Where-Object { [bool]$_.UsesFloatingTag })
+    $unpinnedCIActionReferences = @($ciActionReferences | Where-Object { -not [bool]$_.IsPinnedToSha })
 
     $riskIndicators = New-Object System.Collections.Generic.List[string]
     if ($packageManagerManifests.Count -eq 0) {
@@ -244,11 +282,16 @@ function New-DependencyInventory {
         $riskIndicators.Add("Jenkins agent tool requirements are declared in checked-in Jenkinsfiles; standardize agent images before non-dry-run rollout.") | Out-Null
     }
 
+    if ($unpinnedCIActionReferences.Count -gt 0) {
+        $riskIndicators.Add("CI workflow actions are version-tag based; review action release notes before changing workflow dependency refs.") | Out-Null
+    }
+
     return [PSCustomObject]@{
         Status = "passed"
         PackageManagerManifests = @($packageManagerManifests)
         ServiceImages = @($serviceImages)
         ControllerImages = @($controllerImages)
+        CIActionReferences = @($ciActionReferences)
         JenkinsAgentToolContracts = @($jenkinsAgentToolContracts)
         Toolchain = [PSCustomObject]@{
             PowerShellMinimum = "7+"
@@ -275,6 +318,7 @@ switch ($Format) {
             ("- Package manager manifests: " + [string]@($inventory.PackageManagerManifests).Count),
             ("- Public service images: " + [string]@($inventory.ServiceImages).Count),
             ("- Controller image references: " + [string]@($inventory.ControllerImages).Count),
+            ("- CI action references: " + [string]@($inventory.CIActionReferences).Count),
             ("- Jenkins agent tool contracts: " + [string]@($inventory.JenkinsAgentToolContracts).Count),
             "",
             "## Public Service Images",
@@ -297,6 +341,18 @@ switch ($Format) {
 
         foreach ($image in @($inventory.ControllerImages)) {
             $lines += ("| {0}:{1} | {2} | {3} | {4} | {5} |" -f $image.SourcePath, $image.LineNumber, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.UsesFloatingTag, $image.IsDigestPinned)
+        }
+
+        $lines += @(
+            "",
+            "## CI Action References",
+            "",
+            "| Source | Action | Ref | Major tag | SHA pinned |",
+            "| --- | --- | --- | --- | --- |"
+        )
+
+        foreach ($action in @($inventory.CIActionReferences)) {
+            $lines += ("| {0}:{1} | {2} | {3} | {4} | {5} |" -f $action.SourcePath, $action.LineNumber, $action.Action, $action.Ref, $action.UsesMajorTag, $action.IsPinnedToSha)
         }
 
         $lines += @(
@@ -331,6 +387,7 @@ switch ($Format) {
             ("Package manager manifests: " + [string]@($inventory.PackageManagerManifests).Count),
             ("Public service images: " + [string]@($inventory.ServiceImages).Count),
             ("Controller image references: " + [string]@($inventory.ControllerImages).Count),
+            ("CI action references: " + [string]@($inventory.CIActionReferences).Count),
             ("Jenkins agent tool contracts: " + [string]@($inventory.JenkinsAgentToolContracts).Count),
             "",
             "Public service images:"
@@ -344,6 +401,12 @@ switch ($Format) {
         $lines += "Controller images:"
         foreach ($image in @($inventory.ControllerImages)) {
             $lines += ("  {0}:{1}: {2} (tag: {3}, floating: {4}, digest pinned: {5})" -f $image.SourcePath, $image.LineNumber, $image.ImageReference, $(if ($image.Tag) { $image.Tag } else { "none" }), $image.UsesFloatingTag, $image.IsDigestPinned)
+        }
+
+        $lines += ""
+        $lines += "CI action references:"
+        foreach ($action in @($inventory.CIActionReferences)) {
+            $lines += ("  {0}:{1}: {2}@{3} (major tag: {4}, SHA pinned: {5})" -f $action.SourcePath, $action.LineNumber, $action.Action, $action.Ref, $action.UsesMajorTag, $action.IsPinnedToSha)
         }
 
         $lines += ""

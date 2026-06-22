@@ -374,6 +374,7 @@ function Assert-DependencyInventory {
     Assert-Equal -Actual ([int]@($Inventory.PackageManagerManifests).Count) -Expected 0 -Message "Template should not currently report package-manager manifests"
     Assert-Equal -Actual ([int]@($Inventory.ServiceImages).Count) -Expected 4 -Message "Dependency inventory should include the public service images"
     Assert-Equal -Actual ([int]@($Inventory.ControllerImages).Count) -Expected 1 -Message "Dependency inventory should include the Jenkins controller example image"
+    Assert-Equal -Actual ([int]@($Inventory.CIActionReferences).Count) -Expected 2 -Message "Dependency inventory should include checked-in CI action references"
     Assert-Equal -Actual ([int]@($Inventory.JenkinsAgentToolContracts).Count) -Expected 4 -Message "Dependency inventory should include Jenkins agent tool contracts"
 
     $expectedServiceImages = @{
@@ -403,6 +404,20 @@ function Assert-DependencyInventory {
     Assert-Equal -Actual ([string]$controllerImage.Tag) -Expected "lts" -Message "Dependency inventory should report the Jenkins controller tag"
     Assert-Condition -Condition (-not [bool]$controllerImage.IsDigestPinned) -Message "Dependency inventory should report the Jenkins LTS example as tag-based"
     Assert-Condition -Condition ([bool]$controllerImage.UsesFloatingTag) -Message "Dependency inventory should flag the floating Jenkins LTS example tag"
+
+    $ciActionsByName = @{}
+    foreach ($action in @($Inventory.CIActionReferences)) {
+        $ciActionsByName[[string]$action.Action] = $action
+    }
+
+    foreach ($actionName in @("actions/checkout", "actions/upload-artifact")) {
+        Assert-Condition -Condition $ciActionsByName.ContainsKey($actionName) -Message ("Dependency inventory should include CI action {0}" -f $actionName)
+
+        $action = $ciActionsByName[$actionName]
+        Assert-Equal -Actual ([string]$action.Ref) -Expected "v4" -Message ("Dependency inventory should report {0} at v4" -f $actionName)
+        Assert-Condition -Condition ([bool]$action.UsesMajorTag) -Message ("Dependency inventory should classify {0}@v4 as a major version tag" -f $actionName)
+        Assert-Condition -Condition (-not [bool]$action.IsPinnedToSha) -Message ("Dependency inventory should report {0}@v4 as not SHA pinned" -f $actionName)
+    }
 
     $agentContractsByPath = @{}
     foreach ($contract in @($Inventory.JenkinsAgentToolContracts)) {
@@ -444,6 +459,10 @@ function Assert-DependencyInventory {
         -Text $riskText `
         -Expected "Jenkins agent tool requirements are declared in checked-in Jenkinsfiles" `
         -Message "Dependency inventory should explain Jenkins agent tool contract risk"
+    Assert-TextContains `
+        -Text $riskText `
+        -Expected "CI workflow actions are version-tag based" `
+        -Message "Dependency inventory should explain workflow action ref risk"
 }
 
 function Assert-DependencyInventoryHumanReadableOutput {
@@ -466,6 +485,18 @@ function Assert-DependencyInventoryHumanReadableOutput {
         -Message "Markdown dependency inventory should still flag the floating Jenkins controller image"
     Assert-TextContains `
         -Text $Markdown `
+        -Expected "| Source | Action | Ref | Major tag | SHA pinned |" `
+        -Message "Markdown dependency inventory should expose CI action references"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| .github/workflows/phase-validation.yml:19 | actions/checkout | v4 | True | False |" `
+        -Message "Markdown dependency inventory should report checkout action refs"
+    Assert-TextContains `
+        -Text $Markdown `
+        -Expected "| .github/workflows/phase-validation.yml:29 | actions/upload-artifact | v4 | True | False |" `
+        -Message "Markdown dependency inventory should report artifact action refs"
+    Assert-TextContains `
+        -Text $Markdown `
         -Expected "| Source | Profiles | Required tools | Optional tools |" `
         -Message "Markdown dependency inventory should expose Jenkins agent tool contracts"
     Assert-TextContains `
@@ -481,6 +512,14 @@ function Assert-DependencyInventoryHumanReadableOutput {
         -Text $Text `
         -Expected "k8s/jenkins-controller/jenkins.yaml:17: jenkins/jenkins:lts (tag: lts, floating: True, digest pinned: False)" `
         -Message "Text dependency inventory should still flag the floating Jenkins controller image"
+    Assert-TextContains `
+        -Text $Text `
+        -Expected ".github/workflows/phase-validation.yml:19: actions/checkout@v4 (major tag: True, SHA pinned: False)" `
+        -Message "Text dependency inventory should expose checkout action refs"
+    Assert-TextContains `
+        -Text $Text `
+        -Expected ".github/workflows/phase-validation.yml:29: actions/upload-artifact@v4 (major tag: True, SHA pinned: False)" `
+        -Message "Text dependency inventory should expose artifact action refs"
     Assert-TextContains `
         -Text $Text `
         -Expected "jenkins/bundle-delivery.Jenkinsfile: profiles: bundle delivery agent; required: helm, kubectl; optional: docker, git, python" `
