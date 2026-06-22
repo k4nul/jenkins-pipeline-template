@@ -126,6 +126,57 @@ function Assert-ServiceCatalogNameSafety {
     return $nameText
 }
 
+function Test-PathInsideDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CandidatePath
+    )
+
+    $resolvedDirectoryPath = [System.IO.Path]::GetFullPath($DirectoryPath)
+    $resolvedCandidatePath = [System.IO.Path]::GetFullPath($CandidatePath)
+    $directoryPrefix = $resolvedDirectoryPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+
+    return ($resolvedCandidatePath -eq $resolvedDirectoryPath -or $resolvedCandidatePath.StartsWith($directoryPrefix, [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+function Test-ServiceRequiredFileRelativePath {
+    param(
+        [string]$ServiceName,
+
+        [AllowEmptyString()]
+        [string]$Path,
+
+        [System.Collections.Generic.List[string]]$Errors
+    )
+
+    $pathText = ([string]$Path).Trim()
+    if (-not $pathText) {
+        $Errors.Add("Catalog entry for $ServiceName contains an empty required file path.") | Out-Null
+        return $false
+    }
+
+    if ([System.IO.Path]::IsPathRooted($pathText)) {
+        $Errors.Add("Catalog entry for $ServiceName uses an absolute required file path: $pathText") | Out-Null
+        return $false
+    }
+
+    if ($pathText -match "[*?\[\]{}]") {
+        $Errors.Add("Catalog entry for $ServiceName uses a wildcard required file path: $pathText") | Out-Null
+        return $false
+    }
+
+    $segments = @($pathText -split "[/\\]+")
+    if (@($segments | Where-Object { $_ -eq "" -or $_ -eq "." -or $_ -eq ".." }).Count -gt 0) {
+        $Errors.Add("Catalog entry for $ServiceName uses a required file path outside the service directory: $pathText") | Out-Null
+        return $false
+    }
+
+    return $true
+}
+
 function Get-ServicePipelineCommonEnvironmentVariables {
     param(
         [Parameter(Mandatory = $true)]
