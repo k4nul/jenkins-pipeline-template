@@ -8,8 +8,8 @@ dependency surface is catalog and runtime-contract driven:
 - GitHub Actions workflow actions in `.github/workflows/`
 - Jenkins Pipeline and Job DSL behavior in `jenkins/` and `scripts/`
 - PowerShell 7+ as the local validation runtime
-- Jenkins agent tools used by non-dry-run repository validation, delivery, and
-  promotion paths
+- Jenkins agent tools used by cluster-aware repository validation and
+  non-dry-run delivery and promotion paths
 
 Use the repository-local inventory command before planning a dependency batch:
 
@@ -102,8 +102,9 @@ manifests in this repository.
 - Keep PowerShell compatibility at PowerShell 7+ unless a repository-local
   validation change proves a newer minimum is required.
 - Keep repository URLs, branch specs, credentials IDs, Docker registry values,
-  and production approval behavior parameterized in generated jobs and checked-in
-  Jenkinsfiles.
+  and production deploy/dry-run controls parameterized in generated jobs and
+  checked-in Jenkinsfiles. Preserve manual approval prompts for non-dry-run
+  delivery and promotion.
 - Keep public sample image tags in `config/service-pipelines.psd1`; do not
   duplicate image ownership in generated Job DSL, Jenkinsfiles, or controller
   examples.

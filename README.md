@@ -46,7 +46,9 @@ Use `show-dependency-inventory.ps1` before image, controller, or toolchain
 planning so the dependency posture is based on committed catalog and Kubernetes
 manifest evidence.
 
-Keep repository URLs, credentials IDs, branch specs, and approval behavior parameterized before applying the template to a real project.
+Keep repository URLs, credentials IDs, branch specs, deploy/dry-run parameters,
+and manual approval prompts public-safe before applying the template to a real
+project.
 
 Start with [docs/onboarding.md](docs/onboarding.md) if you are setting up a
 fresh checkout or preparing first validation evidence. See
@@ -59,8 +61,9 @@ passed controller-free evidence from the completed
 `pipeline-boundary-hardening` to `template-maintenance` handoff.
 Use [docs/validation-evidence.md](docs/validation-evidence.md) when a progress
 dashboard or maintenance report still says `jenkins validation failed` and you
-need the exact controller-free evidence refresh workflow before changing phase
-wording.
+need the exact controller-free evidence refresh workflow before changing phase,
+handoff, or rollout wording. That guide keeps stale dashboard recovery separate
+from live Jenkins readiness claims.
 Use [docs/pipeline-boundaries.md](docs/pipeline-boundaries.md)
 as the focused guide for deciding whether a change belongs in Job DSL generation,
 Pipeline DSL execution, service catalog metadata, or live controller/JCasC

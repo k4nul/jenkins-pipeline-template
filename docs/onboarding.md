@@ -73,6 +73,9 @@ Use the narrowest guide for the work you are about to do:
 
 - [testing.md](testing.md): command details, what the harness proves, and what it
   does not prove.
+- [validation-evidence.md](validation-evidence.md): refresh workflow when a
+  dashboard, handoff note, or maintenance report still says
+  `jenkins validation failed`.
 - [maintenance.md](maintenance.md): change lanes for presets, profiles, service
   catalog entries, Job DSL export, Jenkinsfiles, and tooling.
 - [phase-handoff.md](phase-handoff.md): completed transition evidence and the

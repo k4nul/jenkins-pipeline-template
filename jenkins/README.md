@@ -13,12 +13,15 @@ This directory contains generic Jenkins automation for the repository itself. It
 
 ## What You Need In Jenkins
 
-The Jenkins agent should have:
+The seed job agent should have:
 
 - PowerShell or `pwsh`
-- `git`
-- `kubectl` for cluster-aware validation and manifest workflows
-- `helm` for Helm-managed components
+- `git` when generated jobs use SCM checkout
+
+Repository validation, delivery, and promotion agents also need `kubectl` and
+`helm` when their selected paths perform cluster-aware validation, bundle
+validation, Helm repository refresh, bootstrap status checks, or non-dry-run
+deployment.
 
 Each Jenkinsfile starts with an agent-readiness preflight so missing tools fail early with a clearer message.
 
@@ -53,7 +56,10 @@ For local validation details and known controller-free limits, see
 [`docs/troubleshooting.md`](../docs/troubleshooting.md). For the maintenance
 checklist that maps presets, service catalog changes, Job DSL export, and
 Jenkinsfiles to validation commands, see
-[`docs/maintenance.md`](../docs/maintenance.md). For a focused map of Job DSL,
+[`docs/maintenance.md`](../docs/maintenance.md). If a dashboard or handoff note
+still reports `jenkins validation failed`, refresh the local wrapper evidence
+with [`docs/validation-evidence.md`](../docs/validation-evidence.md) before
+changing setup or rollout wording. For a focused map of Job DSL,
 Pipeline DSL, service catalog, and controller/JCasC ownership, see
 [`docs/pipeline-boundaries.md`](../docs/pipeline-boundaries.md).
 
@@ -107,13 +113,6 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 - exports ignored Job DSL fixtures under `out/jenkins/validation`
 - verifies the validation, delivery, and promotion `pipelineJob` entries
 - verifies validation-to-delivery-to-promotion upstream dependencies
-- verifies Jenkinsfile-backed selected services are projected into service jobs
-- verifies shared Jenkinsfile-backed service jobs are de-duplicated across
-  multiple selected presets, including nested service roots
-- verifies `SEED_SKIP_SERVICE_JOBS`/`-SkipServiceJobs` suppresses generated
-  service jobs even when selected services are Jenkinsfile-backed
-- verifies `SEED_SELECTION_NAME`/`-SelectionName` alone creates one custom
-  selection instead of falling back to every preset
 - verifies generated SCM URL, branch spec, and credentials handling stay parameterized
 - verifies explicit SCM URL, branch spec, and credentials values are escaped in generated Groovy
 - verifies embedded SCM credentials, unsupported or local repository paths, and control-character inputs fail before Job DSL generation
@@ -123,9 +122,19 @@ Use an HTTPS/SSH repository URI or a Git scp-like path such as `git@example.inva
 - validates service catalog metadata and runs the service pipeline validator
 - verifies committed runtime helper scripts and public-safe values defaults
 
-The harness also exports one combined full-matrix Job DSL fixture and verifies
-that every selected public preset application remains covered by service catalog
-metadata while catalog-only public-image services keep `ServiceJobCount = 0`.
+The harness also verifies whole-matrix and synthetic selection behavior:
+
+- exports one combined full-matrix Job DSL fixture;
+- verifies every selected public preset application remains covered by service
+  catalog metadata while catalog-only public-image services keep
+  `ServiceJobCount = 0`;
+- verifies Jenkinsfile-backed selected services are projected into service jobs;
+- verifies shared Jenkinsfile-backed service jobs are de-duplicated across
+  multiple selected presets, including nested service roots;
+- verifies `SEED_SKIP_SERVICE_JOBS`/`-SkipServiceJobs` suppresses generated
+  service jobs even when selected services are Jenkinsfile-backed; and
+- verifies `SEED_SELECTION_NAME`/`-SelectionName` alone creates one custom
+  selection instead of falling back to every preset.
 
 This is a controller-free regression fixture. It does not prove a live Jenkins
 controller has the Job DSL plugin installed or that private cluster deployment

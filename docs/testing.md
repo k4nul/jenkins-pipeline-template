@@ -76,6 +76,13 @@ and command are reported before the wrapper exits with that command's status.
 Use that first failed label as the dashboard blocker instead of rerunning a
 different subset of checks.
 
+When a dashboard, handoff note, or maintenance report still says
+`jenkins validation failed`, do not infer the current state from an older
+snapshot. Rerun this wrapper from a clean checkout and use
+[validation-evidence.md](validation-evidence.md) to record the command, date,
+and evidence summary if the wrapper passes. If it fails, keep the first wrapper
+label as the active blocker and avoid replacing it with narrower command output.
+
 The final aggregate command validates every built-in public-safe preset
 individually, then validates a single combined public preset matrix Job DSL
 fixture. Generated output must stay under `out/`, which is ignored by Git. Job

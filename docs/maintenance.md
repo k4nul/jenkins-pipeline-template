@@ -33,7 +33,7 @@ current architecture audit, risk map, and ranked maintenance work packages, read
 | Profiles | `config/profiles/*.psd1` | Reusable bundle shapes consumed by presets and direct selections | `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
 | Service pipeline catalog | `config/service-pipelines.psd1` | Public image service metadata and whether a service has its own Jenkinsfile-backed job | `pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json` and `pwsh -NoProfile -File scripts/validate-service-pipelines.ps1` |
 | Job plan | `scripts/show-jenkins-job-plan.ps1` | Folder paths, generated bundle job plans, service job plans, and local command contracts | `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json` for preview; `pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json` for the full preset matrix |
-| Job DSL export | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Jenkins folders, `pipelineJob` definitions, SCM placeholders, branch specs, credentials parameters, lightweight checkout, and seed apply guards | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy` |
+| Job DSL export | `scripts/export-jenkins-job-dsl.ps1`, `jenkins/job-seed.Jenkinsfile` | Jenkins folders, `pipelineJob` definitions, SCM placeholders, branch specs, credentials parameters, lightweight checkout, and seed apply guards | `pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -OutputPath out/jenkins/public-preset-matrix-seed-job-dsl.groovy`; `pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1` |
 | Pipeline runtime | `jenkins/*.Jenkinsfile` | Validation, delivery, promotion, archive, dry-run defaults, approval prompts, and public-safe live-action guards | `sh scripts/run-phase-validation.sh`, plus live Jenkins review before rollout |
 | Controller/JCasC scope | `k8s/jenkins-controller/README.md`, future JCasC files | Example controller deployment, plugin baseline, agents, credentials providers, and controller security | Controller or JCasC validation when those files exist |
 
@@ -183,7 +183,8 @@ When a maintenance run refreshes validation evidence, prefer this order:
 
 1. Run `sh scripts/run-phase-validation.sh`.
 2. If it passes, update only the handoff or report text that needs current
-   evidence.
+   evidence, using [validation-evidence.md](validation-evidence.md) as the
+   capture checklist.
 3. If it fails, keep the first failing wrapper label as the maintenance blocker.
 4. Leave `docs/instructions/phase-gates.json` unchanged unless the selected task
    is a phase-transition with a new `next_phase` and transition command.
