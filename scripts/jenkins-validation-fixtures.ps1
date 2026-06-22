@@ -163,3 +163,180 @@ function New-JenkinsServiceJobFixtureContext {
         SharedServiceJobDslPath = Join-Path -Path $fixtureRoot -ChildPath $sharedServiceJobFixtureDslOutputPath
     }
 }
+
+function New-MissingServiceJenkinsfileFixtureContext {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "missing-service-jenkinsfile-fixture-repo"
+    Remove-Item -Path (Join-Path $fixtureRoot "services/nginx-web/Jenkinsfile") -Force
+
+    return [PSCustomObject]@{
+        Root = $fixtureRoot
+        ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+    }
+}
+
+function New-UnsafeServiceCatalogFixtureContext {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "unsafe-service-catalog-fixture-repo"
+
+    return [PSCustomObject]@{
+        Root = $fixtureRoot
+        CatalogPath = Join-Path $fixtureRoot "config/service-pipelines.psd1"
+        ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+    }
+}
+
+function Get-UnsafeServiceCatalogNameCases {
+    $catalogTemplate = @'
+@{
+    Services = @(
+        @{
+            Name = "__SERVICE_NAME__"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @(
+                "CACHE"
+            )
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "Synthetic service catalog name safety fixture."
+        }
+    )
+}
+'@
+
+    return @(
+        @{
+            Catalog = $catalogTemplate.Replace("__SERVICE_NAME__", "..\outside")
+            ExpectedMessage = "Service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject service names with parent-directory path segments."
+        },
+        @{
+            Catalog = $catalogTemplate.Replace("__SERVICE_NAME__", "team/nginx-web")
+            ExpectedMessage = "Service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject nested service path names."
+        },
+        @{
+            Catalog = @'
+@{
+    Services = @(
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @()
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "First duplicate fixture."
+        }
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @()
+            RequiredFiles = @(
+                "README.md"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "Second duplicate fixture."
+        }
+    )
+}
+'@
+            ExpectedMessage = "Duplicate service catalog entry name is not allowed"
+            Message = "Service pipeline validation should reject duplicate service catalog names."
+        }
+    )
+}
+
+function New-UnsupportedServiceComposeUpdateFixtureContext {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixtureRoot = New-JenkinsServiceJobFixtureRoot -Root $Root -OutputDirectory $OutputDirectory -Name "unsupported-compose-update-fixture-repo"
+    $catalogPath = Join-Path $fixtureRoot "config/service-pipelines.psd1"
+    $catalog = Get-Content -Path $catalogPath -Raw
+
+    Set-Content -Path $catalogPath -Value $catalog.Replace('ComposeUpdate = "none"', 'ComposeUpdate = "sometimes"') -Encoding utf8NoBOM
+
+    return [PSCustomObject]@{
+        Root = $fixtureRoot
+        CatalogPath = $catalogPath
+        ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
+    }
+}
+
+function New-ZipArchiveFixture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$EntryNames
+    )
+
+    $archiveDirectory = Split-Path -Path $ArchivePath -Parent
+    if ($archiveDirectory) {
+        New-Item -ItemType Directory -Path $archiveDirectory -Force | Out-Null
+    }
+    if (Test-Path -Path $ArchivePath -PathType Leaf) {
+        Remove-Item -Path $ArchivePath -Force
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::Open($ArchivePath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($entryName in @($EntryNames)) {
+            $entry = $archive.CreateEntry($entryName)
+            if (-not $entryName.EndsWith("/")) {
+                $writer = [System.IO.StreamWriter]::new($entry.Open())
+                try {
+                    $writer.Write("fixture")
+                }
+                finally {
+                    $writer.Dispose()
+                }
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}

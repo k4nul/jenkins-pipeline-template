@@ -84,6 +84,16 @@ repeated validation runs do not rewrite ignored artifacts just because the
 command was re-run. Do not commit generated Job DSL from a real controller or
 environment.
 
+## Validation Fixture Boundary
+
+Keep reusable plan, DSL, and runtime assertions in
+`scripts/jenkins-validation-assertions.ps1`. Put synthetic repository builders,
+fixture catalog mutation, and generated archive setup in
+`scripts/jenkins-validation-fixtures.ps1`, then have assertion helpers consume
+those fixture contexts and verify the command result. This keeps side-effecting
+negative scenarios separate from pure checks while preserving the public harness
+entry points.
+
 The same wrapper is also wired into
 `.github/workflows/phase-validation.yml` for pull requests, pushes, and manual
 workflow dispatch. That workflow is controller-free: it checks out the
