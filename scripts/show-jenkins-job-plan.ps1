@@ -446,6 +446,42 @@ function New-ServicePipelineJobs {
     return @($serviceJobs.ToArray())
 }
 
+function New-JenkinsJobPlanMermaidLines {
+    param(
+        [object[]]$SelectionPlans,
+        [object[]]$ServiceJobs
+    )
+
+    $lines = @(
+        "flowchart LR"
+    )
+
+    if (@($ServiceJobs).Count -gt 0) {
+        $lines += '    SharedServices["Selected service image jobs"]'
+    }
+
+    for ($index = 0; $index -lt @($SelectionPlans).Count; $index++) {
+        $selection = $SelectionPlans[$index]
+        $validationNode = "Validation{0}" -f $index
+        $deliveryNode = "Delivery{0}" -f $index
+        $approvalNode = "Approval{0}" -f $index
+        $promotionNode = "Promotion{0}" -f $index
+
+        $lines += ('    {0}["{1}"]' -f $validationNode, $selection.ValidationJobPath)
+        $lines += ('    {0}["{1}"]' -f $deliveryNode, $selection.DeliveryJobPath)
+        $lines += ('    {0}["Manual approval"]' -f $approvalNode)
+        $lines += ('    {0}["{1}"]' -f $promotionNode, $selection.PromotionJobPath)
+        if (@($ServiceJobs).Count -gt 0) {
+            $lines += ('    SharedServices --> {0}' -f $validationNode)
+        }
+        $lines += ('    {0} --> {1}' -f $validationNode, $deliveryNode)
+        $lines += ('    {0} --> {1}' -f $deliveryNode, $approvalNode)
+        $lines += ('    {0} --> {1}' -f $approvalNode, $promotionNode)
+    }
+
+    return @($lines)
+}
+
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $presetDirectory = Join-Path -Path $root -ChildPath "config\environments"
 $servicePipelineCatalog = Import-ServicePipelineCatalog -RepoRoot $root
@@ -609,31 +645,10 @@ if (-not $SkipServiceJobs) {
 }
 
 $mermaidLines = @(
-    "flowchart LR"
+    New-JenkinsJobPlanMermaidLines `
+        -SelectionPlans @($selectionPlans.ToArray()) `
+        -ServiceJobs @($serviceJobs)
 )
-
-if ($serviceJobs.Count -gt 0) {
-    $mermaidLines += '    SharedServices["Selected service image jobs"]'
-}
-
-for ($index = 0; $index -lt $selectionPlans.Count; $index++) {
-    $selection = $selectionPlans[$index]
-    $validationNode = "Validation{0}" -f $index
-    $deliveryNode = "Delivery{0}" -f $index
-    $approvalNode = "Approval{0}" -f $index
-    $promotionNode = "Promotion{0}" -f $index
-
-    $mermaidLines += ('    {0}["{1}"]' -f $validationNode, $selection.ValidationJobPath)
-    $mermaidLines += ('    {0}["{1}"]' -f $deliveryNode, $selection.DeliveryJobPath)
-    $mermaidLines += ('    {0}["Manual approval"]' -f $approvalNode)
-    $mermaidLines += ('    {0}["{1}"]' -f $promotionNode, $selection.PromotionJobPath)
-    if ($serviceJobs.Count -gt 0) {
-        $mermaidLines += ('    SharedServices --> {0}' -f $validationNode)
-    }
-    $mermaidLines += ('    {0} --> {1}' -f $validationNode, $deliveryNode)
-    $mermaidLines += ('    {0} --> {1}' -f $deliveryNode, $approvalNode)
-    $mermaidLines += ('    {0} --> {1}' -f $approvalNode, $promotionNode)
-}
 
 $generatedAt = (Get-Date).ToString("s")
 
