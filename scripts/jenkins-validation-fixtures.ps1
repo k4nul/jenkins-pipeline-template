@@ -1,5 +1,88 @@
 # Synthetic fixture builders for controller-free Jenkins validation.
 
+function Invoke-JenkinsValidationFailureProbe {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$ScriptBlock,
+
+        [object[]]$ArgumentList = @()
+    )
+
+    $failed = $false
+    $message = ""
+
+    try {
+        & $ScriptBlock @ArgumentList
+    }
+    catch {
+        $failed = $true
+        $message = [string]$_
+    }
+
+    return [PSCustomObject]@{
+        Failed = $failed
+        Message = $message
+    }
+}
+
+function Invoke-RepoOutputPathReparsePointFailureFixture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    $targetPath = Join-Path -Path $OutputDirectory -ChildPath "reparse-target"
+    $probeRoot = Join-Path -Path $OutputDirectory -ChildPath "reparse-probe"
+    $linkPath = Join-Path -Path $probeRoot -ChildPath "linked-out"
+    New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
+
+    try {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+
+        New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop | Out-Null
+    }
+    catch {
+        return [PSCustomObject]@{
+            Skipped = $true
+            SkipMessage = [string]$_
+            Failed = $false
+            Message = ""
+        }
+    }
+
+    try {
+        $probePath = [System.IO.Path]::GetRelativePath($Root, (Join-Path -Path $linkPath -ChildPath "probe.txt"))
+        $probe = Invoke-JenkinsValidationFailureProbe `
+            -ScriptBlock {
+                param(
+                    [string]$ProbeRoot,
+                    [string]$ProbePath
+                )
+
+                Resolve-RepoOutputPath -RepoRoot $ProbeRoot -Path $ProbePath | Out-Null
+            } `
+            -ArgumentList @($Root, $probePath)
+
+        return [PSCustomObject]@{
+            Skipped = $false
+            SkipMessage = ""
+            Failed = [bool]$probe.Failed
+            Message = [string]$probe.Message
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+    }
+}
+
 function New-JenkinsServiceJobFixtureRoot {
     param(
         [string]$Root,
@@ -285,6 +368,75 @@ function Get-UnsafeServiceCatalogNameCases {
     )
 }
 
+function Invoke-ServiceValidationFixtureFailure {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Fixture,
+
+        [string]$Catalog
+    )
+
+    $catalogPath = ""
+    if ($Fixture.PSObject.Properties.Match("CatalogPath").Count -gt 0) {
+        $catalogPath = [string]$Fixture.CatalogPath
+    }
+
+    if ($PSBoundParameters.ContainsKey("Catalog")) {
+        Set-Content -Path $catalogPath -Value $Catalog -Encoding utf8NoBOM
+    }
+
+    $probe = Invoke-JenkinsValidationFailureProbe `
+        -ScriptBlock {
+            param(
+                [string]$ServiceValidationScript,
+                [string]$FixtureRoot
+            )
+
+            & $ServiceValidationScript -RepoRoot $FixtureRoot 6>$null | Out-Null
+        } `
+        -ArgumentList @([string]$Fixture.ServiceValidationScript, [string]$Fixture.Root)
+
+    return [PSCustomObject]@{
+        Failed = [bool]$probe.Failed
+        Message = [string]$probe.Message
+        CatalogPath = $catalogPath
+        Root = [string]$Fixture.Root
+    }
+}
+
+function Invoke-MissingServiceJenkinsfileValidationFailureFixture {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixture = New-MissingServiceJenkinsfileFixtureContext -Root $Root -OutputDirectory $OutputDirectory
+    return (Invoke-ServiceValidationFixtureFailure -Fixture $fixture)
+}
+
+function Invoke-UnsafeServiceCatalogNameFailureFixtures {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixture = New-UnsafeServiceCatalogFixtureContext -Root $Root -OutputDirectory $OutputDirectory
+    $results = New-Object System.Collections.Generic.List[object]
+
+    foreach ($case in @(Get-UnsafeServiceCatalogNameCases)) {
+        $probe = Invoke-ServiceValidationFixtureFailure -Fixture $fixture -Catalog ([string]$case.Catalog)
+        $results.Add([PSCustomObject]@{
+            Failed = [bool]$probe.Failed
+            Message = [string]$probe.Message
+            ExpectedMessage = [string]$case.ExpectedMessage
+            AssertionMessage = [string]$case.Message
+            CatalogPath = [string]$probe.CatalogPath
+        }) | Out-Null
+    }
+
+    return @($results.ToArray())
+}
+
 function New-UnsupportedServiceComposeUpdateFixtureContext {
     param(
         [string]$Root,
@@ -302,6 +454,16 @@ function New-UnsupportedServiceComposeUpdateFixtureContext {
         CatalogPath = $catalogPath
         ServiceValidationScript = Join-Path $fixtureRoot "scripts/validate-service-pipelines.ps1"
     }
+}
+
+function Invoke-UnsupportedServiceComposeUpdateFailureFixture {
+    param(
+        [string]$Root,
+        [string]$OutputDirectory
+    )
+
+    $fixture = New-UnsupportedServiceComposeUpdateFixtureContext -Root $Root -OutputDirectory $OutputDirectory
+    return (Invoke-ServiceValidationFixtureFailure -Fixture $fixture)
 }
 
 function New-ZipArchiveFixture {
@@ -339,4 +501,81 @@ function New-ZipArchiveFixture {
     finally {
         $archive.Dispose()
     }
+}
+
+function Get-UnsafePromotionArchiveEntryCases {
+    return @(
+        @{
+            EntryName = "../escaped.txt"
+            ExpectedMessage = "parent-directory segments"
+            Message = "Promotion should reject archive entries that traverse out of the extraction directory."
+        },
+        @{
+            EntryName = "/absolute.txt"
+            ExpectedMessage = "must be relative"
+            Message = "Promotion should reject absolute archive entries."
+        },
+        @{
+            EntryName = "nested/unsafe:name.txt"
+            ExpectedMessage = "unsupported characters"
+            Message = "Promotion should reject archive entries with platform-sensitive characters."
+        }
+    )
+}
+
+function Invoke-PromotionArchiveEntryFailureFixtures {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PromotionScript,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    $cases = @(Get-UnsafePromotionArchiveEntryCases)
+    $results = New-Object System.Collections.Generic.List[object]
+
+    for ($index = 0; $index -lt $cases.Count; $index++) {
+        $case = $cases[$index]
+        $archivePath = Join-Path $OutputDirectory ("unsafe-promotion-archive-{0}.zip" -f $index)
+        $extractPath = Join-Path $OutputDirectory ("unsafe-promotion-extract-{0}" -f $index)
+        $escapedPath = Join-Path $OutputDirectory "escaped.txt"
+
+        if (Test-Path -Path $extractPath) {
+            Remove-Item -Path $extractPath -Recurse -Force
+        }
+        if (Test-Path -Path $escapedPath -PathType Leaf) {
+            Remove-Item -Path $escapedPath -Force
+        }
+
+        New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames @("bundle-manifest.json", [string]$case.EntryName)
+
+        $probe = Invoke-JenkinsValidationFailureProbe `
+            -ScriptBlock {
+                param(
+                    [string]$Script,
+                    [string]$RepoRoot,
+                    [string]$ArchivePath,
+                    [string]$ExtractPath
+                )
+
+                & $Script -RepoRoot $RepoRoot -ArchivePath $ArchivePath -ExtractPath $ExtractPath 6>$null | Out-Null
+            } `
+            -ArgumentList @($PromotionScript, $Root, $archivePath, $extractPath)
+
+        $results.Add([PSCustomObject]@{
+            Failed = [bool]$probe.Failed
+            Message = [string]$probe.Message
+            ExpectedMessage = [string]$case.ExpectedMessage
+            AssertionMessage = [string]$case.Message
+            EscapedPathExists = (Test-Path -Path $escapedPath -PathType Leaf)
+            ArchivePath = $archivePath
+            ExtractPath = $extractPath
+        }) | Out-Null
+    }
+
+    return @($results.ToArray())
 }

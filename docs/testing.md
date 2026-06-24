@@ -99,7 +99,10 @@ fixture catalog mutation, and generated archive setup in
 `scripts/jenkins-validation-fixtures.ps1`, then have assertion helpers consume
 those fixture contexts and verify the command result. This keeps side-effecting
 negative scenarios separate from pure checks while preserving the public harness
-entry points.
+entry points. Negative validation probes for service catalog mutations,
+reparse-point output paths, and unsafe promotion archive entries should return
+small result objects from fixture helpers so assertion functions only check the
+failure state and expected message.
 
 The same wrapper is also wired into
 `.github/workflows/phase-validation.yml` for pull requests, pushes, and manual

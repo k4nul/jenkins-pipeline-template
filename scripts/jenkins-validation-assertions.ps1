@@ -201,44 +201,14 @@ function Assert-RepoOutputPathRejectsReparsePointSegments {
         [string]$OutputDirectory
     )
 
-    $targetPath = Join-Path -Path $OutputDirectory -ChildPath "reparse-target"
-    $probeRoot = Join-Path -Path $OutputDirectory -ChildPath "reparse-probe"
-    $linkPath = Join-Path -Path $probeRoot -ChildPath "linked-out"
-    New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
-    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
-
-    try {
-        if (Test-Path -LiteralPath $linkPath) {
-            Remove-Item -LiteralPath $linkPath -Force
-        }
-
-        New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop | Out-Null
-    }
-    catch {
-        Write-Information -MessageData ("Skipping OutputPath symlink boundary assertion because symbolic links are unavailable: {0}" -f [string]$_) -InformationAction Continue
+    $probe = Invoke-RepoOutputPathReparsePointFailureFixture -Root $Root -OutputDirectory $OutputDirectory
+    if ([bool]$probe.Skipped) {
+        Write-Information -MessageData ("Skipping OutputPath symlink boundary assertion because symbolic links are unavailable: {0}" -f [string]$probe.SkipMessage) -InformationAction Continue
         return
     }
 
-    try {
-        $failed = $false
-        $message = ""
-        $probePath = [System.IO.Path]::GetRelativePath($Root, (Join-Path -Path $linkPath -ChildPath "probe.txt"))
-        try {
-            Resolve-RepoOutputPath -RepoRoot $Root -Path $probePath | Out-Null
-        }
-        catch {
-            $failed = $true
-            $message = [string]$_
-        }
-
-        Assert-Condition -Condition $failed -Message "Repo output path validation should reject symlink or reparse-point path segments."
-        Assert-TextContains -Text $message -Expected "OutputPath must not traverse symlink or reparse-point paths" -Message "Symlink output path rejection should explain the repository out boundary."
-    }
-    finally {
-        if (Test-Path -LiteralPath $linkPath) {
-            Remove-Item -LiteralPath $linkPath -Force
-        }
-    }
+    Assert-Condition -Condition ([bool]$probe.Failed) -Message "Repo output path validation should reject symlink or reparse-point path segments."
+    Assert-TextContains -Text ([string]$probe.Message) -Expected "OutputPath must not traverse symlink or reparse-point paths" -Message "Symlink output path rejection should explain the repository out boundary."
 }
 
 function Assert-JenkinsRuntimeContract {
@@ -875,20 +845,10 @@ function Assert-MissingServiceJenkinsfileValidationFails {
         [string]$OutputDirectory
     )
 
-    $fixture = New-MissingServiceJenkinsfileFixtureContext -Root $Root -OutputDirectory $OutputDirectory
-    $failed = $false
-    $message = ""
+    $probe = Invoke-MissingServiceJenkinsfileValidationFailureFixture -Root $Root -OutputDirectory $OutputDirectory
 
-    try {
-        & $fixture.ServiceValidationScript -RepoRoot $fixture.Root 6>$null | Out-Null
-    }
-    catch {
-        $failed = $true
-        $message = [string]$_
-    }
-
-    Assert-Condition -Condition $failed -Message "Service pipeline validation should fail when a Jenkinsfile-backed service is missing services/<name>/Jenkinsfile."
-    Assert-TextContains -Text $message -Expected "expects a Jenkinsfile-backed service" -Message "Missing Jenkinsfile failure should explain the catalog/service mismatch."
+    Assert-Condition -Condition ([bool]$probe.Failed) -Message "Service pipeline validation should fail when a Jenkinsfile-backed service is missing services/<name>/Jenkinsfile."
+    Assert-TextContains -Text ([string]$probe.Message) -Expected "expects a Jenkinsfile-backed service" -Message "Missing Jenkinsfile failure should explain the catalog/service mismatch."
 }
 
 function Assert-UnsafeServiceCatalogNamesFail {
@@ -897,23 +857,9 @@ function Assert-UnsafeServiceCatalogNamesFail {
         [string]$OutputDirectory
     )
 
-    $fixture = New-UnsafeServiceCatalogFixtureContext -Root $Root -OutputDirectory $OutputDirectory
-
-    foreach ($case in @(Get-UnsafeServiceCatalogNameCases)) {
-        Set-Content -Path $fixture.CatalogPath -Value ([string]$case.Catalog) -Encoding utf8NoBOM
-
-        $failed = $false
-        $message = ""
-        try {
-            & $fixture.ServiceValidationScript -RepoRoot $fixture.Root 6>$null | Out-Null
-        }
-        catch {
-            $failed = $true
-            $message = [string]$_
-        }
-
-        Assert-Condition -Condition $failed -Message ([string]$case.Message)
-        Assert-TextContains -Text $message -Expected ([string]$case.ExpectedMessage) -Message ([string]$case.Message)
+    foreach ($probe in @(Invoke-UnsafeServiceCatalogNameFailureFixtures -Root $Root -OutputDirectory $OutputDirectory)) {
+        Assert-Condition -Condition ([bool]$probe.Failed) -Message ([string]$probe.AssertionMessage)
+        Assert-TextContains -Text ([string]$probe.Message) -Expected ([string]$probe.ExpectedMessage) -Message ([string]$probe.AssertionMessage)
     }
 }
 
@@ -923,19 +869,10 @@ function Assert-UnsupportedServiceComposeUpdateFails {
         [string]$OutputDirectory
     )
 
-    $fixture = New-UnsupportedServiceComposeUpdateFixtureContext -Root $Root -OutputDirectory $OutputDirectory
-    $failed = $false
-    $message = ""
-    try {
-        & $fixture.ServiceValidationScript -RepoRoot $fixture.Root 6>$null | Out-Null
-    }
-    catch {
-        $failed = $true
-        $message = [string]$_
-    }
+    $probe = Invoke-UnsupportedServiceComposeUpdateFailureFixture -Root $Root -OutputDirectory $OutputDirectory
 
-    Assert-Condition -Condition $failed -Message "Service pipeline validation should reject unsupported ComposeUpdate catalog values."
-    Assert-TextContains -Text $message -Expected "unsupported ComposeUpdate value" -Message "Unsupported ComposeUpdate failure should explain the catalog value mismatch."
+    Assert-Condition -Condition ([bool]$probe.Failed) -Message "Service pipeline validation should reject unsupported ComposeUpdate catalog values."
+    Assert-TextContains -Text ([string]$probe.Message) -Expected "unsupported ComposeUpdate value" -Message "Unsupported ComposeUpdate failure should explain the catalog value mismatch."
 }
 
 function Assert-GeneratedDsl {
@@ -1304,51 +1241,9 @@ function Assert-PromotionArchiveEntrySafety {
         [string]$OutputDirectory
     )
 
-    $cases = @(
-        @{
-            EntryName = "../escaped.txt"
-            ExpectedMessage = "parent-directory segments"
-            Message = "Promotion should reject archive entries that traverse out of the extraction directory."
-        },
-        @{
-            EntryName = "/absolute.txt"
-            ExpectedMessage = "must be relative"
-            Message = "Promotion should reject absolute archive entries."
-        },
-        @{
-            EntryName = "nested/unsafe:name.txt"
-            ExpectedMessage = "unsupported characters"
-            Message = "Promotion should reject archive entries with platform-sensitive characters."
-        }
-    )
-
-    for ($index = 0; $index -lt $cases.Count; $index++) {
-        $case = $cases[$index]
-        $archivePath = Join-Path $OutputDirectory ("unsafe-promotion-archive-{0}.zip" -f $index)
-        $extractPath = Join-Path $OutputDirectory ("unsafe-promotion-extract-{0}" -f $index)
-        $escapedPath = Join-Path $OutputDirectory "escaped.txt"
-
-        if (Test-Path -Path $extractPath) {
-            Remove-Item -Path $extractPath -Recurse -Force
-        }
-        if (Test-Path -Path $escapedPath -PathType Leaf) {
-            Remove-Item -Path $escapedPath -Force
-        }
-
-        New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames @("bundle-manifest.json", [string]$case.EntryName)
-
-        $failed = $false
-        $message = ""
-        try {
-            & $PromotionScript -RepoRoot $Root -ArchivePath $archivePath -ExtractPath $extractPath 6>$null | Out-Null
-        }
-        catch {
-            $failed = $true
-            $message = [string]$_
-        }
-
-        Assert-Condition -Condition $failed -Message ([string]$case.Message)
-        Assert-TextContains -Text $message -Expected ([string]$case.ExpectedMessage) -Message ([string]$case.Message)
-        Assert-Condition -Condition (-not (Test-Path -Path $escapedPath -PathType Leaf)) -Message "Promotion archive validation must not write traversal entries before failing."
+    foreach ($probe in @(Invoke-PromotionArchiveEntryFailureFixtures -PromotionScript $PromotionScript -Root $Root -OutputDirectory $OutputDirectory)) {
+        Assert-Condition -Condition ([bool]$probe.Failed) -Message ([string]$probe.AssertionMessage)
+        Assert-TextContains -Text ([string]$probe.Message) -Expected ([string]$probe.ExpectedMessage) -Message ([string]$probe.AssertionMessage)
+        Assert-Condition -Condition (-not [bool]$probe.EscapedPathExists) -Message "Promotion archive validation must not write traversal entries before failing."
     }
 }
