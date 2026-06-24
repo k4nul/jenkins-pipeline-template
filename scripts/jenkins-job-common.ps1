@@ -221,7 +221,52 @@ function Resolve-RepoOutputPath {
         throw ("OutputPath must resolve under the repository out directory: {0}" -f $Path)
     }
 
+    Assert-NoReparsePointOutputSegments -OutputRoot $outputRoot -ResolvedPath $resolvedPath -OriginalPath $Path
+
     return $resolvedPath
+}
+
+function Assert-NoReparsePointOutputSegments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OutputRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OriginalPath
+    )
+
+    $resolvedOutputRoot = [System.IO.Path]::GetFullPath($OutputRoot)
+    $resolvedCandidatePath = [System.IO.Path]::GetFullPath($ResolvedPath)
+    $relativePath = [System.IO.Path]::GetRelativePath($resolvedOutputRoot, $resolvedCandidatePath)
+
+    $pathsToCheck = [System.Collections.Generic.List[string]]::new()
+    $pathsToCheck.Add($resolvedOutputRoot) | Out-Null
+
+    if ($relativePath -and $relativePath -ne ".") {
+        $currentPath = $resolvedOutputRoot
+        foreach ($segment in @($relativePath -split "[/\\]+")) {
+            if (-not $segment) {
+                continue
+            }
+
+            $currentPath = Join-Path -Path $currentPath -ChildPath $segment
+            $pathsToCheck.Add($currentPath) | Out-Null
+        }
+    }
+
+    foreach ($pathToCheck in @($pathsToCheck.ToArray())) {
+        if (-not (Test-Path -LiteralPath $pathToCheck)) {
+            continue
+        }
+
+        $item = Get-Item -LiteralPath $pathToCheck -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw ("OutputPath must not traverse symlink or reparse-point paths under the repository out directory: {0}" -f $OriginalPath)
+        }
+    }
 }
 
 function Assert-ZipArchiveEntrySafety {

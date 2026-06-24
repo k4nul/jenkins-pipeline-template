@@ -9,10 +9,18 @@ durable storage, install plugins, configure credentials, and manage security
 through your own controller or JCasC process before using Jenkins for real
 workloads.
 
+The sample sets a baseline pod and container security context: the Jenkins
+container runs as the non-root Jenkins user/group, drops Linux capabilities,
+disables privilege escalation, and requests the runtime default seccomp profile.
+It does not enable a read-only root filesystem because Jenkins writes runtime
+state and plugin data; use durable storage and controller-specific hardening
+before real use.
+
 Default behavior:
 
 - common ports only
 - internal ClusterIP service
 - separate JNLP service
+- non-root pod/container security defaults
 
 Expose it through your own ingress, gateway, or load balancer strategy if you need external access.

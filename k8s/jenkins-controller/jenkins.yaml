@@ -15,6 +15,11 @@ spec:
       containers:
       - name: jenkins
         image: jenkins/jenkins:lts
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
         ports:
           - name: http-port
             containerPort: 8080
@@ -23,6 +28,13 @@ spec:
         volumeMounts:
           - name: jenkins-vol
             mountPath: /var/jenkins_vol
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: jenkins-vol
           emptyDir: {}

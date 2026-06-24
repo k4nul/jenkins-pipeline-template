@@ -115,6 +115,8 @@ function Get-JenkinsValidationPaths {
         TroubleshootingGuide = Join-Path $Root "docs/troubleshooting.md"
         PhaseHandoff = Join-Path $Root "docs/phase-handoff.md"
         HelmConfigFile = Join-Path $Root "config/helm-releases.psd1"
+        KubernetesControllerDeployment = Join-Path $Root "k8s/jenkins-controller/jenkins.yaml"
+        KubernetesControllerReadme = Join-Path $Root "k8s/jenkins-controller/README.md"
         SeedJobPath = Join-Path $Root "jenkins/job-seed.Jenkinsfile"
         DeliveryJobPath = Join-Path $Root "jenkins/bundle-delivery.Jenkinsfile"
         PromotionJobPath = Join-Path $Root "jenkins/bundle-promotion.Jenkinsfile"
@@ -190,6 +192,55 @@ function Assert-RepoOutputPathRejectsControlCharacters {
     Assert-TextContains -Text $message -Expected "OutputPath must not contain control characters" -Message "Control-character output path rejection should explain the unsafe input."
 }
 
+function Assert-RepoOutputPathRejectsReparsePointSegments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    $targetPath = Join-Path -Path $OutputDirectory -ChildPath "reparse-target"
+    $probeRoot = Join-Path -Path $OutputDirectory -ChildPath "reparse-probe"
+    $linkPath = Join-Path -Path $probeRoot -ChildPath "linked-out"
+    New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
+
+    try {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+
+        New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Information -MessageData ("Skipping OutputPath symlink boundary assertion because symbolic links are unavailable: {0}" -f [string]$_) -InformationAction Continue
+        return
+    }
+
+    try {
+        $failed = $false
+        $message = ""
+        $probePath = [System.IO.Path]::GetRelativePath($Root, (Join-Path -Path $linkPath -ChildPath "probe.txt"))
+        try {
+            Resolve-RepoOutputPath -RepoRoot $Root -Path $probePath | Out-Null
+        }
+        catch {
+            $failed = $true
+            $message = [string]$_
+        }
+
+        Assert-Condition -Condition $failed -Message "Repo output path validation should reject symlink or reparse-point path segments."
+        Assert-TextContains -Text $message -Expected "OutputPath must not traverse symlink or reparse-point paths" -Message "Symlink output path rejection should explain the repository out boundary."
+    }
+    finally {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+    }
+}
+
 function Assert-JenkinsRuntimeContract {
     param(
         [Parameter(Mandatory = $true)]
@@ -213,11 +264,15 @@ function Assert-JenkinsRuntimeContract {
     }
 
     Assert-Condition -Condition (Test-Path -Path $Paths.HelmConfigFile -PathType Leaf) -Message ("Public-safe Helm release catalog should exist: {0}" -f $Paths.HelmConfigFile)
+    Assert-Condition -Condition (Test-Path -Path $Paths.KubernetesControllerDeployment -PathType Leaf) -Message ("Public-safe Jenkins controller deployment should exist: {0}" -f $Paths.KubernetesControllerDeployment)
+    Assert-Condition -Condition (Test-Path -Path $Paths.KubernetesControllerReadme -PathType Leaf) -Message ("Public-safe Jenkins controller README should exist: {0}" -f $Paths.KubernetesControllerReadme)
 
     $repositoryJenkinsfile = Get-Content -Path $Paths.RepositoryJobPath -Raw
     $deliveryJenkinsfile = Get-Content -Path $Paths.DeliveryJobPath -Raw
     $promotionJenkinsfile = Get-Content -Path $Paths.PromotionJobPath -Raw
     $seedJenkinsfile = Get-Content -Path $Paths.SeedJobPath -Raw
+    $controllerDeployment = Get-Content -Path $Paths.KubernetesControllerDeployment -Raw
+    $controllerReadme = Get-Content -Path $Paths.KubernetesControllerReadme -Raw
 
     Assert-TextContains -Text $repositoryJenkinsfile -Expected "scripts\\validate-workstation.ps1" -Message "Repository validation job should call the committed workstation validator."
     Assert-TextContains -Text $repositoryJenkinsfile -Expected "scripts\\invoke-repository-validation.ps1" -Message "Repository validation job should call the committed repository validation entrypoint."
@@ -225,6 +280,14 @@ function Assert-JenkinsRuntimeContract {
     Assert-TextContains -Text $deliveryJenkinsfile -Expected "scripts\\invoke-bundle-delivery.ps1" -Message "Bundle delivery job should call the committed delivery entrypoint."
     Assert-TextContains -Text $promotionJenkinsfile -Expected "scripts\\validate-workstation.ps1" -Message "Bundle promotion job should call the committed workstation validator."
     Assert-TextContains -Text $promotionJenkinsfile -Expected "scripts\\invoke-bundle-promotion.ps1" -Message "Bundle promotion job should call the committed promotion entrypoint."
+    Assert-TextContains -Text $controllerDeployment -Expected "runAsNonRoot: true" -Message "Jenkins controller example should keep a non-root pod security default."
+    Assert-TextContains -Text $controllerDeployment -Expected "runAsUser: 1000" -Message "Jenkins controller example should run as the Jenkins image user."
+    Assert-TextContains -Text $controllerDeployment -Expected "runAsGroup: 1000" -Message "Jenkins controller example should run as the Jenkins image group."
+    Assert-TextContains -Text $controllerDeployment -Expected "fsGroup: 1000" -Message "Jenkins controller example should keep Jenkins volume ownership explicit."
+    Assert-TextContains -Text $controllerDeployment -Expected "allowPrivilegeEscalation: false" -Message "Jenkins controller example should disable privilege escalation."
+    Assert-TextContains -Text $controllerDeployment -Expected "drop:" -Message "Jenkins controller example should drop Linux capabilities."
+    Assert-TextContains -Text $controllerDeployment -Expected "type: RuntimeDefault" -Message "Jenkins controller example should request the runtime default seccomp profile."
+    Assert-TextContains -Text $controllerReadme -Expected "non-root pod/container security defaults" -Message "Jenkins controller README should document the sample security defaults."
 
     foreach ($jenkinsfile in @($repositoryJenkinsfile, $deliveryJenkinsfile, $promotionJenkinsfile, $seedJenkinsfile)) {
         Assert-TextNotMatch -Text $jenkinsfile -Pattern '\&\s+\$scriptPath\s+@\(\$arguments\.ToArray\(\)\)' -Message "Jenkinsfiles should splat named runtime arguments through an intermediate array variable."

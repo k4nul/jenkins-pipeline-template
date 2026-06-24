@@ -34,6 +34,7 @@ $serviceIndex = $context.ServiceIndex
 
 Assert-RepoOutputPathCaseBoundary -Root $root
 Assert-RepoOutputPathRejectsControlCharacters -Root $root
+Assert-RepoOutputPathRejectsReparsePointSegments -Root $root -OutputDirectory $context.OutputDirectory
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -187,6 +188,7 @@ $summary = [PSCustomObject]@{
     SeedJobSafety = "passed"
     OutputPathCaseBoundary = "passed"
     OutputPathControlCharacters = "passed"
+    OutputPathReparsePointBoundary = "passed"
     PromotionArchiveEntrySafety = "passed"
     RuntimeContract = "passed"
     Results = @($results.ToArray())
@@ -208,6 +210,7 @@ else {
     Write-Output "Validated Jenkins artifact archive paths stay under literal out/ paths."
     Write-Output "Validated repository output paths reject case-variant out roots."
     Write-Output "Validated repository output paths reject control characters."
+    Write-Output "Validated repository output paths reject symlink and reparse-point segments."
     Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
     Write-Output "Validated promotion archive entries fail closed before extraction."
     Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."
