@@ -551,6 +551,10 @@ function Invoke-PromotionArchiveEntryFailureFixtures {
             Remove-Item -Path $escapedPath -Force
         }
 
+        New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+        $preservedFilePath = Join-Path $extractPath "preserve-on-invalid-archive.txt"
+        Set-Content -Path $preservedFilePath -Value "preserve" -Encoding utf8NoBOM
+
         New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames @("bundle-manifest.json", [string]$case.EntryName)
 
         $probe = Invoke-JenkinsValidationFailureProbe `
@@ -562,7 +566,7 @@ function Invoke-PromotionArchiveEntryFailureFixtures {
                     [string]$ExtractPath
                 )
 
-                & $Script -RepoRoot $RepoRoot -ArchivePath $ArchivePath -ExtractPath $ExtractPath 6>$null | Out-Null
+                & $Script -RepoRoot $RepoRoot -ArchivePath $ArchivePath -ExtractPath $ExtractPath -CleanExtractPath 6>$null | Out-Null
             } `
             -ArgumentList @($PromotionScript, $Root, $archivePath, $extractPath)
 
@@ -572,6 +576,7 @@ function Invoke-PromotionArchiveEntryFailureFixtures {
             ExpectedMessage = [string]$case.ExpectedMessage
             AssertionMessage = [string]$case.Message
             EscapedPathExists = (Test-Path -Path $escapedPath -PathType Leaf)
+            ExistingExtractPathPreserved = (Test-Path -Path $preservedFilePath -PathType Leaf)
             ArchivePath = $archivePath
             ExtractPath = $extractPath
         }) | Out-Null
