@@ -1245,5 +1245,6 @@ function Assert-PromotionArchiveEntrySafety {
         Assert-Condition -Condition ([bool]$probe.Failed) -Message ([string]$probe.AssertionMessage)
         Assert-TextContains -Text ([string]$probe.Message) -Expected ([string]$probe.ExpectedMessage) -Message ([string]$probe.AssertionMessage)
         Assert-Condition -Condition (-not [bool]$probe.EscapedPathExists) -Message "Promotion archive validation must not write traversal entries before failing."
+        Assert-Condition -Condition ([bool]$probe.ExistingExtractPathPreserved) -Message "Promotion archive validation must not remove an existing extraction directory before rejecting an unsafe archive."
     }
 }

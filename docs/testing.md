@@ -102,7 +102,10 @@ negative scenarios separate from pure checks while preserving the public harness
 entry points. Negative validation probes for service catalog mutations,
 reparse-point output paths, and unsafe promotion archive entries should return
 small result objects from fixture helpers so assertion functions only check the
-failure state and expected message.
+failure state and expected message. Unsafe promotion archives must be rejected
+before `-CleanExtractPath` can remove an existing extraction directory; the
+fixture lane keeps a sentinel file to verify that failed archive validation
+preserves prior output.
 
 The same wrapper is also wired into
 `.github/workflows/phase-validation.yml` for pull requests, pushes, and manual
