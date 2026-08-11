@@ -32,7 +32,7 @@ generated DSL from a live controller or a real environment.
 ## Latest Handoff Evidence
 
 The controller-free Jenkins gate most recently passed in this worktree on
-2026-06-22 with PowerShell 7.6.2 using:
+2026-08-12 with PowerShell 7.6.2 using:
 
 ```sh
 sh scripts/run-phase-validation.sh
@@ -66,7 +66,7 @@ The passing run produced this controller-free evidence:
   escaping, service-job fixtures, and runtime argument handling.
 
 This evidence was refreshed during `template-maintenance` after the automation
-dashboard still reported `jenkins validation failed`. The 2026-06-22 refresh
+dashboard still reported `jenkins validation failed`. The 2026-08-12 refresh
 kept the phase metadata unchanged because the wrapper passed and the target has
 no pending `next_phase`. This handoff remains as the audit trail for the
 completed boundary-hardening transition and as the current maintenance evidence
