@@ -575,9 +575,12 @@ function Assert-PresetRuntimeEntrypointsUsePresetValues {
         Assert-Equal -Actual ([string]$manifest.Profile) -Expected ([string]$presetData.Profile) -Message ("Preset-only bundle manifest should use the {0} profile" -f $preset)
         Assert-Equal -Actual ([string]$manifest.Version) -Expected ([string]$presetData.Version) -Message ("Preset-only bundle manifest should use the {0} version" -f $preset)
         Assert-Equal -Actual ([string]$manifest.ValuesFile) -Expected ([string]$presetData.ValuesFile) -Message ("Preset-only bundle manifest should use the {0} values file" -f $preset)
-        Assert-ContainsItem -Values @($manifest.EnvironmentPresets) -Expected $preset -Message ("Preset-only bundle manifest should record the {0} preset" -f $preset)
+        Assert-Equal -Actual @($manifest.EnvironmentPresets).Count -Expected 1 -Message ("Preset-only bundle manifest should record exactly one environment preset for {0}" -f $preset)
+        Assert-Equal -Actual ([string]@($manifest.EnvironmentPresets)[0]) -Expected $preset -Message ("Preset-only bundle manifest should record only the {0} preset" -f $preset)
+        Assert-Equal -Actual @($manifest.Selections).Count -Expected 1 -Message ("Preset-only bundle manifest should record exactly one selection for {0}" -f $preset)
 
         $selection = @($manifest.Selections)[0]
+        Assert-Equal -Actual ([string]$selection.Name) -Expected $preset -Message ("Preset-only bundle manifest selection should be {0}" -f $preset)
         Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected ([string]$presetData.OutputPath) -Message ("Preset-only bundle manifest selection should use the {0} output path" -f $preset)
         Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected ([string]$presetData.ArchivePath) -Message ("Preset-only bundle manifest selection should use the {0} archive path" -f $preset)
 
@@ -598,7 +601,10 @@ function Assert-PresetRuntimeEntrypointsUsePresetValues {
         $promotedManifest = Get-Content -Path $promotedManifestPath -Raw | ConvertFrom-Json
         Assert-Equal -Actual ([string]$promotedManifest.Profile) -Expected ([string]$presetData.Profile) -Message ("Preset-only promoted manifest should preserve the {0} profile" -f $preset)
         Assert-Equal -Actual ([string]$promotedManifest.Version) -Expected ([string]$presetData.Version) -Message ("Preset-only promoted manifest should preserve the {0} version" -f $preset)
-        Assert-ContainsItem -Values @($promotedManifest.EnvironmentPresets) -Expected $preset -Message ("Preset-only promoted manifest should preserve the {0} preset" -f $preset)
+        Assert-Equal -Actual @($promotedManifest.EnvironmentPresets).Count -Expected 1 -Message ("Preset-only promoted manifest should preserve exactly one environment preset for {0}" -f $preset)
+        Assert-Equal -Actual ([string]@($promotedManifest.EnvironmentPresets)[0]) -Expected $preset -Message ("Preset-only promoted manifest should preserve only the {0} preset" -f $preset)
+        Assert-Equal -Actual @($promotedManifest.Selections).Count -Expected 1 -Message ("Preset-only promoted manifest should preserve exactly one selection for {0}" -f $preset)
+        Assert-Equal -Actual ([string]@($promotedManifest.Selections)[0].Name) -Expected $preset -Message ("Preset-only promoted manifest selection should remain {0}" -f $preset)
     }
 }
 
@@ -655,12 +661,20 @@ function Assert-PublicPresetSelectionMatchesDataFile {
     Assert-Equal -Actual ([string]$Selection.PromotionExtractPath) -Expected ([string]$PresetData.PromotionExtractPath) -Message ("Preset {0} promotion extract path should come from the preset file" -f $Preset)
     Assert-Equal -Actual ([bool]$Selection.IncludeJenkins) -Expected ([bool]$PresetData.IncludeJenkins) -Message ("Preset {0} IncludeJenkins value should come from the preset file" -f $Preset)
 
-    foreach ($application in @(Get-NormalizedList -Values @($PresetData.Applications))) {
+    $expectedApplications = @(Get-NormalizedList -Values @($PresetData.Applications))
+    $actualApplications = @(Get-NormalizedList -Values @($Selection.Applications))
+    Assert-Equal -Actual ($actualApplications -join ",") -Expected ($expectedApplications -join ",") -Message ("Preset {0} applications should exactly match the preset file" -f $Preset)
+
+    $expectedDataServices = @(Get-NormalizedList -Values @($PresetData.DataServices))
+    $actualDataServices = @(Get-NormalizedList -Values @($Selection.DataServices))
+    Assert-Equal -Actual ($actualDataServices -join ",") -Expected ($expectedDataServices -join ",") -Message ("Preset {0} data services should exactly match the preset file" -f $Preset)
+
+    foreach ($application in $expectedApplications) {
         Assert-ContainsItem -Values @($Selection.Applications) -Expected ([string]$application) -Message ("Preset {0} should include application {1} from the preset file" -f $Preset, $application)
         Assert-ContainsItem -Values @($Selection.ServiceDirectories) -Expected ([string]$application) -Message ("Preset {0} service projection should include application {1}" -f $Preset, $application)
     }
 
-    foreach ($dataService in @(Get-NormalizedList -Values @($PresetData.DataServices))) {
+    foreach ($dataService in $expectedDataServices) {
         Assert-ContainsItem -Values @($Selection.DataServices) -Expected ([string]$dataService) -Message ("Preset {0} should include data service {1} from the preset file" -f $Preset, $dataService)
     }
 }
