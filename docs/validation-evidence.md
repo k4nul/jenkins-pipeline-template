@@ -50,7 +50,7 @@ fixtures. Keep generated files under ignored `out/` paths.
 
 ## Latest Refresh
 
-The latest repository-local refresh passed on 2026-06-22 with PowerShell 7.6.2:
+The latest repository-local refresh passed on 2026-08-11 with PowerShell 7.6.2:
 
 ```sh
 sh scripts/run-phase-validation.sh
