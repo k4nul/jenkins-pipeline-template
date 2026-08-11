@@ -85,11 +85,13 @@ label as the active blocker and avoid replacing it with narrower command output.
 
 The final aggregate command validates every built-in public-safe preset
 individually, then validates a single combined public preset matrix Job DSL
-fixture. Generated output must stay under `out/`, which is ignored by Git. Job
-DSL fixture content is deterministic and the writer skips unchanged files, so
-repeated validation runs do not rewrite ignored artifacts just because the
-command was re-run. Do not commit generated Job DSL from a real controller or
-environment.
+fixture. Its public preset suite also runs the controller-free
+validation-to-delivery-to-promotion round trip for `dev`, `staging`, and `prod`,
+checking each preset's output, archive, and promotion extraction paths. Generated
+output must stay under `out/`, which is ignored by Git. Job DSL fixture content
+is deterministic and the writer skips unchanged files, so repeated validation
+runs do not rewrite ignored artifacts just because the command was re-run. Do
+not commit generated Job DSL from a real controller or environment.
 
 ## Validation Fixture Boundary
 
