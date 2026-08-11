@@ -530,43 +530,76 @@ function Assert-PresetRuntimeEntrypointsUsePresetValues {
     param(
         [string]$RepositoryValidationScript,
         [string]$BundleDeliveryScript,
-        [string]$Root
+        [string]$BundlePromotionScript,
+        [string]$Root,
+        [string[]]$Presets,
+        [hashtable]$PresetDataByName
     )
 
-    $validation = Invoke-JsonScript -ScriptPath $RepositoryValidationScript -Arguments @{
-        RepoRoot = $Root
-        EnvironmentPreset = @("dev")
-        SkipWorkstationValidation = $true
+    foreach ($preset in @($Presets)) {
+        $presetData = $PresetDataByName[$preset]
+        Assert-Condition -Condition ($null -ne $presetData) -Message ("Runtime preset test should load data for {0}" -f $preset)
+
+        $validation = Invoke-JsonScript -ScriptPath $RepositoryValidationScript -Arguments @{
+            RepoRoot = $Root
+            EnvironmentPreset = @($preset)
+            SkipWorkstationValidation = $true
+        }
+        Assert-Equal -Actual ([string]$validation.Profile) -Expected ([string]$presetData.Profile) -Message ("Preset-only repository validation should use the {0} profile" -f $preset)
+        Assert-Equal -Actual ([string]$validation.Version) -Expected ([string]$presetData.Version) -Message ("Preset-only repository validation should use the {0} version" -f $preset)
+        Assert-TextContains `
+            -Text ([string]$validation.ValuesFile).Replace("\", "/") `
+            -Expected ([string]$presetData.ValuesFile).Replace("\", "/") `
+            -Message ("Preset-only repository validation should validate the {0} values file" -f $preset)
+
+        $delivery = Invoke-JsonScript -ScriptPath $BundleDeliveryScript -Arguments @{
+            RepoRoot = $Root
+            EnvironmentPreset = @($preset)
+            SkipRepositoryValidation = $true
+            CleanOutput = $true
+            OverwriteArchive = $true
+        }
+        Assert-TextContains `
+            -Text ([string]$delivery.OutputPath).Replace("\", "/") `
+            -Expected ([string]$presetData.OutputPath).Replace("\", "/") `
+            -Message ("Preset-only bundle delivery should write to the {0} preset output path" -f $preset)
+        Assert-TextContains `
+            -Text ([string]$delivery.ArchivePath).Replace("\", "/") `
+            -Expected ([string]$presetData.ArchivePath).Replace("\", "/") `
+            -Message ("Preset-only bundle delivery should write the {0} preset archive path" -f $preset)
+        Assert-Condition -Condition (Test-Path -Path ([string]$delivery.ArchivePath) -PathType Leaf) -Message ("Preset-only bundle delivery should create the {0} archive" -f $preset)
+
+        $manifestPath = Join-Path ([string]$delivery.OutputPath) "bundle-manifest.json"
+        Assert-Condition -Condition (Test-Path -Path $manifestPath -PathType Leaf) -Message ("Preset-only bundle delivery should write a {0} manifest" -f $preset)
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual ([string]$manifest.Profile) -Expected ([string]$presetData.Profile) -Message ("Preset-only bundle manifest should use the {0} profile" -f $preset)
+        Assert-Equal -Actual ([string]$manifest.Version) -Expected ([string]$presetData.Version) -Message ("Preset-only bundle manifest should use the {0} version" -f $preset)
+        Assert-Equal -Actual ([string]$manifest.ValuesFile) -Expected ([string]$presetData.ValuesFile) -Message ("Preset-only bundle manifest should use the {0} values file" -f $preset)
+        Assert-ContainsItem -Values @($manifest.EnvironmentPresets) -Expected $preset -Message ("Preset-only bundle manifest should record the {0} preset" -f $preset)
+
+        $selection = @($manifest.Selections)[0]
+        Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected ([string]$presetData.OutputPath) -Message ("Preset-only bundle manifest selection should use the {0} output path" -f $preset)
+        Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected ([string]$presetData.ArchivePath) -Message ("Preset-only bundle manifest selection should use the {0} archive path" -f $preset)
+
+        $promotion = Invoke-JsonScript -ScriptPath $BundlePromotionScript -Arguments @{
+            RepoRoot = $Root
+            EnvironmentPreset = @($preset)
+            ArchivePath = [string]$delivery.ArchivePath
+            ExtractPath = [string]$presetData.PromotionExtractPath
+            CleanExtractPath = $true
+        }
+        Assert-TextContains `
+            -Text ([string]$promotion.ExtractPath).Replace("\", "/") `
+            -Expected ([string]$presetData.PromotionExtractPath).Replace("\", "/") `
+            -Message ("Preset-only bundle promotion should use the {0} extraction path" -f $preset)
+
+        $promotedManifestPath = Join-Path ([string]$promotion.ExtractPath) "bundle-manifest.json"
+        Assert-Condition -Condition (Test-Path -Path $promotedManifestPath -PathType Leaf) -Message ("Preset-only bundle promotion should extract the {0} manifest" -f $preset)
+        $promotedManifest = Get-Content -Path $promotedManifestPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual ([string]$promotedManifest.Profile) -Expected ([string]$presetData.Profile) -Message ("Preset-only promoted manifest should preserve the {0} profile" -f $preset)
+        Assert-Equal -Actual ([string]$promotedManifest.Version) -Expected ([string]$presetData.Version) -Message ("Preset-only promoted manifest should preserve the {0} version" -f $preset)
+        Assert-ContainsItem -Values @($promotedManifest.EnvironmentPresets) -Expected $preset -Message ("Preset-only promoted manifest should preserve the {0} preset" -f $preset)
     }
-    Assert-Equal -Actual ([string]$validation.Profile) -Expected "web-platform" -Message "Preset-only repository validation should use the dev preset profile"
-    Assert-Equal -Actual ([string]$validation.Version) -Expected "0.0.0-dev" -Message "Preset-only repository validation should use the dev preset version"
-    Assert-TextContains `
-        -Text ([string]$validation.ValuesFile).Replace("\", "/") `
-        -Expected "config/platform-values.dev.env.example" `
-        -Message "Preset-only repository validation should validate the dev preset values file"
-
-    $delivery = Invoke-JsonScript -ScriptPath $BundleDeliveryScript -Arguments @{
-        RepoRoot = $Root
-        EnvironmentPreset = @("dev")
-        SkipRepositoryValidation = $true
-        SkipArchive = $true
-        CleanOutput = $true
-    }
-    Assert-TextContains `
-        -Text ([string]$delivery.OutputPath).Replace("\", "/") `
-        -Expected "out/delivery/dev" `
-        -Message "Preset-only bundle delivery should write to the dev preset output path"
-
-    $manifestPath = Join-Path ([string]$delivery.OutputPath) "bundle-manifest.json"
-    Assert-Condition -Condition (Test-Path -Path $manifestPath -PathType Leaf) -Message "Preset-only bundle delivery should write a manifest"
-    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
-    Assert-Equal -Actual ([string]$manifest.Profile) -Expected "web-platform" -Message "Preset-only bundle manifest should use the dev preset profile"
-    Assert-Equal -Actual ([string]$manifest.Version) -Expected "0.0.0-dev" -Message "Preset-only bundle manifest should use the dev preset version"
-    Assert-Equal -Actual ([string]$manifest.ValuesFile) -Expected "config\platform-values.dev.env.example" -Message "Preset-only bundle manifest should use the dev preset values file"
-
-    $selection = @($manifest.Selections)[0]
-    Assert-Equal -Actual ([string]$selection.BundleOutputPath) -Expected "out\delivery\dev" -Message "Preset-only bundle manifest selection should use the dev preset output path"
-    Assert-Equal -Actual ([string]$selection.ArchivePath) -Expected "out\delivery\dev.zip" -Message "Preset-only bundle manifest selection should use the dev preset archive path"
 }
 
 function Get-PublicPresetDataByName {
@@ -1055,7 +1088,10 @@ Assert-DependencyInventoryHumanReadableOutput -Markdown $dependencyInventoryMark
 Assert-PresetRuntimeEntrypointsUsePresetValues `
     -RepositoryValidationScript $repositoryValidationScript `
     -BundleDeliveryScript $bundleDeliveryScript `
-    -Root $root
+    -BundlePromotionScript $bundlePromotionScript `
+    -Root $root `
+    -Presets $presets `
+    -PresetDataByName $presetDataByName
 
 Assert-SeedJobSafety -SeedJobPath $seedJobPath
 Assert-JenkinsfileArtifactPathSafety -JenkinsfilePath $seedJobPath -ExpectedParameterNames @("SEED_OUTPUT_PATH")
