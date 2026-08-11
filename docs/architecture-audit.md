@@ -221,14 +221,14 @@ Validation evidence for the current checkout:
 sh scripts/run-phase-validation.sh
 ```
 
-The wrapper passed on 2026-06-22 with PowerShell 7.6.2 and covered dependency
+The wrapper passed on 2026-08-11 with PowerShell 7.6.2 and covered dependency
 inventory, the focused `dev` job plan, service pipeline plan, ignored Job DSL
 export, service pipeline validation, aggregate Job DSL validation, and the public
 preset test suite.
 
 ## Suggested Next Automated Task
 
-Use `test-generation` or `refactor-candidates` only if the next run selects a
+Use `test-authoring` or `refactor-candidates` only if the next run selects a
 cohesive helper-extraction or assertion-grouping package. Otherwise keep using
 maintenance-oriented tasks in `template-maintenance` and rerun
 `sh scripts/run-phase-validation.sh` when a progress dashboard reports a stale
