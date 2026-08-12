@@ -342,6 +342,7 @@ function Assert-ZipArchiveEntrySafety {
 
     $resolvedDestinationPath = [System.IO.Path]::GetFullPath($DestinationPath)
     $destinationPathPrefix = $resolvedDestinationPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $entryTypes = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $archive = $null
 
     try {
@@ -373,6 +374,30 @@ function Assert-ZipArchiveEntrySafety {
             if ($resolvedEntryPath -ne $resolvedDestinationPath -and -not $resolvedEntryPath.StartsWith($destinationPathPrefix, [System.StringComparison]::Ordinal)) {
                 throw ("Archive entry path must extract inside the promotion directory: {0}" -f $entryName)
             }
+
+            $entryKey = $normalizedEntryName
+            if ($entryTypes.ContainsKey($entryKey)) {
+                throw ("Archive must not contain duplicate or case-conflicting entry paths: {0}" -f $entryName)
+            }
+
+            $entryType = if ($entryName.EndsWith("/") -or $entryName.EndsWith("\")) { "directory" } else { "file" }
+            $parentSegments = @($segments | Select-Object -SkipLast 1)
+            for ($index = 1; $index -le $parentSegments.Count; $index++) {
+                $parentPath = ($parentSegments[0..($index - 1)] -join "/")
+                if ($entryTypes.ContainsKey($parentPath) -and $entryTypes[$parentPath] -eq "file") {
+                    throw ("Archive entry path conflicts with a file parent: {0}" -f $entryName)
+                }
+            }
+
+            if ($entryType -eq "file") {
+                foreach ($existingEntryPath in @($entryTypes.Keys)) {
+                    if ($existingEntryPath.StartsWith($entryKey + "/", [System.StringComparison]::OrdinalIgnoreCase)) {
+                        throw ("Archive file entry conflicts with a descendant entry: {0}" -f $entryName)
+                    }
+                }
+            }
+
+            $entryTypes.Add($entryKey, $entryType)
         }
     }
     finally {
