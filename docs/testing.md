@@ -45,7 +45,8 @@ and public-safe helper guardrails, verifies the committed runtime helper scripts
 and tracked public-safe values defaults exist, validates service catalog metadata
 and required service file paths,
 verifies Jenkinsfile-backed catalog entries fail closed when
-`services/<name>/Jenkinsfile` is missing, and runs service pipeline validation.
+`services/<name>/Jenkinsfile` is missing, rejects unsafe service names and
+required-file paths, and runs service pipeline validation.
 
 ## Dashboard Validation Commands
 

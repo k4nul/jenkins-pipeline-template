@@ -172,7 +172,7 @@ Assert-JenkinsServiceJobsSkippedPlan -Plan $skippedServiceJobFixturePlan
 
 & $serviceJobFixture.ServiceValidationScript -RepoRoot $serviceJobFixture.Root 6>$null | Out-Null
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $resolvedOutputDirectory
-Assert-UnsafeServiceCatalogNamesFail -Root $root -OutputDirectory $resolvedOutputDirectory
+Assert-UnsafeServiceCatalogEntriesFail -Root $root -OutputDirectory $resolvedOutputDirectory
 Assert-UnsupportedServiceComposeUpdateFails -Root $root -OutputDirectory $resolvedOutputDirectory
 
 $summary = [PSCustomObject]@{

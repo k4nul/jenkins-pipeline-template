@@ -368,6 +368,57 @@ function Get-UnsafeServiceCatalogNameCases {
     )
 }
 
+function Get-UnsafeServiceRequiredFileCases {
+    $catalogTemplate = @'
+@{
+    Services = @(
+        @{
+            Name = "nginx-web"
+            Category = "fixture-service"
+            ImageName = "fixture/nginx-web:1.0.0"
+            BuildTagStrategy = "none"
+            RequiresMode = $false
+            UsesCacheToggle = $false
+            UsesModeBuildArg = $false
+            ComposeUpdate = "none"
+            RequiresRegistry = $true
+            HasJenkinsfile = $true
+            OptionalEnvVars = @()
+            RequiredFiles = @(
+                "__REQUIRED_FILE__"
+            )
+            ArtifactInputs = @()
+            RequiredJenkinsStrings = @()
+            Notes = "Synthetic service required-file safety fixture."
+        }
+    )
+}
+'@
+
+    return @(
+        @{
+            Catalog = $catalogTemplate.Replace("__REQUIRED_FILE__", "..\outside.txt")
+            ExpectedMessage = "uses a required file path outside the service directory"
+            Message = "Service pipeline validation should reject required file paths with parent-directory segments."
+        },
+        @{
+            Catalog = $catalogTemplate.Replace("__REQUIRED_FILE__", "/tmp/outside.txt")
+            ExpectedMessage = "uses an absolute required file path"
+            Message = "Service pipeline validation should reject absolute required file paths."
+        },
+        @{
+            Catalog = $catalogTemplate.Replace("__REQUIRED_FILE__", "site/*.html")
+            ExpectedMessage = "uses a wildcard required file path"
+            Message = "Service pipeline validation should reject wildcard required file paths."
+        },
+        @{
+            Catalog = $catalogTemplate.Replace("__REQUIRED_FILE__", "")
+            ExpectedMessage = "contains an empty required file path"
+            Message = "Service pipeline validation should reject empty required file paths."
+        }
+    )
+}
+
 function Invoke-ServiceValidationFixtureFailure {
     param(
         [Parameter(Mandatory = $true)]
@@ -414,7 +465,7 @@ function Invoke-MissingServiceJenkinsfileValidationFailureFixture {
     return (Invoke-ServiceValidationFixtureFailure -Fixture $fixture)
 }
 
-function Invoke-UnsafeServiceCatalogNameFailureFixtures {
+function Invoke-UnsafeServiceCatalogFailureFixtures {
     param(
         [string]$Root,
         [string]$OutputDirectory
@@ -423,7 +474,7 @@ function Invoke-UnsafeServiceCatalogNameFailureFixtures {
     $fixture = New-UnsafeServiceCatalogFixtureContext -Root $Root -OutputDirectory $OutputDirectory
     $results = New-Object System.Collections.Generic.List[object]
 
-    foreach ($case in @(Get-UnsafeServiceCatalogNameCases)) {
+    foreach ($case in @(Get-UnsafeServiceCatalogNameCases) + @(Get-UnsafeServiceRequiredFileCases)) {
         $probe = Invoke-ServiceValidationFixtureFailure -Fixture $fixture -Catalog ([string]$case.Catalog)
         $results.Add([PSCustomObject]@{
             Failed = [bool]$probe.Failed
