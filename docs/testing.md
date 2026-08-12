@@ -68,6 +68,7 @@ pwsh -NoProfile -File scripts/show-service-pipeline-plan.ps1 -Format json
 pwsh -NoProfile -File scripts/export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath out/jenkins/seed-job-dsl.groovy
 pwsh -NoProfile -File scripts/validate-service-pipelines.ps1
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1 -Format json
+pwsh -NoProfile -File scripts/test-pipeline-contracts.ps1
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 ```
 
@@ -96,6 +97,11 @@ silently falling back to the full matrix. Generated output must stay under
 the writer skips unchanged files, so repeated validation runs do not rewrite
 ignored artifacts just because the command was re-run. Do not commit generated
 Job DSL from a real controller or environment.
+
+`test-pipeline-contracts.ps1` is the validation contract's named entry point
+for the public preset suite. It verifies the controller-free dev, staging, and
+prod generation paths, promotion approval ordering, and credential-ID boundary
+without duplicating the underlying fixtures.
 
 ## Validation Fixture Boundary
 
