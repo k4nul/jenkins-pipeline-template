@@ -867,13 +867,13 @@ function Assert-MissingServiceJenkinsfileValidationFails {
     Assert-TextContains -Text ([string]$probe.Message) -Expected "expects a Jenkinsfile-backed service" -Message "Missing Jenkinsfile failure should explain the catalog/service mismatch."
 }
 
-function Assert-UnsafeServiceCatalogNamesFail {
+function Assert-UnsafeServiceCatalogEntriesFail {
     param(
         [string]$Root,
         [string]$OutputDirectory
     )
 
-    foreach ($probe in @(Invoke-UnsafeServiceCatalogNameFailureFixtures -Root $Root -OutputDirectory $OutputDirectory)) {
+    foreach ($probe in @(Invoke-UnsafeServiceCatalogFailureFixtures -Root $Root -OutputDirectory $OutputDirectory)) {
         Assert-Condition -Condition ([bool]$probe.Failed) -Message ([string]$probe.AssertionMessage)
         Assert-TextContains -Text ([string]$probe.Message) -Expected ([string]$probe.ExpectedMessage) -Message ([string]$probe.AssertionMessage)
     }

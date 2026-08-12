@@ -1174,7 +1174,7 @@ Assert-JenkinsServiceJobsSkippedPlan -Plan $skippedServiceJobFixturePlan
 
 & $serviceJobFixture.ServiceValidationScript -RepoRoot $serviceJobFixture.Root 6>$null | Out-Null
 Assert-MissingServiceJenkinsfileValidationFails -Root $root -OutputDirectory $outputDirectory
-Assert-UnsafeServiceCatalogNamesFail -Root $root -OutputDirectory $outputDirectory
+Assert-UnsafeServiceCatalogEntriesFail -Root $root -OutputDirectory $outputDirectory
 
 $dependencyInventory = Invoke-JsonScript -ScriptPath $dependencyInventoryScript -Arguments @{
     RepoRoot = $root
@@ -1246,6 +1246,7 @@ Write-Output ("Validated Jenkinsfile-backed service job fixture: {0}" -f $servic
 Write-Output ("Validated shared Jenkinsfile-backed service job fixture: {0}" -f $serviceJobFixture.SharedServiceJobDslPath)
 Write-Output "Validated SkipServiceJobs suppresses Jenkinsfile-backed service jobs."
 Write-Output "Validated missing Jenkinsfile-backed service jobs fail closed."
+Write-Output "Validated unsafe service catalog names and required file paths fail closed."
 Write-Output "Validated public preset application service catalog coverage."
 Write-Output "Validated dependency inventory risk indicators."
 Write-Output "Validated seed job SCM apply and destructive delete confirmation guards."
