@@ -98,6 +98,13 @@ the writer skips unchanged files, so repeated validation runs do not rewrite
 ignored artifacts just because the command was re-run. Do not commit generated
 Job DSL from a real controller or environment.
 
+Omitting `-EnvironmentPreset` from the job-plan or Job DSL export command is
+the public matrix path: it discovers every preset in `config/environments`.
+The regression suite verifies this implicit path produces the same plan and DSL
+as explicitly passing the complete preset list. `show-service-pipeline-plan.ps1`
+is catalog-wide; use `show-jenkins-job-plan.ps1 -EnvironmentPreset <preset>` to
+inspect the service jobs projected for a specific preset.
+
 `test-pipeline-contracts.ps1` is the validation contract's named entry point
 for the public preset suite. It verifies the controller-free dev, staging, and
 prod generation paths, promotion approval ordering, and credential-ID boundary

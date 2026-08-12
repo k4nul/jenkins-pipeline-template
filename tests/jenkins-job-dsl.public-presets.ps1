@@ -111,6 +111,55 @@ function Assert-CustomDirectSelectionPlan {
         -Message "Custom promotion should depend on delivery"
 }
 
+function Assert-PublicServicePipelinePlanMatchesCatalog {
+    param(
+        [string]$Root,
+        [object]$Plan
+    )
+
+    $catalog = Import-ServicePipelineCatalog -RepoRoot $Root
+    $expectedServices = @(Get-ServicePipelineCatalogServices -Catalog $catalog)
+    $expectedNames = @($expectedServices | ForEach-Object { [string]$_.Name } | Sort-Object)
+    $actualServices = @($Plan.Services | Sort-Object { [string]$_.Name })
+    $actualNames = @($actualServices | ForEach-Object { [string]$_.Name })
+
+    Assert-Equal -Actual $actualNames.Count -Expected $expectedNames.Count -Message "Public service pipeline plan should include every catalog service"
+    Assert-Equal -Actual ($actualNames -join ",") -Expected ($expectedNames -join ",") -Message "Public service pipeline plan should preserve the catalog service names"
+    Assert-Equal -Actual @($Plan.CommonEnvironmentVariables).Count -Expected 0 -Message "Current public-safe service catalog should not require shared Jenkins environment variables"
+
+    foreach ($expectedService in $expectedServices) {
+        $actualService = @($actualServices | Where-Object { [string]$_.Name -eq [string]$expectedService.Name })[0]
+        Assert-Condition -Condition ($null -ne $actualService) -Message ("Public service pipeline plan should include {0}" -f $expectedService.Name)
+
+        foreach ($property in @(
+            "Category",
+            "ImageName",
+            "BuildTagStrategy",
+            "ComposeUpdate",
+            "RequiresMode",
+            "UsesCacheToggle",
+            "UsesModeBuildArg",
+            "RequiresRegistry",
+            "HasJenkinsfile",
+            "Notes"
+        )) {
+            Assert-Equal `
+                -Actual ([string]$actualService.$property) `
+                -Expected ([string]$expectedService.$property) `
+                -Message ("Public service pipeline plan should preserve {0} for {1}" -f $property, $expectedService.Name)
+        }
+
+        foreach ($listProperty in @("OptionalEnvVars", "RequiredFiles", "ArtifactInputs", "RequiredJenkinsStrings")) {
+            $actualValues = @(Get-NormalizedList -Values @($actualService.$listProperty))
+            $expectedValues = @(Get-NormalizedList -Values @($expectedService.$listProperty))
+            Assert-Equal `
+                -Actual ($actualValues -join ",") `
+                -Expected ($expectedValues -join ",") `
+                -Message ("Public service pipeline plan should preserve {0} for {1}" -f $listProperty, $expectedService.Name)
+        }
+    }
+}
+
 function Assert-CustomDirectSelectionDsl {
     param(
         [string]$DslPath,
@@ -760,6 +809,7 @@ $servicePlan = $context.ServicePlan
 $serviceIndex = $context.ServiceIndex
 $presetDataByName = Get-PublicPresetDataByName -Root $root -Presets $presets
 
+Assert-PublicServicePipelinePlanMatchesCatalog -Root $root -Plan $servicePlan
 Assert-RepoOutputPathCaseBoundary -Root $root
 Assert-RepoOutputPathRejectsControlCharacters -Root $root
 
@@ -877,6 +927,41 @@ Assert-PublicPresetMatrixDslContainsPresetData `
     -DslPath $publicPresetMatrixDslPath `
     -PresetDataByName $presetDataByName `
     -ExpectedPresets $presets
+
+$implicitPublicPresetMatrixPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
+    RepoRoot = $root
+    Format = "json"
+}
+Assert-PublicPresetMatrixServiceCoverage `
+    -Plan $implicitPublicPresetMatrixPlan `
+    -ExpectedPresets $presets `
+    -ServiceIndex $serviceIndex
+Assert-Equal `
+    -Actual ([int]$implicitPublicPresetMatrixPlan.SelectionCount) `
+    -Expected ([int]$publicPresetMatrixPlan.SelectionCount) `
+    -Message "Implicit public preset matrix plan should match the explicit preset selection count"
+Assert-Equal `
+    -Actual ([int]$implicitPublicPresetMatrixPlan.ServiceJobCount) `
+    -Expected ([int]$publicPresetMatrixPlan.ServiceJobCount) `
+    -Message "Implicit public preset matrix plan should match the explicit service job count"
+
+$implicitPublicPresetMatrixDslPath = Join-Path $outputDirectory "implicit-public-preset-matrix-seed-job-dsl.groovy"
+& $jobDslScript `
+    -RepoRoot $root `
+    -OutputPath $implicitPublicPresetMatrixDslPath 6>$null | Out-Null
+Assert-MultiPresetPlanAndDsl `
+    -Plan $implicitPublicPresetMatrixPlan `
+    -ExpectedPresets $presets `
+    -DslPath $implicitPublicPresetMatrixDslPath
+Assert-PublicPresetMatrixDslContainsPresetData `
+    -Plan $implicitPublicPresetMatrixPlan `
+    -DslPath $implicitPublicPresetMatrixDslPath `
+    -PresetDataByName $presetDataByName `
+    -ExpectedPresets $presets
+Assert-Equal `
+    -Actual (Get-Content -Path $implicitPublicPresetMatrixDslPath -Raw) `
+    -Expected (Get-Content -Path $publicPresetMatrixDslPath -Raw) `
+    -Message "Implicit public preset matrix DSL should match the explicit public preset matrix DSL"
 
 $customDirectSelectionPlan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
     RepoRoot = $root
@@ -1148,7 +1233,9 @@ Write-Output ("Validated public-safe git+ssh SCM fixture: {0}" -f $gitSshScmDslP
 Write-Output "Validated whitespace-bearing SCM URLs fail closed before Job DSL generation."
 Write-Output ("Validated multi-preset Job DSL fixture: {0}" -f $multiPresetDslPath)
 Write-Output ("Validated full public preset matrix fixture: {0}" -f $publicPresetMatrixDslPath)
+Write-Output ("Validated implicit public preset matrix fixture: {0}" -f $implicitPublicPresetMatrixDslPath)
 Write-Output "Validated full public preset service catalog coverage."
+Write-Output "Validated catalog-wide service pipeline plan projection."
 Write-Output ("Validated custom direct-selection Job DSL fixture: {0}" -f $customDirectSelectionDslPath)
 Write-Output ("Validated SelectionName-only Job DSL fixture: {0}" -f $selectionNameOnlyDslPath)
 Write-Output ("Validated escaped metadata Job DSL fixture: {0}" -f $escapedMetadataDslPath)
