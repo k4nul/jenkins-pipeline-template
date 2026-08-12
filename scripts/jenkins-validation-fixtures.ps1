@@ -83,6 +83,72 @@ function Invoke-RepoOutputPathReparsePointFailureFixture {
     }
 }
 
+function Invoke-RepoInputFileReparsePointFailureFixture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RepositoryValidationScript
+    )
+
+    $probeRoot = Join-Path -Path $OutputDirectory -ChildPath "reparse-input-probe"
+    $targetPath = Join-Path -Path $probeRoot -ChildPath "target-values.env"
+    $linkPath = Join-Path -Path $probeRoot -ChildPath "linked-values.env"
+    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
+    Set-Content -Path $targetPath -Value "FIXTURE_VALUE=true" -Encoding utf8NoBOM
+
+    try {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+
+        New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop | Out-Null
+    }
+    catch {
+        return [PSCustomObject]@{
+            Skipped = $true
+            SkipMessage = [string]$_
+            Failed = $false
+            Message = ""
+        }
+    }
+
+    try {
+        $probePath = [System.IO.Path]::GetRelativePath($Root, $linkPath)
+        $probe = Invoke-JenkinsValidationFailureProbe `
+            -ScriptBlock {
+                param(
+                    [string]$ScriptPath,
+                    [string]$ProbeRoot,
+                    [string]$ProbePath
+                )
+
+                & $ScriptPath `
+                    -RepoRoot $ProbeRoot `
+                    -ValuesFile $ProbePath `
+                    -SkipWorkstationValidation `
+                    -SkipPlatformAssetValidation | Out-Null
+            } `
+            -ArgumentList @($RepositoryValidationScript, $Root, $probePath)
+
+        return [PSCustomObject]@{
+            Skipped = $false
+            SkipMessage = ""
+            Failed = [bool]$probe.Failed
+            Message = [string]$probe.Message
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $linkPath) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+    }
+}
+
 function New-JenkinsServiceJobFixtureRoot {
     param(
         [string]$Root,

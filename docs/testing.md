@@ -40,7 +40,8 @@ Job DSL apply still requires concrete SCM URL and branch inputs, verifies
 the seed job passes typed exporter boolean arguments, verifies seed-generated
 Job DSL artifacts are not archived when concrete SCM, registry, or credential
 metadata is supplied, verifies Jenkins artifact archiving uses literal paths
-under `out/`, verifies non-dry-run delivery and promotion stay behind approval
+under `out/`, rejects symlink and reparse-point traversal for repository input
+files and generated output paths, verifies non-dry-run delivery and promotion stay behind approval
 and public-safe helper guardrails, verifies the committed runtime helper scripts
 and tracked public-safe values defaults exist, validates service catalog metadata
 and required service file paths,

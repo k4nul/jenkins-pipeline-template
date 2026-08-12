@@ -35,6 +35,10 @@ $serviceIndex = $context.ServiceIndex
 Assert-RepoOutputPathCaseBoundary -Root $root
 Assert-RepoOutputPathRejectsControlCharacters -Root $root
 Assert-RepoOutputPathRejectsReparsePointSegments -Root $root -OutputDirectory $context.OutputDirectory
+Assert-RepoInputFileRejectsReparsePointSegments `
+    -Root $root `
+    -OutputDirectory $context.OutputDirectory `
+    -RepositoryValidationScript $context.Paths.RepositoryValidationScript
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -189,6 +193,7 @@ $summary = [PSCustomObject]@{
     OutputPathCaseBoundary = "passed"
     OutputPathControlCharacters = "passed"
     OutputPathReparsePointBoundary = "passed"
+    InputFileReparsePointBoundary = "passed"
     PromotionArchiveEntrySafety = "passed"
     RuntimeContract = "passed"
     Results = @($results.ToArray())

@@ -226,6 +226,31 @@ function Assert-RepoOutputPathRejectsReparsePointSegments {
     Assert-TextContains -Text ([string]$probe.Message) -Expected "OutputPath must not traverse symlink or reparse-point paths" -Message "Symlink output path rejection should explain the repository out boundary."
 }
 
+function Assert-RepoInputFileRejectsReparsePointSegments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RepositoryValidationScript
+    )
+
+    $probe = Invoke-RepoInputFileReparsePointFailureFixture `
+        -Root $Root `
+        -OutputDirectory $OutputDirectory `
+        -RepositoryValidationScript $RepositoryValidationScript
+    if ([bool]$probe.Skipped) {
+        Write-Information -MessageData ("Skipping repository input symlink boundary assertion because symbolic links are unavailable: {0}" -f [string]$probe.SkipMessage) -InformationAction Continue
+        return
+    }
+
+    Assert-Condition -Condition ([bool]$probe.Failed) -Message "Repository input file validation should reject symlink or reparse-point path segments."
+    Assert-TextContains -Text ([string]$probe.Message) -Expected "ValuesFile must not traverse symlink or reparse-point paths" -Message "Repository input symlink rejection should explain the boundary."
+}
+
 function Assert-JenkinsRuntimeContract {
     param(
         [Parameter(Mandatory = $true)]
