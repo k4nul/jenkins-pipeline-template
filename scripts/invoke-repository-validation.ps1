@@ -24,68 +24,6 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path -Path $PSScriptRoot -ChildPath "jenkins-job-common.ps1")
 
-function Resolve-RepoInputFile {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Root,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Path,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Description
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw ("{0} must not be empty." -f $Description)
-    }
-
-    if ($Path -match "[*?\[\]{}]") {
-        throw ("{0} must be a literal path without wildcard or glob characters: {1}" -f $Description, $Path)
-    }
-
-    if ($Path -match "[\x00-\x1F\x7F]") {
-        throw ("{0} must not contain control characters: {1}" -f $Description, $Path)
-    }
-
-    $resolvedRoot = [System.IO.Path]::GetFullPath($Root)
-    $resolvedPath = if ([System.IO.Path]::IsPathRooted($Path)) {
-        [System.IO.Path]::GetFullPath($Path)
-    }
-    else {
-        [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot $Path))
-    }
-
-    $rootPrefix = $resolvedRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-    if ($resolvedPath -ne $resolvedRoot -and -not $resolvedPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw ("{0} must resolve inside the repository: {1}" -f $Description, $Path)
-    }
-
-    $relativePath = [System.IO.Path]::GetRelativePath($resolvedRoot, $resolvedPath)
-    $currentPath = $resolvedRoot
-    foreach ($segment in @($relativePath -split "[/\\]+")) {
-        if (-not $segment -or $segment -eq ".") {
-            continue
-        }
-
-        $currentPath = Join-Path -Path $currentPath -ChildPath $segment
-        if (-not (Test-Path -LiteralPath $currentPath)) {
-            continue
-        }
-
-        $item = Get-Item -LiteralPath $currentPath -Force
-        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-            throw ("{0} must not traverse symlink or reparse-point paths: {1}" -f $Description, $Path)
-        }
-    }
-
-    if (-not (Test-Path -Path $resolvedPath -PathType Leaf)) {
-        throw ("{0} was not found: {1}" -f $Description, $Path)
-    }
-
-    return $resolvedPath
-}
-
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $helmConfigPath = Resolve-RepoInputFile -Root $root -Path $HelmConfigFile -Description "HelmConfigFile"
 $jobPlanScript = Join-Path -Path $root -ChildPath "scripts/show-jenkins-job-plan.ps1"

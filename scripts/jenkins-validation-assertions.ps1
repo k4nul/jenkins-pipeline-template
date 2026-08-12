@@ -251,6 +251,33 @@ function Assert-RepoInputFileRejectsReparsePointSegments {
     Assert-TextContains -Text ([string]$probe.Message) -Expected "ValuesFile must not traverse symlink or reparse-point paths" -Message "Repository input symlink rejection should explain the boundary."
 }
 
+function Assert-BundleDeliveryInputFilesRejectReparsePointSegments {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BundleDeliveryScript
+    )
+
+    $probes = @(Invoke-BundleDeliveryInputFileReparsePointFailureFixtures `
+        -Root $Root `
+        -OutputDirectory $OutputDirectory `
+        -BundleDeliveryScript $BundleDeliveryScript)
+    if (@($probes | Where-Object { [bool]$_.Skipped }).Count -gt 0) {
+        Write-Information -MessageData ("Skipping bundle delivery input symlink boundary assertions because symbolic links are unavailable: {0}" -f [string]$probes[0].SkipMessage) -InformationAction Continue
+        return
+    }
+
+    foreach ($probe in $probes) {
+        Assert-Condition -Condition ([bool]$probe.Failed) -Message ("Bundle delivery should reject symlink or reparse-point {0} paths even when repository validation is skipped." -f [string]$probe.Name)
+        Assert-TextContains -Text ([string]$probe.Message) -Expected ([string]$probe.ExpectedMessage) -Message ("Bundle delivery {0} symlink rejection should explain the boundary." -f [string]$probe.Name)
+    }
+}
+
 function Assert-JenkinsRuntimeContract {
     param(
         [Parameter(Mandatory = $true)]

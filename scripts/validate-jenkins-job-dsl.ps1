@@ -39,6 +39,10 @@ Assert-RepoInputFileRejectsReparsePointSegments `
     -Root $root `
     -OutputDirectory $context.OutputDirectory `
     -RepositoryValidationScript $context.Paths.RepositoryValidationScript
+Assert-BundleDeliveryInputFilesRejectReparsePointSegments `
+    -Root $root `
+    -OutputDirectory $context.OutputDirectory `
+    -BundleDeliveryScript $context.Paths.BundleDeliveryScript
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -194,6 +198,7 @@ $summary = [PSCustomObject]@{
     OutputPathControlCharacters = "passed"
     OutputPathReparsePointBoundary = "passed"
     InputFileReparsePointBoundary = "passed"
+    BundleDeliveryInputFileReparsePointBoundary = "passed"
     PromotionArchiveEntrySafety = "passed"
     RuntimeContract = "passed"
     Results = @($results.ToArray())
