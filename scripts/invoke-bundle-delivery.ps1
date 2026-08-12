@@ -33,6 +33,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-RepoRoot -RepoRoot $RepoRoot -DefaultRoot (Join-Path -Path $PSScriptRoot -ChildPath "..")
 $normalizedPresets = @(Get-NormalizedList -Values $EnvironmentPreset)
+$null = Resolve-RepoInputFile -Root $root -Path $HelmConfigFile -Description "HelmConfigFile"
 
 if ($DeployBundle -and -not $DeploymentDryRun) {
     throw "Non-dry-run bundle deployment is not implemented in this public-safe Jenkins template. Keep DeploymentDryRun enabled or provide a downstream deployment implementation."
@@ -97,6 +98,7 @@ $effectiveArchivePath = if ($PSBoundParameters.ContainsKey("ArchivePath") -or $n
 else {
     [string]$singleSelection.ArchivePath
 }
+$null = Resolve-RepoInputFile -Root $root -Path $effectiveValuesFile -Description "ValuesFile"
 $resolvedOutputPath = Resolve-RepoOutputPath -RepoRoot $root -Path $effectiveOutputPath
 $resolvedArchivePath = Resolve-RepoOutputPath -RepoRoot $root -Path $effectiveArchivePath
 

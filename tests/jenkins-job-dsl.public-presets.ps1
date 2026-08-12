@@ -817,6 +817,10 @@ Assert-RepoInputFileRejectsReparsePointSegments `
     -Root $root `
     -OutputDirectory $outputDirectory `
     -RepositoryValidationScript $repositoryValidationScript
+Assert-BundleDeliveryInputFilesRejectReparsePointSegments `
+    -Root $root `
+    -OutputDirectory $outputDirectory `
+    -BundleDeliveryScript $bundleDeliveryScript
 
 foreach ($preset in $presets) {
     $plan = Invoke-JsonScript -ScriptPath $jobPlanScript -Arguments @{
@@ -1260,6 +1264,7 @@ Write-Output "Validated repository output paths reject case-variant out roots."
 Write-Output "Validated repository output paths reject control characters."
 Write-Output "Validated repository output paths reject symlink and reparse-point segments."
 Write-Output "Validated repository input files reject symlink and reparse-point segments."
+Write-Output "Validated bundle delivery input files reject symlink and reparse-point segments when repository validation is skipped."
 Write-Output "Validated non-dry-run delivery and promotion deployment approval guards."
 Write-Output "Validated promotion archive entries fail closed before extraction."
 Write-Output "Validated committed Jenkins runtime entrypoints and public-safe values defaults."

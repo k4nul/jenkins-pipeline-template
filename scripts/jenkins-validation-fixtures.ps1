@@ -149,6 +149,119 @@ function Invoke-RepoInputFileReparsePointFailureFixture {
     }
 }
 
+function Invoke-BundleDeliveryInputFileReparsePointFailureFixtures {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BundleDeliveryScript
+    )
+
+    $probeRoot = Join-Path -Path $OutputDirectory -ChildPath "bundle-delivery-input-reparse-probe"
+    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
+
+    $cases = @(
+        [PSCustomObject]@{
+            Name = "ValuesFile"
+            TargetPath = Join-Path -Path $probeRoot -ChildPath "target-values.env"
+            LinkPath = Join-Path -Path $probeRoot -ChildPath "linked-values.env"
+            ExpectedMessage = "ValuesFile must not traverse symlink or reparse-point paths"
+        },
+        [PSCustomObject]@{
+            Name = "HelmConfigFile"
+            TargetPath = Join-Path -Path $probeRoot -ChildPath "target-helm-releases.psd1"
+            LinkPath = Join-Path -Path $probeRoot -ChildPath "linked-helm-releases.psd1"
+            ExpectedMessage = "HelmConfigFile must not traverse symlink or reparse-point paths"
+        }
+    )
+
+    foreach ($case in $cases) {
+        Set-Content -Path $case.TargetPath -Value "FIXTURE_VALUE=true" -Encoding utf8NoBOM
+        try {
+            if (Test-Path -LiteralPath $case.LinkPath) {
+                Remove-Item -LiteralPath $case.LinkPath -Force
+            }
+
+            New-Item -ItemType SymbolicLink -Path $case.LinkPath -Target $case.TargetPath -ErrorAction Stop | Out-Null
+        }
+        catch {
+            foreach ($cleanupCase in $cases) {
+                if (Test-Path -LiteralPath $cleanupCase.LinkPath) {
+                    Remove-Item -LiteralPath $cleanupCase.LinkPath -Force
+                }
+            }
+
+            return @([PSCustomObject]@{
+                Skipped = $true
+                SkipMessage = [string]$_
+                Failed = $false
+                Name = ""
+                ExpectedMessage = ""
+                Message = ""
+            })
+        }
+    }
+
+    try {
+        $results = New-Object System.Collections.Generic.List[object]
+        foreach ($case in $cases) {
+            $valuesFile = if ($case.Name -eq "ValuesFile") {
+                [System.IO.Path]::GetRelativePath($Root, $case.LinkPath)
+            }
+            else {
+                "config/platform-values.env.example"
+            }
+            $helmConfigFile = if ($case.Name -eq "HelmConfigFile") {
+                [System.IO.Path]::GetRelativePath($Root, $case.LinkPath)
+            }
+            else {
+                "config/helm-releases.psd1"
+            }
+            $probe = Invoke-JenkinsValidationFailureProbe `
+                -ScriptBlock {
+                    param(
+                        [string]$ScriptPath,
+                        [string]$ProbeRoot,
+                        [string]$ValuesPath,
+                        [string]$HelmPath
+                    )
+
+                    & $ScriptPath `
+                        -RepoRoot $ProbeRoot `
+                        -SelectionName "input-file-boundary-probe" `
+                        -ValuesFile $ValuesPath `
+                        -HelmConfigFile $HelmPath `
+                        -OutputPath "out/jenkins/validation/bundle-delivery-input-file-probe" `
+                        -SkipRepositoryValidation `
+                        -SkipArchive | Out-Null
+                } `
+                -ArgumentList @($BundleDeliveryScript, $Root, $valuesFile, $helmConfigFile)
+
+            $results.Add([PSCustomObject]@{
+                Skipped = $false
+                SkipMessage = ""
+                Failed = [bool]$probe.Failed
+                Name = [string]$case.Name
+                ExpectedMessage = [string]$case.ExpectedMessage
+                Message = [string]$probe.Message
+            }) | Out-Null
+        }
+
+        return @($results.ToArray())
+    }
+    finally {
+        foreach ($case in $cases) {
+            if (Test-Path -LiteralPath $case.LinkPath) {
+                Remove-Item -LiteralPath $case.LinkPath -Force
+            }
+        }
+    }
+}
+
 function New-JenkinsServiceJobFixtureRoot {
     param(
         [string]$Root,
