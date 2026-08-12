@@ -122,7 +122,8 @@ fixture catalog mutation, and generated archive setup in
 those fixture contexts and verify the command result. This keeps side-effecting
 negative scenarios separate from pure checks while preserving the public harness
 entry points. Negative validation probes for service catalog mutations,
-reparse-point output paths, and unsafe promotion archive entries should return
+reparse-point output paths, and unsafe promotion archive entries (including
+duplicate, case-conflicting, and file/directory-conflicting paths) should return
 small result objects from fixture helpers so assertion functions only check the
 failure state and expected message. Unsafe promotion archives must be rejected
 before `-CleanExtractPath` can remove an existing extraction directory; the

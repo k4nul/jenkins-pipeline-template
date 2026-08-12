@@ -749,6 +749,26 @@ function Get-UnsafePromotionArchiveEntryCases {
             EntryName = "nested/unsafe:name.txt"
             ExpectedMessage = "unsupported characters"
             Message = "Promotion should reject archive entries with platform-sensitive characters."
+        },
+        @{
+            EntryNames = @("bundle-manifest.json", "bundle-manifest.json")
+            ExpectedMessage = "duplicate or case-conflicting entry paths"
+            Message = "Promotion should reject duplicate archive entries before extraction."
+        },
+        @{
+            EntryNames = @("bundle-manifest.json", "reports", "reports/summary.txt")
+            ExpectedMessage = "conflicts with a file parent"
+            Message = "Promotion should reject archive entries nested beneath a file entry."
+        },
+        @{
+            EntryNames = @("bundle-manifest.json", "reports/summary.txt", "reports")
+            ExpectedMessage = "conflicts with a descendant entry"
+            Message = "Promotion should reject a file entry that conflicts with an existing descendant entry."
+        },
+        @{
+            EntryNames = @("bundle-manifest.json", "reports/summary.txt", "reports/SUMMARY.txt")
+            ExpectedMessage = "duplicate or case-conflicting entry paths"
+            Message = "Promotion should reject archive entries that collide only by case."
         }
     )
 }
@@ -785,7 +805,13 @@ function Invoke-PromotionArchiveEntryFailureFixtures {
         $preservedFilePath = Join-Path $extractPath "preserve-on-invalid-archive.txt"
         Set-Content -Path $preservedFilePath -Value "preserve" -Encoding utf8NoBOM
 
-        New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames @("bundle-manifest.json", [string]$case.EntryName)
+        $entryNames = if ($case.ContainsKey("EntryNames")) {
+            @($case.EntryNames)
+        }
+        else {
+            @("bundle-manifest.json", [string]$case.EntryName)
+        }
+        New-ZipArchiveFixture -ArchivePath $archivePath -EntryNames $entryNames
 
         $probe = Invoke-JenkinsValidationFailureProbe `
             -ScriptBlock {
