@@ -61,6 +61,7 @@ generated pipeline topology:
 sh scripts/run-phase-validation.sh
 pwsh -NoProfile -File scripts/show-dependency-inventory.ps1 -Format json
 pwsh -NoProfile -File scripts/validate-jenkins-job-dsl.ps1
+pwsh -NoProfile -File scripts/test-pipeline-contracts.ps1
 pwsh -NoProfile -File tests/jenkins-job-dsl.public-presets.ps1
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -EnvironmentPreset dev -Format json
 pwsh -NoProfile -File scripts/show-jenkins-job-plan.ps1 -Format json
@@ -75,6 +76,11 @@ test suite. It labels each wrapper step, reports the first failing command and
 exit code, and is the same command used by the `Jenkins Phase Validation`
 GitHub Actions workflow. Generated `out/jenkins/**` workflow artifacts are
 diagnostic fixtures only and stay out of Git.
+`test-pipeline-contracts.ps1` is the named controller-free contract lane used
+by the project validation contract. It runs the public preset fixture suite,
+which covers the dev, staging, and prod generation paths; validates the
+validation-to-delivery-to-manual-approval-to-promotion order; and verifies that
+credentials stay identifiers or parameters rather than generated secret values.
 `validate-jenkins-job-dsl.ps1` is the aggregate controller-free harness. By
 default it validates every built-in environment preset, exports ignored DSL
 fixtures under `out/jenkins/validation`, exports one combined full public preset

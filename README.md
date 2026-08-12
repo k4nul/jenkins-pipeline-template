@@ -34,10 +34,14 @@ sh scripts/run-phase-validation.sh
 .\scripts\export-jenkins-job-dsl.ps1 -EnvironmentPreset dev -OutputPath .\out\jenkins\seed-job-dsl.groovy
 .\scripts\export-jenkins-job-dsl.ps1 -OutputPath .\out\jenkins\public-preset-matrix-seed-job-dsl.groovy
 .\scripts\validate-service-pipelines.ps1
+.\scripts\test-pipeline-contracts.ps1
 .\tests\jenkins-job-dsl.public-presets.ps1
 ```
 
 Use `validate-jenkins-job-dsl.ps1` before changing job planning, Job DSL export, environment presets, profiles, or service pipeline catalog data. It validates the built-in public-safe preset matrix and writes generated fixtures only under ignored `out/` paths.
+Use `test-pipeline-contracts.ps1` for the explicit controller-free contract lane:
+it runs the public preset fixtures for the dev, staging, and prod paths plus
+approval, credential-boundary, and promotion-order assertions.
 Omit `-EnvironmentPreset` from plan or export commands when you need to preview
 the same full public-safe preset matrix that the seed job uses by default.
 The phase wrapper labels each validation step, reports the first failing command,

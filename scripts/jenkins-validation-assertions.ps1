@@ -121,6 +121,7 @@ function Get-JenkinsValidationPaths {
         RepositoryValidationScript = Join-Path $Root "scripts/invoke-repository-validation.ps1"
         BundleDeliveryScript = Join-Path $Root "scripts/invoke-bundle-delivery.ps1"
         BundlePromotionScript = Join-Path $Root "scripts/invoke-bundle-promotion.ps1"
+        PipelineContractTestScript = Join-Path $Root "scripts/test-pipeline-contracts.ps1"
         PhaseValidationScript = Join-Path $Root "scripts/run-phase-validation.sh"
         PublicPresetTestScript = Join-Path $Root "tests/jenkins-job-dsl.public-presets.ps1"
         PhaseGateManifest = Join-Path $Root "docs/instructions/phase-gates.json"
@@ -242,6 +243,7 @@ function Assert-JenkinsRuntimeContract {
         $Paths.RepositoryValidationScript,
         $Paths.BundleDeliveryScript,
         $Paths.BundlePromotionScript,
+        $Paths.PipelineContractTestScript,
         $Paths.PublicPresetTestScript
     )) {
         Assert-Condition -Condition (Test-Path -Path $scriptPath -PathType Leaf) -Message ("Jenkins runtime contract file should exist: {0}" -f $scriptPath)
