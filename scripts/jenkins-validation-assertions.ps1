@@ -36,6 +36,20 @@ function Assert-ContainsItem {
     Assert-Condition -Condition ($items -contains $Expected) -Message $Message
 }
 
+function Assert-ServiceJobUsageMatchesSelections {
+    param(
+        [object]$ServiceJob,
+        [string[]]$ExpectedSelections,
+        [string]$Message
+    )
+
+    $expected = @(Get-NormalizedList -Values $ExpectedSelections)
+    $actual = @($ServiceJob.UsedBySelections | ForEach-Object { [string]$_ })
+
+    Assert-Equal -Actual $actual.Count -Expected $expected.Count -Message $Message
+    Assert-Equal -Actual (($actual | Sort-Object) -join ",") -Expected ($expected -join ",") -Message $Message
+}
+
 function Assert-TextContains {
     param(
         [string]$Text,
@@ -570,12 +584,10 @@ function Assert-PublicPresetMatrixServiceCoverage {
                 -Message ("Full public preset matrix Jenkinsfile-backed service {0} should project one shared service job." -f $serviceName)
 
             $serviceJob = $serviceJobs[0]
-            foreach ($usedBySelection in @($serviceUsage[$serviceName].ToArray() | Sort-Object -Unique)) {
-                Assert-ContainsItem `
-                    -Values @($serviceJob.UsedBySelections) `
-                    -Expected ([string]$usedBySelection) `
-                    -Message ("Full public preset matrix service job {0} should record usage by {1}." -f $serviceName, $usedBySelection)
-            }
+            Assert-ServiceJobUsageMatchesSelections `
+                -ServiceJob $serviceJob `
+                -ExpectedSelections @($serviceUsage[$serviceName].ToArray()) `
+                -Message ("Full public preset matrix service job {0} should record exactly the presets that select it." -f $serviceName)
         }
         else {
             Assert-Equal `
@@ -821,8 +833,10 @@ function Assert-JenkinsServiceJobSharedPresetPlan {
     Assert-Equal -Actual ([string]$serviceJob.Jenkinsfile) -Expected "services\nginx-web\Jenkinsfile" -Message "Shared service job fixture Jenkinsfile path"
     Assert-ContainsItem -Values @($serviceJob.RequiredEnvironmentVariables) -Expected "DOCKER_REGISTRY" -Message "Shared service job fixture should expose registry requirement"
     Assert-ContainsItem -Values @($serviceJob.OptionalEnvironmentVariables) -Expected "CACHE" -Message "Shared service job fixture should expose optional service variables"
-    Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "fixture-alpha" -Message "Shared service job should record fixture-alpha usage"
-    Assert-ContainsItem -Values @($serviceJob.UsedBySelections) -Expected "fixture-beta" -Message "Shared service job should record fixture-beta usage"
+    Assert-ServiceJobUsageMatchesSelections `
+        -ServiceJob $serviceJob `
+        -ExpectedSelections @("fixture-alpha", "fixture-beta") `
+        -Message "Shared service job should record exactly the presets that select it"
 }
 
 function Assert-JenkinsServiceJobsSkippedPlan {

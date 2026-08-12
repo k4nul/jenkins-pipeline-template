@@ -28,7 +28,8 @@ dependency chain, verifies service-job projection with synthetic
 Jenkinsfile-backed service fixtures, verifies every public preset application is
 covered by service pipeline catalog metadata, verifies catalog-only public-image
 services do not produce Jenkins service jobs, verifies shared service-job
-de-duplication across multiple selected presets and nested service roots,
+de-duplication and exact preset-usage tracking across multiple selected presets
+and nested service roots,
 verifies `-SkipServiceJobs` suppresses Jenkinsfile-backed service jobs, verifies
 `-SelectionName` by itself creates one custom selection with public-safe
 defaults instead of falling back to the full preset matrix, verifies
