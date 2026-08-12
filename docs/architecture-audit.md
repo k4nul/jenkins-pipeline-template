@@ -221,7 +221,7 @@ Validation evidence for the current checkout:
 sh scripts/run-phase-validation.sh
 ```
 
-The wrapper passed on 2026-08-11 with PowerShell 7.6.2 and covered dependency
+The wrapper passed on 2026-08-12 with PowerShell 7.6.2 and covered dependency
 inventory, the focused `dev` job plan, service pipeline plan, ignored Job DSL
 export, service pipeline validation, aggregate Job DSL validation, and the public
 preset test suite.
